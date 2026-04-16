@@ -69,7 +69,7 @@ operating:
 debt:
   name: { en: "Senior Green Loan (Non-recourse)", it: "Green Loan Senior (Non-recourse)" }
   amount:
-    { id: A-020, name: senior_amount, label: { en: "Senior debt amount", it: "Debito senior" }, unit: eur_m, base: 214.0, rationale: "€214M non-recourse senior per press release (68% gearing on total €316M).", confidence: H, source_id: S-001 }
+    { id: A-020, name: senior_amount, label: { en: "Senior debt amount (cap)", it: "Debito senior (cap)" }, unit: eur_m, base: 214.0, rationale: "€214M non-recourse senior per press release (68% gearing on total €316M) — used as CAP; actual sized from target DSCR.", confidence: H, source_id: S-001 }
   tenor_operating_years: 18
   grace_years: 1
   reference_rate:
@@ -78,6 +78,15 @@ debt:
     { id: A-022, name: senior_margin_bps, label: { en: "Senior margin (bps)", it: "Margine senior" }, unit: bps, base: 175, worst: 200, best: 150, rationale: "Green Taxonomy Art. 9 eligibility compresses pricing to 150-200 bps range.", confidence: H, source_id: S-006 }
   arrangement_fee_pct:
     { id: A-023, name: senior_arrangement_pct, label: { en: "Arrangement fee %", it: "Strutturazione" }, unit: pct, base: 0.0125, rationale: "1-1.5% PF infra standard.", confidence: H, source_id: S-006 }
+  # v0.3: lender-style sizing — solver back-solves senior amount from target
+  # DSCR 1.30x BASE; sculpted level-debt-service amortization.
+  amortization_profile: sculpted_dscr_target
+  debt_sizing_mode: dscr_target
+  dsra_months: 6
+  target_dscr_base:
+    { id: A-080, name: target_dscr_base, label: { en: "Target DSCR (BASE sizing)", it: "DSCR target (dimensionamento BASE)" }, unit: x, base: 1.30, rationale: "Market-standard BASE DSCR for Italian solar PF (ING/Rabobank/BNPP club deals).", confidence: H, source_id: S-006 }
+  target_dscr_downside:
+    { id: A-081, name: target_dscr_downside, label: { en: "Target DSCR (downside)", it: "DSCR target (downside)" }, unit: x, base: 1.10, rationale: "Downside case must clear 1.10x under PwC stress template.", confidence: M, source_id: S-006 }
 
 covenant:
   threshold_by_year:

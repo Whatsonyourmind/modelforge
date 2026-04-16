@@ -4,6 +4,15 @@ Construction phase: capex per year, IDC capitalized, no revenue.
 Operating phase: revenue → opex → EBITDA → tax → CADS → debt service → dividends.
 
 Layout: columns D..D+N where N = construction_years + operating_years.
+
+v0.3: CFADS (DSCR numerator) unchanged; after pf_debt has emitted, the
+template orchestrator calls `append_distributable_cash(ws, cashflow_refs,
+debt_refs)` which adds:
+    - Senior debt service (from DebtDSCR)
+    - DSRA funding (from DebtDSCR)
+    - Distributable cash to equity
+
+DSRA funding is DOWNSTREAM of the DSCR check per market convention.
 """
 
 from __future__ import annotations
@@ -130,4 +139,84 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     ws.print_title_cols = "A:C"
 
     out = {f"{k}_row": str(v) for k, v in rows.items()}
+    # Track where the distributable-cash section should begin (append later)
+    out["_next_row"] = str(r + 1)
     return out
+
+
+def append_distributable_cash(
+    ws: Worksheet,
+    spec,
+    cashflow_refs: dict[str, str],
+    debt_refs: dict[str, str],
+    debt_sheet: str,
+) -> dict[str, str]:
+    """Append debt-service + DSRA + distributable-cash rows.
+
+    Called by the template orchestrator AFTER pf_debt.build has emitted, so
+    debt_refs are known. DSCR numerator stays CFADS (above); DSRA only
+    affects distributable cash per market convention.
+    """
+    c = spec.horizon.construction_years
+    o = spec.horizon.operating_years
+    n = c + o
+
+    r = int(cashflow_refs["_next_row"])
+
+    layout.write_section_header(
+        ws, r, "Waterfall — equity distributions", "Waterfall — distribuzioni equity",
+    )
+    r += 1
+
+    debt_service_row = int(debt_refs["debt_service_row"])
+    dsra_funding_row = int(debt_refs["dsra_funding_row"])
+    cads_row = int(cashflow_refs["cads_row"])
+
+    rows: dict[str, int] = {}
+
+    # CADS passthrough for clarity
+    rows["cads_ref"] = r
+    layout.write_row_label(ws, r, "CADS (from above)", "CADS (dal sopra)", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx, value=f"=${col}${cads_row}")
+        styles.style_xref(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # Debt service (cross-sheet pull, negative)
+    rows["ds_pull"] = r
+    layout.write_row_label(ws, r, "Senior debt service", "Servizio debito senior", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"='{debt_sheet}'!{col}{debt_service_row}")
+        styles.style_xref(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # DSRA funding (cross-sheet pull, negative when funding, positive on release)
+    rows["dsra_pull"] = r
+    layout.write_row_label(ws, r, "DSRA funding / release", "DSRA finanziamento", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"='{debt_sheet}'!{col}{dsra_funding_row}")
+        styles.style_xref(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # Distributable cash = CADS + debt service + DSRA funding
+    # (debt service is negative; DSRA funding is negative when funding)
+    rows["distributable"] = r
+    layout.write_row_label(ws, r, "Distributable cash to equity",
+                           "Cassa distribuibile agli equity holder")
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx,
+                     value=(f"=${col}${rows['cads_ref']}"
+                            f"+${col}${rows['ds_pull']}"
+                            f"+${col}${rows['dsra_pull']}"))
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+        cc.font = styles.font_subheader
+        cc.border = styles.BORDER_TOP_THIN
+    r += 1
+
+    return {f"{k}_row": str(v) for k, v in rows.items()}
