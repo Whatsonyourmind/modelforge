@@ -48,7 +48,7 @@ class LLMBackend(Protocol):
 class AnthropicAPIBackend:
     """Uses anthropic SDK with tool_use forcing + prompt caching."""
 
-    def __init__(self, model: str = "claude-opus-4-6", use_cache: bool = True):
+    def __init__(self, model: str = "claude-opus-4-7", use_cache: bool = True):
         from anthropic import Anthropic
         if not os.getenv("ANTHROPIC_API_KEY"):
             raise RuntimeError(
@@ -229,7 +229,7 @@ def _parse_json_from_text(text: str) -> dict:
 
 def get_backend(
     backend: str = "cli",
-    model: str = "claude-opus-4-6",
+    model: str = "claude-opus-4-7",
     use_cache: bool = True,
 ) -> LLMBackend:
     """Create the requested backend.
