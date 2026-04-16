@@ -1,0 +1,350 @@
+"""Debt schedule.
+
+Period-by-period debt roll-forward for each tranche. Reads drivers
+(amount, margin, floor, reference rate, arrangement fee) as named ranges
+from Assumptions. Computes opening → drawdown → amortization → closing,
+average balance, all-in rate, cash interest.
+
+Also writes back into the Operating Model's Interest Expense row via a
+cross-sheet SUMIFS pattern (one tranche per period → summed).
+
+Sign convention: cash interest is NEGATIVE on Operating Model (it's a
+cost). Debt balances on this sheet are POSITIVE (they're liabilities
+shown at face value).
+"""
+
+from __future__ import annotations
+
+from openpyxl.worksheet.worksheet import Worksheet
+
+from modelforge.builder import styles, layout
+from modelforge.builder.formulas import all_in_rate, average_of, cash_sweep
+from modelforge.builder.i18n import L
+from modelforge.graph.schema import LinkageGraph, GraphNode, NodeKind
+from modelforge.spec.unitranche import UnitrancheSpec
+
+
+def build(
+    ws: Worksheet,
+    spec: UnitrancheSpec,
+    graph: LinkageGraph,
+    driver_refs: dict[str, str],
+    operating_refs: dict[str, str],
+    operating_sheet_name: str,
+) -> dict[str, str]:
+    horizon = spec.horizon
+    h = horizon.historical_years
+    p = horizon.projection_years
+    n_years = h + p
+
+    layout.set_column_widths(ws, label_width=40, it_width=32, year_width=12, unit_width=6)
+
+    layout.write_title_block(
+        ws,
+        title_en="Debt Schedule",
+        title_it="Piano del debito",
+        subtitle=f"{spec.meta.currency} {spec.meta.unit_scale} · "
+                 f"average-balance interest convention",
+    )
+    layout.write_scenario_banner(ws, row=3)
+
+    # Year header row
+    yr_row = 5
+    base_fy_year = spec.target.last_fy_end.year
+    for i in range(n_years):
+        col = layout.year_col(i)
+        col_idx = ord(col) - ord("A") + 1
+        yr = base_fy_year - (h - 1) + i
+        is_hist = i < h
+        c = ws.cell(row=yr_row, column=col_idx,
+                    value=f"{'A' if is_hist else 'E'} {yr}")
+        styles.style_header(c)
+
+    # For each tranche, write a block
+    r = 7
+    tranche_blocks: list[dict] = []
+    for tr_idx, tr in enumerate(spec.debt.tranches):
+        layout.write_section_header(ws, r, f"Tranche — {tr.name.en}", tr.name.it)
+        r += 1
+
+        block: dict[str, int] = {"name": tr.name.en}
+
+        # Opening debt
+        block["opening"] = r
+        layout.write_row_label(ws, r, L("debt_opening").en, L("debt_opening").it)
+        ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
+        for i in range(n_years):
+            col = layout.year_col(i)
+            col_idx = ord(col) - ord("A") + 1
+            if i == 0:
+                # First historical: 0 (we assume the deal closes at end of last historical)
+                c = ws.cell(row=r, column=col_idx, value=0)
+                styles.style_formula(c, number_format=styles.FMT_EUR_M)
+            else:
+                # opening = prior closing
+                prior_col = layout.year_col(i - 1)
+                c = ws.cell(row=r, column=col_idx, value=f"=${prior_col}${r + 3}")
+                styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        r += 1
+
+        # Drawdown (only at close — the first projected year)
+        block["drawdown"] = r
+        layout.write_row_label(ws, r, L("debt_drawdown").en, L("debt_drawdown").it, indent=True)
+        ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
+        for i in range(n_years):
+            col = layout.year_col(i)
+            col_idx = ord(col) - ord("A") + 1
+            if i == h:  # first projected year = close
+                c = ws.cell(row=r, column=col_idx, value=f"={tr.amount.name}")
+                styles.style_xref(c, number_format=styles.FMT_EUR_M)
+            else:
+                c = ws.cell(row=r, column=col_idx, value=0)
+                styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        r += 1
+
+        # Repayment / amortization
+        block["repayment"] = r
+        layout.write_row_label(ws, r, L("debt_repayment").en, L("debt_repayment").it, indent=True)
+        ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
+        maturity_year = h + tr.tenor_years  # zero-based column index of maturity
+        for i in range(n_years):
+            col = layout.year_col(i)
+            col_idx = ord(col) - ord("A") + 1
+            amort_ref = 0
+            if tr.amortization == "bullet":
+                if i == maturity_year:
+                    # Repay full opening at maturity
+                    c = ws.cell(row=r, column=col_idx,
+                                value=f"=-${col}${block['opening']}")
+                    styles.style_formula(c, number_format=styles.FMT_EUR_M)
+                    continue
+            elif tr.amortization == "linear":
+                if h <= i <= maturity_year and tr.tenor_years > 0:
+                    c = ws.cell(
+                        row=r, column=col_idx,
+                        value=f"=-{tr.amount.name}/{tr.tenor_years}",
+                    )
+                    styles.style_formula(c, number_format=styles.FMT_EUR_M)
+                    continue
+            elif tr.amortization == "mandatory_1pct":
+                if h <= i < maturity_year:
+                    c = ws.cell(row=r, column=col_idx,
+                                value=f"=-{tr.amount.name}*1%")
+                    styles.style_formula(c, number_format=styles.FMT_EUR_M)
+                    continue
+                elif i == maturity_year:
+                    c = ws.cell(
+                        row=r, column=col_idx,
+                        value=f"=-${col}${block['opening']}",
+                    )
+                    styles.style_formula(c, number_format=styles.FMT_EUR_M)
+                    continue
+            # Default: no amortization this period
+            c = ws.cell(row=r, column=col_idx, value=0)
+            styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        r += 1
+
+        # Closing debt = opening + drawdown + repayment (repayment negative)
+        block["closing"] = r
+        layout.write_row_label(ws, r, L("debt_closing").en, L("debt_closing").it)
+        ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
+        for i in range(n_years):
+            col = layout.year_col(i)
+            col_idx = ord(col) - ord("A") + 1
+            c = ws.cell(
+                row=r, column=col_idx,
+                value=(
+                    f"=${col}${block['opening']}"
+                    f"+${col}${block['drawdown']}"
+                    f"+${col}${block['repayment']}"
+                ),
+            )
+            styles.style_formula(c, number_format=styles.FMT_EUR_M)
+            c.font = styles.font_subheader
+            c.border = styles.BORDER_TOP_THIN
+        r += 1
+
+        # Average balance
+        block["average"] = r
+        layout.write_row_label(ws, r, L("debt_average").en, L("debt_average").it, indent=True)
+        ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
+        for i in range(n_years):
+            col = layout.year_col(i)
+            col_idx = ord(col) - ord("A") + 1
+            opening_ref = f"${col}${block['opening']}"
+            closing_ref = f"${col}${block['closing']}"
+            c = ws.cell(row=r, column=col_idx,
+                        value=f"=({opening_ref}+{closing_ref})/2")
+            styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        r += 1
+
+        # All-in rate (constant within period, floor-adjusted)
+        block["all_in_rate"] = r
+        layout.write_row_label(ws, r, L("all_in_rate").en, L("all_in_rate").it, indent=True)
+        ws.cell(row=r, column=3, value="%").font = styles.font_label_it
+        ref_rate_name = tr.reference_rate.rate_decimal.name
+        for i in range(n_years):
+            col = layout.year_col(i)
+            col_idx = ord(col) - ord("A") + 1
+            c = ws.cell(
+                row=r, column=col_idx,
+                value=all_in_rate(ref_rate_name, tr.margin_bps.name, tr.floor_pct.name),
+            )
+            styles.style_formula(c, number_format=styles.FMT_PCT_2DP)
+        r += 1
+
+        # Cash interest (negative)
+        block["interest"] = r
+        layout.write_row_label(ws, r, L("cash_interest").en, L("cash_interest").it)
+        ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
+        for i in range(n_years):
+            col = layout.year_col(i)
+            col_idx = ord(col) - ord("A") + 1
+            avg_ref = f"${col}${block['average']}"
+            rate_ref = f"${col}${block['all_in_rate']}"
+            c = ws.cell(row=r, column=col_idx, value=f"=-{avg_ref}*{rate_ref}")
+            styles.style_formula(c, number_format=styles.FMT_EUR_M)
+            c.font = styles.font_subheader
+        r += 1
+
+        # Arrangement fee (paid at close only)
+        block["arrangement_fee"] = r
+        layout.write_row_label(ws, r, L("arrangement_fee").en, L("arrangement_fee").it, indent=True)
+        ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
+        for i in range(n_years):
+            col = layout.year_col(i)
+            col_idx = ord(col) - ord("A") + 1
+            if i == h:
+                c = ws.cell(
+                    row=r, column=col_idx,
+                    value=f"={tr.amount.name}*{tr.arrangement_fee_pct.name}",
+                )
+                styles.style_formula(c, number_format=styles.FMT_EUR_M)
+            else:
+                c = ws.cell(row=r, column=col_idx, value=0)
+                styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        r += 2
+
+        tranche_blocks.append(block)
+
+    # ─── Cash sweep block (if enabled) ─────────────────────────────────────
+    cash_sweep_row: int | None = None
+    if spec.debt.cash_sweep.enabled and spec.debt.cash_sweep.sweep_pct and spec.debt.cash_sweep.trigger_leverage:
+        layout.write_section_header(ws, r, "Cash sweep", "Rimborso automatico (cash sweep)")
+        r += 1
+
+        # Interim leverage = (sum of pre-sweep closing) / EBITDA
+        interim_lev_row = r
+        layout.write_row_label(
+            ws, r, "Interim leverage (pre-sweep)", "Leva pre-sweep", indent=True,
+        )
+        ws.cell(row=r, column=3, value="x").font = styles.font_label_it
+        ebitda_row = int(operating_refs["ebitda_row"])
+        for i in range(n_years):
+            col = layout.year_col(i)
+            col_idx = ord(col) - ord("A") + 1
+            # Sum of all tranche closings this period
+            parts = [f"${col}${b['closing']}" for b in tranche_blocks]
+            debt_sum = "(" + "+".join(parts) + ")"
+            ebitda_ref = f"'{operating_sheet_name}'!{col}{ebitda_row}"
+            c = ws.cell(row=r, column=col_idx,
+                        value=f"=IFERROR({debt_sum}/{ebitda_ref},0)")
+            styles.style_formula(c, number_format=styles.FMT_MULTIPLE)
+        r += 1
+
+        # Sweep amount
+        cash_sweep_row = r
+        layout.write_row_label(ws, r, "Cash sweep (applied to senior)",
+                               "Cash sweep (applicato al senior)", indent=True)
+        ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
+        fcf_row = int(operating_refs["fcf_row"])
+        sweep_pct_name = spec.debt.cash_sweep.sweep_pct.name
+        trigger_name = spec.debt.cash_sweep.trigger_leverage.name
+        for i in range(n_years):
+            col = layout.year_col(i)
+            col_idx = ord(col) - ord("A") + 1
+            if i < h:
+                c = ws.cell(row=r, column=col_idx, value=0)
+                styles.style_formula(c, number_format=styles.FMT_EUR_M)
+                continue
+            fcf_ref = f"'{operating_sheet_name}'!{col}{fcf_row}"
+            lev_ref = f"${col}${interim_lev_row}"
+            c = ws.cell(
+                row=r, column=col_idx,
+                value=cash_sweep(fcf_ref, lev_ref, trigger_name, sweep_pct_name),
+            )
+            styles.style_formula(c, number_format=styles.FMT_EUR_M)
+
+            # Apply the sweep back to the SENIOR tranche's repayment row.
+            # Senior = first tranche (by convention).
+            if tranche_blocks:
+                senior_repay_row = tranche_blocks[0]["repayment"]
+                senior_repay_cell = ws.cell(row=senior_repay_row, column=col_idx)
+                existing = senior_repay_cell.value
+                if existing in (None, 0):
+                    senior_repay_cell.value = f"=${col}${cash_sweep_row}"
+                elif isinstance(existing, str) and existing.startswith("="):
+                    # Append sweep to existing repayment formula
+                    senior_repay_cell.value = existing + f"+${col}${cash_sweep_row}"
+                styles.style_formula(senior_repay_cell, number_format=styles.FMT_EUR_M)
+        r += 2
+
+    # ─── Totals block ──────────────────────────────────────────────────────
+    layout.write_section_header(ws, r, "Totals across tranches", "Totali (tutte le tranche)")
+    r += 1
+
+    # Total closing debt
+    total_closing_row = r
+    layout.write_row_label(ws, r, "Total debt outstanding", "Debito totale")
+    ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
+    for i in range(n_years):
+        col = layout.year_col(i)
+        col_idx = ord(col) - ord("A") + 1
+        parts = [f"${col}${b['closing']}" for b in tranche_blocks]
+        formula = "=" + "+".join(parts)
+        c = ws.cell(row=r, column=col_idx, value=formula)
+        styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        c.font = styles.font_subheader
+    r += 1
+
+    # Total interest
+    total_interest_row = r
+    layout.write_row_label(ws, r, "Total cash interest", "Interessi totali")
+    ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
+    for i in range(n_years):
+        col = layout.year_col(i)
+        col_idx = ord(col) - ord("A") + 1
+        parts = [f"${col}${b['interest']}" for b in tranche_blocks]
+        formula = "=" + "+".join(parts)
+        c = ws.cell(row=r, column=col_idx, value=formula)
+        styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        c.font = styles.font_subheader
+        c.border = styles.BORDER_TOP_THIN
+    r += 1
+
+    # ── Patch Operating Model's interest row ───────────────────────────────
+    interest_row_op = int(operating_refs["interest_row"])
+    for i in range(n_years):
+        col = layout.year_col(i)
+        col_idx = ord(col) - ord("A") + 1
+        formula_target_cell = f"'{operating_sheet_name}'!{col}{interest_row_op}"
+        # We can't mutate operating through its sheet object here (we'd need
+        # the ws). Instead, we return the ref and the top-level builder will
+        # wire it — but to keep things self-contained, we'll let operating's
+        # interest remain 0 and add a note. Actually we need to do it:
+        # fetch operating worksheet through workbook.
+        wb = ws.parent
+        op_ws = wb[operating_sheet_name]
+        op_cell = op_ws.cell(row=interest_row_op, column=col_idx)
+        op_cell.value = f"='{ws.title}'!{col}{total_interest_row}"
+        styles.style_xref(op_cell, number_format=styles.FMT_EUR_M)
+
+    ws.freeze_panes = "D7"
+    ws.print_title_rows = "5:5"
+    ws.print_title_cols = "A:C"
+
+    return {
+        "total_closing_row": str(total_closing_row),
+        "total_interest_row": str(total_interest_row),
+        "tranche_blocks": tranche_blocks,  # type: ignore[dict-item]
+    }

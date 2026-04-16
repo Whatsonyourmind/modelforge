@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "modelforge"
+version = "0.1.0"
+description = "Bulge-tier Excel financial model factory. Every cell live-formulated, every number traceable."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "maintainer" }]
+license = { text = "Proprietary" }
+
+dependencies = [
+    "pydantic>=2.6",
+    "openpyxl>=3.1.2",
+    "pyyaml>=6.0.1",
+    "rich>=13.7",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+validate = ["formulas>=1.2.7"]
+data = ["requests>=2.31", "pandas>=2.2"]
+dev = ["pytest>=8", "ruff>=0.3"]
+
+[project.scripts]
+modelforge = "modelforge.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["modelforge*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
