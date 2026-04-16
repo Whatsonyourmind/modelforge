@@ -1,0 +1,81 @@
+# 3-Statement corporate model — same Italian Specialty Pharma CDMO
+# For corporate finance / sell-side / buyer use
+
+model_type: three_statement
+
+meta:
+  project_code: DEMO-CDMO-3S
+  deliverable: { en: "3-Statement Operating Model", it: "Modello Operativo a 3 Prospetti" }
+  analyst: L. Stanisljevic
+  version: v0.1
+  status: draft
+  valuation_date: 2026-04-16
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "Standalone 3-statement for Italian pharma CDMO." }
+
+target:
+  name: "Target SpA (anonymized CDMO)"
+  sector: { en: "Specialty Pharma / CDMO", it: "Pharma specialistico / CDMO" }
+  country: IT
+  currency: EUR
+  revenue_last_fy_eur_m: 42.0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 9.2
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon: { historical_years: 3, projection_years: 5 }
+
+sources:
+  - { id: S-001, doc: Dataroom_FY23_FY24_FY25_Audited.pdf, page: 14, publisher: "Target SpA", date: 2026-03-12, verified: true, note: "Audited FY23-FY25 financials." }
+  - { id: S-002, doc: AIFI_Italian_Mid_Market_Margins_2025.pdf, page: 8, publisher: AIFI, date: 2026-01-30, verified: true, note: "Italian mid-market EBITDA 20-26% Pharma CDMO." }
+  - { id: S-003, doc: PwC_Italy_IRES_IRAP_2026.pdf, page: 1, publisher: PwC, date: 2026-01-15, url: "https://taxsummaries.pwc.com/italy", verified: true, note: "IRES+IRAP 27.9%." }
+  - { id: S-004, doc: Cerved_Italian_SME_DSO_DPO_Pharma_2025.pdf, page: 18, publisher: Cerved, date: 2025-11-15, verified: false, note: "Italian Pharma DSO ~65d, DPO ~55d, inventory ~45d." }
+
+pl:
+  revenue_growth_by_year:
+    - { id: A-001, name: revenue_growth_y1, label: { en: "Rev growth Y1", it: "Crescita Y1" }, unit: pct, base: 0.08, rationale: "Management plan.", confidence: M, source_id: S-001 }
+    - { id: A-002, name: revenue_growth_y2, label: { en: "Rev growth Y2", it: "Crescita Y2" }, unit: pct, base: 0.07, rationale: "Taper.", confidence: M }
+    - { id: A-003, name: revenue_growth_y3, label: { en: "Rev growth Y3", it: "Crescita Y3" }, unit: pct, base: 0.06, rationale: "Steady.", confidence: M }
+    - { id: A-004, name: revenue_growth_y4, label: { en: "Rev growth Y4", it: "Crescita Y4" }, unit: pct, base: 0.05, rationale: "Mature.", confidence: L }
+    - { id: A-005, name: revenue_growth_y5, label: { en: "Rev growth Y5", it: "Crescita Y5" }, unit: pct, base: 0.05, rationale: "Terminal.", confidence: L }
+  ebitda_margin_by_year:
+    - { id: A-011, name: ebitda_margin_y1, label: { en: "EBITDA margin Y1", it: "Margine EBITDA Y1" }, unit: pct, base: 0.22, rationale: "AIFI peer.", confidence: H, source_id: S-002 }
+    - { id: A-012, name: ebitda_margin_y2, label: { en: "EBITDA margin Y2", it: "Margine EBITDA Y2" }, unit: pct, base: 0.23, rationale: "Op leverage.", confidence: H }
+    - { id: A-013, name: ebitda_margin_y3, label: { en: "EBITDA margin Y3", it: "Margine EBITDA Y3" }, unit: pct, base: 0.23, rationale: "Steady.", confidence: H }
+    - { id: A-014, name: ebitda_margin_y4, label: { en: "EBITDA margin Y4", it: "Margine EBITDA Y4" }, unit: pct, base: 0.24, rationale: "Mix.", confidence: M }
+    - { id: A-015, name: ebitda_margin_y5, label: { en: "EBITDA margin Y5", it: "Margine EBITDA Y5" }, unit: pct, base: 0.24, rationale: "Terminal.", confidence: M }
+  da_pct_revenue: { id: A-020, name: da_pct_revenue, label: { en: "D&A %", it: "Amm %" }, unit: pct, base: 0.05, rationale: "Historical.", confidence: H, source_id: S-001 }
+  interest_on_debt_pct:
+    { id: A-021, name: interest_on_debt_pct, label: { en: "Interest on debt %", it: "Tasso su debito %" }, unit: pct, base: 0.065, rationale: "Average Italian mid-market borrowing cost.", confidence: M }
+  effective_tax_rate:
+    { id: A-022, name: effective_tax_rate, label: { en: "Effective tax rate", it: "Aliquota effettiva" }, unit: pct, base: 0.279, rationale: "IRES+IRAP.", confidence: H, source_id: S-003 }
+
+bs:
+  receivables_days:
+    { id: A-030, name: receivables_days, label: { en: "Receivables days (DSO)", it: "Giorni crediti (DSO)" }, unit: count, base: 65, rationale: "Italian pharma DSO.", confidence: H, source_id: S-004 }
+  inventory_days:
+    { id: A-031, name: inventory_days, label: { en: "Inventory days", it: "Giorni magazzino" }, unit: count, base: 45, rationale: "Pharma inventory.", confidence: H, source_id: S-004 }
+  payables_days:
+    { id: A-032, name: payables_days, label: { en: "Payables days (DPO)", it: "Giorni debiti (DPO)" }, unit: count, base: 55, rationale: "Italian pharma DPO.", confidence: H, source_id: S-004 }
+  capex_pct_revenue:
+    { id: A-033, name: capex_pct_revenue, label: { en: "Capex % revenue", it: "Capex % ricavi" }, unit: pct, base: 0.06, rationale: "Maintenance + growth.", confidence: H, source_id: S-001 }
+  dividend_payout_ratio:
+    { id: A-034, name: dividend_payout_ratio, label: { en: "Dividend payout", it: "Payout dividendi" }, unit: pct, base: 0.30, rationale: "30% payout — conservative.", confidence: M }
+
+opening_bs:
+  cash_eur_m: 3.5
+  receivables_eur_m: 7.5
+  inventory_eur_m: 5.2
+  net_ppe_eur_m: 12.0
+  payables_eur_m: 6.3
+  debt_eur_m: 8.0
+  equity_eur_m: 13.9  # plug to balance: 3.5+7.5+5.2+12.0 = 28.2 = 6.3+8.0+13.9
+
+historical_revenue_eur_m: [35.0, 38.2, 42.0]
+historical_ebitda_eur_m:  [7.0, 8.2, 9.2]
+historical_net_debt_eur_m: 4.5
+historical_net_debt_source_id: S-001
