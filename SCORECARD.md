@@ -11,7 +11,8 @@
 | Tool | Weighted score | Strengths | Weaknesses |
 |---|---|---|---|
 | **Bulge-bracket human analyst** | **9.4 / 10** | Domain judgment, deal adherence | Not reproducible, 40-80h per model |
-| **ModelForge v0.2 (this suite)** | **8.1 / 10** | Source traceability, deterministic builder, Italian specificity, multi-asset | No data-room ingestion, PF sculpted amort missing, no web UI |
+| **ModelForge v0.3 (this suite)** | **8.3 / 10** | Source traceability, deterministic builder, Italian specificity, multi-asset, PF sculpted amort + DSCR-target solver | No data-room ingestion, no web UI |
+| *ModelForge v0.2 (predecessor)* | *8.1 / 10* | *(same, minus PF sculpted)* | *PF linear-amort breached DSCR on real deals* |
 | **Rogo Series C** | **7.9 / 10** | AI analyst breadth, model memory (Offset), BB distribution | Weak live-formula source-tracing, US-centric, gen-AI hallucination risk |
 | **Macabacus** | **7.5 / 10** | Bulge-bracket template library, formatting | No AI, no ingestion, no provenance, no cross-template unification |
 | **FAST Standard** | **7.2 / 10** | Methodology gold standard | It's a spec not a tool; no automation |
