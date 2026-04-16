@@ -191,8 +191,8 @@ def lineage_cmd(graph_db: Path, cell_id: str) -> None:
               help="Target template (default: project_finance).")
 @click.option("-o", "--output", "output_yaml", type=click.Path(path_type=Path), default=None,
               help="Output YAML path. Defaults to output/<dir_name>.yaml.")
-@click.option("--model", default="claude-opus-4-6",
-              help="Anthropic model (default: claude-opus-4-6).")
+@click.option("--model", default="claude-opus-4-7",
+              help="Anthropic model (default: claude-opus-4-7).")
 @click.option("--backend", "backend_name", default="cli",
               type=click.Choice(["cli", "api"]),
               help="LLM backend: 'cli' (Claude Code, no API key) or 'api' (Anthropic SDK).")
