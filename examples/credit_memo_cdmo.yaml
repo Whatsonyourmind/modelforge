@@ -1,0 +1,155 @@
+# Credit memo — reuses CDMO deal structure from unitranche example,
+# extends with credit-specific stress, recovery waterfall, rating shadow.
+
+model_type: credit_memo
+
+meta:
+  project_code: DEMO-CDMO-CM
+  deliverable: { en: "Credit Committee Memorandum", it: "Memorandum per Comitato Crediti" }
+  analyst: L. maintainer
+  version: v0.1
+  status: draft
+  valuation_date: 2026-04-16
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "CDMO deal — credit memo wrapper on unitranche model." }
+
+target:
+  name: "Target SpA (anonymized)"
+  sector: { en: "Specialty Pharma / CDMO", it: "Pharma specialistico / CDMO" }
+  country: IT
+  currency: EUR
+  revenue_last_fy_eur_m: 42.0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 9.2
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon: { historical_years: 3, projection_years: 7 }
+
+sources:
+  - { id: S-001, doc: Dataroom_FY23_FY24_FY25_Audited.pdf, page: 14, publisher: "Target SpA", date: 2026-03-12, verified: true, note: "Audited financials." }
+  - { id: S-002, doc: AIFI_Italian_LGD_Pharma_2025.pdf, page: 12, publisher: AIFI, date: 2026-01-30, url: "https://www.aifi.it/", verified: true, note: "Italian mid-market senior secured LGD benchmarks." }
+  - { id: S-003, doc: Moodys_Italian_Specialty_Pharma_Sector_Comment_2025.pdf, page: 4, publisher: "Moody's Investors Service", date: 2026-02-10, verified: false, note: "Italian specialty pharma sector credit profile BB/Ba2 equivalent." }
+  - { id: S-004, doc: ECB_CreditRegister_PD_SME_Pharma_2025.pdf, page: 7, publisher: ECB / Banca d'Italia, date: 2026-03-01, verified: true, note: "Italian SME Pharma PD ~2-3% annual, 10-12% life-of-instrument (6y)." }
+  - { id: S-005, doc: LMA_Italian_Unitranche_Covenant_Pack.pdf, page: 12, publisher: LMA, date: 2025-09-30, verified: false, note: "Covenant pack standards." }
+  - { id: S-006, doc: PwC_Italy_IRES_IRAP_Summary_2026.pdf, page: 1, publisher: PwC, date: 2026-01-15, url: "https://taxsummaries.pwc.com/italy", verified: true, note: "IRES+IRAP combined 27.9%." }
+  - { id: S-007, doc: PEM_Unitranche_Pricing_Q1_2026.pdf, page: 22, publisher: "Private Equity Monitor", date: 2026-04-01, verified: false, note: "Italian unitranche pricing." }
+  - { id: S-008, doc: Cerved_Italian_SME_Capex_2025.pdf, page: 17, publisher: Cerved, date: 2025-11-15, verified: false, note: "Capex intensity by sector." }
+  - { id: S-009, doc: ECB_EURIBOR_6M.html, page: 1, publisher: "ECB SDW", date: 2026-04-10, url: "https://data.ecb.europa.eu/", verified: true, note: "EURIBOR 6M fixing April 2026." }
+
+operating:
+  revenue_growth_by_year:
+    - { id: A-001, name: revenue_growth_y1, label: { en: "Revenue growth Y1", it: "Crescita Y1" }, unit: pct, base: 0.08, worst: 0.03, best: 0.12, rationale: "Management pipeline visibility.", confidence: M, source_id: S-001 }
+    - { id: A-002, name: revenue_growth_y2, label: { en: "Revenue growth Y2", it: "Crescita Y2" }, unit: pct, base: 0.07, worst: 0.02, best: 0.10, rationale: "Taper.", confidence: M }
+    - { id: A-003, name: revenue_growth_y3, label: { en: "Revenue growth Y3", it: "Crescita Y3" }, unit: pct, base: 0.06, worst: 0.02, best: 0.09, rationale: "Steady state.", confidence: M }
+    - { id: A-004, name: revenue_growth_y4, label: { en: "Revenue growth Y4", it: "Crescita Y4" }, unit: pct, base: 0.05, worst: 0.01, best: 0.08, rationale: "Mature.", confidence: L }
+    - { id: A-005, name: revenue_growth_y5, label: { en: "Revenue growth Y5", it: "Crescita Y5" }, unit: pct, base: 0.05, worst: 0.01, best: 0.07, rationale: "Steady state.", confidence: L }
+    - { id: A-006, name: revenue_growth_y6, label: { en: "Revenue growth Y6", it: "Crescita Y6" }, unit: pct, base: 0.04, worst: 0.01, best: 0.06, rationale: "Steady state.", confidence: L }
+    - { id: A-007, name: revenue_growth_y7, label: { en: "Revenue growth Y7", it: "Crescita Y7" }, unit: pct, base: 0.04, worst: 0.01, best: 0.06, rationale: "Terminal.", confidence: L }
+  ebitda_margin_by_year:
+    - { id: A-011, name: ebitda_margin_y1, label: { en: "EBITDA margin Y1", it: "EBITDA Y1" }, unit: pct, base: 0.22, worst: 0.18, best: 0.24, rationale: "AIFI peer set.", confidence: H, source_id: S-002 }
+    - { id: A-012, name: ebitda_margin_y2, label: { en: "EBITDA margin Y2", it: "EBITDA Y2" }, unit: pct, base: 0.23, worst: 0.19, best: 0.25, rationale: "Operating leverage.", confidence: H }
+    - { id: A-013, name: ebitda_margin_y3, label: { en: "EBITDA margin Y3", it: "EBITDA Y3" }, unit: pct, base: 0.23, worst: 0.19, best: 0.26, rationale: "Steady state.", confidence: H }
+    - { id: A-014, name: ebitda_margin_y4, label: { en: "EBITDA margin Y4", it: "EBITDA Y4" }, unit: pct, base: 0.24, worst: 0.19, best: 0.26, rationale: "Mix improvement.", confidence: M }
+    - { id: A-015, name: ebitda_margin_y5, label: { en: "EBITDA margin Y5", it: "EBITDA Y5" }, unit: pct, base: 0.24, worst: 0.19, best: 0.26, rationale: "Steady state.", confidence: M }
+    - { id: A-016, name: ebitda_margin_y6, label: { en: "EBITDA margin Y6", it: "EBITDA Y6" }, unit: pct, base: 0.24, worst: 0.18, best: 0.25, rationale: "Steady state.", confidence: L }
+    - { id: A-017, name: ebitda_margin_y7, label: { en: "EBITDA margin Y7", it: "EBITDA Y7" }, unit: pct, base: 0.23, worst: 0.18, best: 0.25, rationale: "Mean reversion.", confidence: L }
+  da_pct_revenue: { id: A-020, name: da_pct_revenue, label: { en: "D&A %", it: "Amm %" }, unit: pct, base: 0.05, worst: 0.06, best: 0.045, rationale: "Historical.", confidence: H, source_id: S-001 }
+  maintenance_capex_pct_revenue: { id: A-021, name: maintenance_capex_pct_revenue, label: { en: "Maint. capex %", it: "Capex man. %" }, unit: pct, base: 0.035, worst: 0.045, best: 0.03, rationale: "Pharma norm.", confidence: M, source_id: S-008 }
+  growth_capex_pct_revenue: { id: A-022, name: growth_capex_pct_revenue, label: { en: "Growth capex %", it: "Capex crescita %" }, unit: pct, base: 0.025, worst: 0.02, best: 0.03, rationale: "Pipeline.", confidence: M }
+  nwc_pct_revenue_delta: { id: A-023, name: nwc_pct_revenue_delta, label: { en: "ΔNWC %", it: "ΔCCN %" }, unit: pct, base: 0.12, worst: 0.18, best: 0.08, rationale: "DSO.", confidence: M }
+  effective_tax_rate: { id: A-024, name: effective_tax_rate, label: { en: "Tax rate", it: "Aliquota" }, unit: pct, base: 0.28, rationale: "IRES+IRAP.", confidence: H, source_id: S-006 }
+
+debt:
+  tranches:
+    - name: { en: "Senior Unitranche", it: "Unitranche Senior" }
+      seniority: senior
+      tenor_years: 6
+      amortization: bullet
+      reference_rate:
+        name: EURIBOR_6M
+        rate_decimal: { id: A-030, name: euribor_6m_rate, label: { en: "EURIBOR 6M", it: "EURIBOR 6M" }, unit: pct, base: 0.028, worst: 0.036, best: 0.022, rationale: "ECB April 2026.", confidence: H, source_id: S-009 }
+      amount: { id: A-031, name: senior_unitranche_amount, label: { en: "Senior amount", it: "Senior importo" }, unit: eur_m, base: 38.0, rationale: "4.1x EBITDA.", confidence: H, source_id: S-007 }
+      margin_bps: { id: A-032, name: senior_unitranche_margin_bps, label: { en: "Senior margin (bps)", it: "Senior margine" }, unit: bps, base: 625, worst: 675, best: 575, rationale: "PEM Q1 2026.", confidence: H, source_id: S-007 }
+      floor_pct: { id: A-033, name: senior_unitranche_floor, label: { en: "EURIBOR floor", it: "Floor" }, unit: pct, base: 0.0, rationale: "No floor.", confidence: H }
+      arrangement_fee_pct: { id: A-034, name: senior_unitranche_arrangement_fee, label: { en: "Arrangement %", it: "Strutturazione %" }, unit: pct, base: 0.03, rationale: "AIFI.", confidence: H }
+      commitment_fee_bps: { id: A-035, name: senior_unitranche_commitment_fee, label: { en: "Commitment (bps)", it: "Commitment (bps)" }, unit: bps, base: 0, rationale: "Fully drawn.", confidence: H }
+      oid_pct: { id: A-036, name: senior_unitranche_oid, label: { en: "OID", it: "OID" }, unit: pct, base: 0.0, rationale: "No OID.", confidence: H }
+  cash_sweep:
+    enabled: true
+    sweep_pct: { id: A-080, name: cash_sweep_pct, label: { en: "Cash sweep %", it: "Cash sweep %" }, unit: pct, base: 0.50, rationale: "LMA 50%.", confidence: H, source_id: S-005 }
+    trigger_leverage: { id: A-081, name: cash_sweep_trigger, label: { en: "Sweep trigger", it: "Soglia sweep" }, unit: x, base: 3.50, rationale: "Standard.", confidence: H, source_id: S-005 }
+
+covenants:
+  - name: { en: "Total Net Leverage", it: "Leva Netta" }
+    kind: leverage
+    test_frequency: quarterly
+    threshold_by_year:
+      - { id: A-040, name: leverage_threshold_y1, label: { en: "Lev Y1", it: "Leva Y1" }, unit: x, base: 5.25, rationale: "LMA.", confidence: H, source_id: S-005 }
+      - { id: A-041, name: leverage_threshold_y2, label: { en: "Lev Y2", it: "Leva Y2" }, unit: x, base: 5.00, rationale: "Step.", confidence: H }
+      - { id: A-042, name: leverage_threshold_y3, label: { en: "Lev Y3", it: "Leva Y3" }, unit: x, base: 4.75, rationale: "Step.", confidence: H }
+      - { id: A-043, name: leverage_threshold_y4, label: { en: "Lev Y4", it: "Leva Y4" }, unit: x, base: 4.50, rationale: "Step.", confidence: H }
+      - { id: A-044, name: leverage_threshold_y5, label: { en: "Lev Y5", it: "Leva Y5" }, unit: x, base: 4.25, rationale: "Step.", confidence: H }
+      - { id: A-045, name: leverage_threshold_y6, label: { en: "Lev Y6", it: "Leva Y6" }, unit: x, base: 4.00, rationale: "Step.", confidence: H }
+      - { id: A-046, name: leverage_threshold_y7, label: { en: "Lev Y7", it: "Leva Y7" }, unit: x, base: 4.00, rationale: "Hold.", confidence: H }
+  - name: { en: "ICR", it: "ICR" }
+    kind: icr
+    test_frequency: quarterly
+    threshold_by_year:
+      - { id: A-050, name: icr_threshold_y1, label: { en: "ICR Y1", it: "ICR Y1" }, unit: x, base: 1.75, rationale: "LMA.", confidence: H }
+      - { id: A-051, name: icr_threshold_y2, label: { en: "ICR Y2", it: "ICR Y2" }, unit: x, base: 1.85, rationale: "Step.", confidence: H }
+      - { id: A-052, name: icr_threshold_y3, label: { en: "ICR Y3", it: "ICR Y3" }, unit: x, base: 2.00, rationale: "Step.", confidence: H }
+      - { id: A-053, name: icr_threshold_y4, label: { en: "ICR Y4", it: "ICR Y4" }, unit: x, base: 2.00, rationale: "Hold.", confidence: H }
+      - { id: A-054, name: icr_threshold_y5, label: { en: "ICR Y5", it: "ICR Y5" }, unit: x, base: 2.00, rationale: "Hold.", confidence: H }
+      - { id: A-055, name: icr_threshold_y6, label: { en: "ICR Y6", it: "ICR Y6" }, unit: x, base: 2.00, rationale: "Hold.", confidence: H }
+      - { id: A-056, name: icr_threshold_y7, label: { en: "ICR Y7", it: "ICR Y7" }, unit: x, base: 2.00, rationale: "Hold.", confidence: H }
+
+fees:
+  legal: { id: A-060, name: legal_fees_eur_m, label: { en: "Legal", it: "Legali" }, unit: eur_m, base: 0.35, rationale: "Std.", confidence: M }
+  advisory: { id: A-061, name: advisory_fees_eur_m, label: { en: "Advisory", it: "Advisory" }, unit: eur_m, base: 0.20, rationale: "Buyside.", confidence: M }
+  other: { id: A-062, name: other_fees_eur_m, label: { en: "Other", it: "Altro" }, unit: eur_m, base: 0.15, rationale: "Misc.", confidence: M }
+
+exit:
+  expected_hold_years: { id: A-070, name: expected_hold_years, label: { en: "Hold yrs", it: "Durata" }, unit: years, base: 5.0, rationale: "Sponsor.", confidence: M }
+  call_protection_years: 2
+  make_whole_pct: { id: A-071, name: make_whole_pct, label: { en: "Make-whole", it: "Make-whole" }, unit: pct, base: 0.02, rationale: "2% par.", confidence: M }
+
+stress:
+  ebitda_stress_pct: { id: A-100, name: ebitda_stress_pct, label: { en: "EBITDA stress %", it: "EBITDA stress %" }, unit: pct, base: -0.25, rationale: "25% downside EBITDA shock — severe recession scenario.", confidence: M, source_id: S-003 }
+  stress_ebitda_multiple: { id: A-101, name: stress_ebitda_multiple, label: { en: "Stress exit multiple", it: "Multiplo stress" }, unit: x, base: 5.0, rationale: "Distressed specialty pharma exit multiple.", confidence: M, source_id: S-003 }
+  recovery_timeline_years: { id: A-102, name: recovery_timeline_years, label: { en: "Recovery years", it: "Anni di recupero" }, unit: years, base: 2.0, rationale: "Italian insolvency procedure median 18-24 months.", confidence: M }
+  liquidation_discount_pct: { id: A-103, name: liquidation_discount_pct, label: { en: "Liquidation discount", it: "Sconto liquidazione" }, unit: pct, base: 0.15, rationale: "15% haircut on EV in forced sale per AIFI benchmark.", confidence: M, source_id: S-002 }
+
+rating:
+  internal_rating: BB
+  moodys_equivalent: Ba2
+  sp_equivalent: BB
+  probability_of_default_pct: { id: A-110, name: probability_of_default_pct, label: { en: "PD (life)", it: "PD (vita)" }, unit: pct, base: 0.10, rationale: "ECB Italian SME Pharma PD 10-12% over 6y instrument life.", confidence: M, source_id: S-004 }
+
+credit_strengths:
+  - "Italy #1 European producer of Specialty Pharma/CDMO — sector named 'gold' by BlackRock (DD Talks 2026)"
+  - "3-year historical revenue CAGR 7% with stable EBITDA margin 20-22%"
+  - "Contracted revenue book covers ~70% of Y1 projected revenue"
+  - "Asset-light on IP side with defensible regulatory approvals"
+  - "AIFMD II regulatory tailwind driving pharma CDMO consolidation 2026+"
+
+credit_weaknesses:
+  - "Customer concentration: top 3 customers = 45% revenue"
+  - "EUR funding cost volatility — EURIBOR 6M scenario band ±80 bps"
+  - "Capex intensity (6-8% total) compresses FCF headroom to unitranche"
+  - "Working capital build (12% of Δrevenue) consumes growth FCF"
+
+mitigating_factors:
+  - "Leverage covenant steps down 25 bps/year through maturity (Year 7 target 4.0x from 5.25x)"
+  - "Cash sweep activates at 3.5x leverage (LMA standard 50% of excess FCF)"
+  - "Equity cure permitted once per year, twice per life"
+  - "Make-whole protection inside 2y call window"
+  - "Senior-secured with security package over receivables + IP"
+
+historical_revenue_eur_m: [35.0, 38.2, 42.0]
+historical_ebitda_eur_m:  [7.0, 8.2, 9.2]
+historical_net_debt_eur_m: 4.5
+historical_net_debt_source_id: S-001

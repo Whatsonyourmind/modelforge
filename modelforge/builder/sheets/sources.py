@@ -25,10 +25,9 @@ from openpyxl.worksheet.worksheet import Worksheet
 from modelforge.builder import styles
 from modelforge.builder.i18n import L
 from modelforge.graph.schema import LinkageGraph, GraphNode, NodeKind
-from modelforge.spec.unitranche import UnitrancheSpec
 
 
-def build(ws: Worksheet, spec: UnitrancheSpec, graph: LinkageGraph) -> dict[str, int]:
+def build(ws: Worksheet, spec, graph: LinkageGraph) -> dict[str, int]:
     """Write Sources sheet. Returns {source_id: row_number} for cross-reference."""
     # Column widths
     ws.column_dimensions["A"].width = 10

@@ -19,10 +19,9 @@ from openpyxl.workbook.defined_name import DefinedName
 from modelforge.builder import styles, layout
 from modelforge.builder.i18n import L
 from modelforge.graph.schema import LinkageGraph, GraphNode, NodeKind
-from modelforge.spec.unitranche import UnitrancheSpec
 
 
-def build(ws, spec: UnitrancheSpec, graph: LinkageGraph) -> None:
+def build(ws, spec, graph: LinkageGraph) -> None:
     layout.set_column_widths(ws, label_width=34, it_width=30, year_width=22)
 
     layout.write_title_block(

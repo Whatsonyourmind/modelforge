@@ -17,10 +17,10 @@ import yaml
 from rich.console import Console
 from rich.table import Table
 
-from modelforge.builder.workbook import build_workbook
 from modelforge.graph.store import GraphStore
 from modelforge.qc import run_qc
 from modelforge.spec.unitranche import UnitrancheSpec
+from modelforge.templates import REGISTRY, build_model
 
 
 console = Console()
@@ -29,6 +29,42 @@ console = Console()
 @click.group()
 def main() -> None:
     """ModelForge — bulge-tier Excel model factory."""
+
+
+SPEC_CLASSES = {
+    "unitranche": UnitrancheSpec,
+}
+
+
+def _load_spec_class(model_type: str):
+    """Lazily import spec classes so missing deps in one template don't break CLI startup."""
+    if model_type in SPEC_CLASSES:
+        return SPEC_CLASSES[model_type]
+    if model_type == "minibond":
+        from modelforge.spec.minibond import MinibondSpec
+        return MinibondSpec
+    if model_type == "credit_memo":
+        from modelforge.spec.credit_memo import CreditMemoSpec
+        return CreditMemoSpec
+    if model_type == "project_finance":
+        from modelforge.spec.project_finance import ProjectFinanceSpec
+        return ProjectFinanceSpec
+    if model_type == "real_estate":
+        from modelforge.spec.real_estate import RealEstateSpec
+        return RealEstateSpec
+    if model_type == "npl":
+        from modelforge.spec.npl import NPLSpec
+        return NPLSpec
+    if model_type == "structured_credit":
+        from modelforge.spec.structured_credit import StructuredCreditSpec
+        return StructuredCreditSpec
+    if model_type == "three_statement":
+        from modelforge.spec.three_statement import ThreeStatementSpec
+        return ThreeStatementSpec
+    raise ValueError(
+        f"Unknown model_type {model_type!r}. Known: unitranche, minibond, "
+        "credit_memo, project_finance, real_estate, npl, structured_credit, three_statement"
+    )
 
 
 @main.command("build")
@@ -40,18 +76,48 @@ def build_cmd(spec_path: Path, out_path: Path | None) -> None:
     with spec_path.open() as f:
         raw = yaml.safe_load(f)
     model_type = raw.get("model_type", "unitranche")
-    if model_type != "unitranche":
-        console.print(f"[red]Only 'unitranche' supported in v0.1 (got {model_type!r}).[/red]")
+
+    try:
+        SpecClass = _load_spec_class(model_type)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
         sys.exit(2)
 
-    spec = UnitrancheSpec.model_validate(raw)
+    spec = SpecClass.model_validate(raw)
 
     if out_path is None:
         out_path = Path("output") / f"{spec_path.stem}.xlsx"
 
-    xlsx, graph = build_workbook(spec, out_path)
-    console.print(f"[green]Built:[/green] {xlsx}")
+    xlsx, graph = build_model(spec, out_path)
+    console.print(f"[green]Built:[/green] {xlsx}  [dim]({model_type})[/dim]")
     console.print(f"[green]Graph:[/green] {graph}")
+
+
+@main.command("list-templates")
+def list_templates_cmd() -> None:
+    """List all available model templates."""
+    from modelforge.templates import REGISTRY
+    tbl = Table(title="ModelForge templates")
+    tbl.add_column("model_type", style="bold")
+    tbl.add_column("Description")
+    tbl.add_column("Status")
+    descriptions = {
+        "unitranche": "Italian mid-market unitranche LBO (senior direct lending)",
+        "minibond": "Italian minibond pricing + investor returns (a regional bank territory)",
+        "credit_memo": "Credit memo with covenant headroom + LGD + recovery analysis",
+        "project_finance": "Infrastructure/RE project finance, DSCR-driven, construction + operating",
+        "real_estate": "RE DCF with NOI build, exit cap, equity waterfall (pref + promote)",
+        "npl": "NPL portfolio recovery waterfall (collection curves, IRR)",
+        "structured_credit": "Securitization tranche waterfall (senior/mezz/junior)",
+        "three_statement": "Classic 3-statement corporate model (P&L + BS + CFS)",
+    }
+    for name in [
+        "unitranche", "minibond", "credit_memo", "project_finance",
+        "real_estate", "npl", "structured_credit", "three_statement",
+    ]:
+        status = "[green]OK[/green]" if name in REGISTRY else "[yellow]planned[/yellow]"
+        tbl.add_row(name, descriptions.get(name, ""), status)
+    console.print(tbl)
 
 
 @main.command("qc")
