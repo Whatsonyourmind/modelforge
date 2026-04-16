@@ -185,6 +185,71 @@ def lineage_cmd(graph_db: Path, cell_id: str) -> None:
     console.print(tbl)
 
 
+@main.command("ingest")
+@click.argument("dataroom_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.option("-t", "--template", default="project_finance",
+              help="Target template (default: project_finance).")
+@click.option("-o", "--output", "output_yaml", type=click.Path(path_type=Path), default=None,
+              help="Output YAML path. Defaults to output/<dir_name>.yaml.")
+@click.option("--model", default="claude-opus-4-6",
+              help="Anthropic model (default: claude-opus-4-6).")
+@click.option("--max-docs", type=int, default=50,
+              help="Cap docs scanned (default: 50).")
+@click.option("--strict", is_flag=True,
+              help="Fail on any Pydantic validation error (default: best-effort).")
+@click.option("--dry-run", is_flag=True,
+              help="Classify + report only; skip extraction.")
+@click.option("--no-cache", is_flag=True,
+              help="Disable Anthropic prompt caching.")
+@click.option("-v", "--verbose", is_flag=True,
+              help="Print per-step progress.")
+def ingest_cmd(
+    dataroom_dir: Path, template: str, output_yaml: Path | None,
+    model: str, max_docs: int, strict: bool, dry_run: bool,
+    no_cache: bool, verbose: bool,
+) -> None:
+    """Ingest a data room (PDFs/XLSX/CSV) and produce a ModelForge YAML spec."""
+    from modelforge.ingest.pipeline import ingest
+    if output_yaml is None:
+        output_yaml = Path("output") / f"{dataroom_dir.name}.yaml"
+
+    def log(msg: str) -> None:
+        if verbose:
+            console.print(f"[dim]{msg}[/dim]")
+
+    console.print(f"[bold]Ingesting[/bold] {dataroom_dir} -> {output_yaml}")
+    console.print(f"Template: {template}  Model: {model}  Cache: {'off' if no_cache else 'on'}")
+    try:
+        result = ingest(
+            dataroom_dir=dataroom_dir,
+            template=template,
+            output_yaml=output_yaml,
+            max_docs=max_docs,
+            model=model,
+            use_cache=not no_cache,
+            strict=strict,
+            dry_run=dry_run,
+            log=log,
+        )
+    except RuntimeError as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(2)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(2)
+
+    status = "[green]PASS[/green]" if result.spec_valid else "[yellow]needs review[/yellow]"
+    console.print(f"\nSpec validation: {status}")
+    console.print(f"Cache hit rate:  {result.cache_hit_rate*100:.1f}%")
+    console.print(f"Tokens:          {result.total_input_tokens:,} in / {result.total_output_tokens:,} out")
+    console.print(f"Elapsed:         {result.elapsed_seconds:.1f}s")
+    console.print(f"\n[green]YAML[/green]:   {result.yaml_path}")
+    console.print(f"[green]Report[/green]: {result.report_path}")
+    if not dry_run and result.spec_valid:
+        console.print(f"\nNext: [cyan]modelforge build {result.yaml_path}[/cyan]")
+    sys.exit(0 if result.spec_valid or dry_run else 1)
+
+
 @main.command("stats")
 @click.argument("graph_db", type=click.Path(exists=True, path_type=Path))
 def stats_cmd(graph_db: Path) -> None:
