@@ -153,7 +153,7 @@ def ingest(
     template: str,
     output_yaml: Path,
     max_docs: int = 50,
-    model: str = "claude-opus-4-6",
+    model: str = "claude-opus-4-7",
     use_cache: bool = True,
     strict: bool = False,
     dry_run: bool = False,
