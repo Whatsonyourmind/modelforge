@@ -7,12 +7,20 @@ from __future__ import annotations
 
 from typing import Callable
 
-from modelforge.templates import unitranche, minibond, credit_memo
+from modelforge.templates import (
+    unitranche, minibond, credit_memo, project_finance, real_estate, npl,
+    structured_credit, three_statement,
+)
 
 REGISTRY: dict[str, Callable] = {
     "unitranche": unitranche.build,
     "minibond": minibond.build,
     "credit_memo": credit_memo.build,
+    "project_finance": project_finance.build,
+    "real_estate": real_estate.build,
+    "npl": npl.build,
+    "structured_credit": structured_credit.build,
+    "three_statement": three_statement.build,
 }
 
 
