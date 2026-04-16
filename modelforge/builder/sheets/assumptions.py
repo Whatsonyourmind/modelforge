@@ -32,7 +32,6 @@ from modelforge.builder.formulas import scenario_pick
 from modelforge.builder.i18n import L
 from modelforge.graph.schema import LinkageGraph, GraphNode, NodeKind
 from modelforge.spec.base import Assumption
-from modelforge.spec.unitranche import UnitrancheSpec
 
 
 def _unit_to_number_format(unit: str) -> str:
@@ -57,7 +56,7 @@ def _register_name(wb, name: str, addr: str) -> None:
 
 def build(
     ws: Worksheet,
-    spec: UnitrancheSpec,
+    spec,
     graph: LinkageGraph,
     source_rows: dict[str, int],
 ) -> dict[str, str]:
