@@ -6,6 +6,12 @@ Infrastructure / RE project finance. Key differences vs. corporate:
     - DSCR-driven debt sizing
     - Project-level cash waterfall (operating costs → senior debt → reserves → dividends)
     - Reserve accounts (DSRA, MMRA)
+
+v0.3 (2026-04-16):
+    - Amortization profile: linear | sculpted_level_debt_service |
+      sculpted_dscr_target | bullet (default: linear, v0.2 back-compat)
+    - Debt sizing mode: fixed_amount | dscr_target (default: fixed_amount)
+    - DSRA months (default 6) as first-class reserve account
 """
 
 from __future__ import annotations
@@ -13,9 +19,22 @@ from __future__ import annotations
 from typing import Literal, Optional
 from datetime import date
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from modelforge.spec.base import Assumption, Label, ModelMeta, Source, Target
+
+
+AmortizationProfile = Literal[
+    "linear",
+    "sculpted_level_debt_service",
+    "sculpted_dscr_target",
+    "bullet",
+]
+
+DebtSizingMode = Literal[
+    "fixed_amount",
+    "dscr_target",
+]
 
 
 class PFHorizon(BaseModel):
@@ -52,12 +71,19 @@ class PFDebt(BaseModel):
     """Project debt tranche."""
 
     name: Label
-    amount: Assumption  # EUR m
+    amount: Assumption  # EUR m (treated as seed/cap when debt_sizing_mode=dscr_target)
     tenor_operating_years: int  # operating-years of amortization
     grace_years: int = 2  # no principal repayment for N years post-operating
     reference_rate: Assumption  # e.g. swap rate for infra
     margin_bps: Assumption
     arrangement_fee_pct: Assumption
+
+    # v0.3 additions
+    amortization_profile: AmortizationProfile = "linear"
+    debt_sizing_mode: DebtSizingMode = "fixed_amount"
+    target_dscr_base: Optional[Assumption] = None
+    target_dscr_downside: Optional[Assumption] = None
+    dsra_months: int = Field(default=6, ge=0, le=12)
 
 
 class DSCRCovenant(BaseModel):
@@ -111,6 +137,14 @@ class ProjectFinanceSpec(BaseModel):
             )
         return v
 
+    @model_validator(mode="after")
+    def dscr_target_requires_base(self) -> "ProjectFinanceSpec":
+        if self.debt.debt_sizing_mode == "dscr_target" and self.debt.target_dscr_base is None:
+            raise ValueError(
+                "debt.target_dscr_base is required when debt.debt_sizing_mode == 'dscr_target'"
+            )
+        return self
+
     def all_assumptions(self) -> list[Assumption]:
         out: list[Assumption] = []
         out.append(self.construction.total_capex_eur_m)
@@ -125,6 +159,10 @@ class ProjectFinanceSpec(BaseModel):
         out.append(self.debt.reference_rate)
         out.append(self.debt.margin_bps)
         out.append(self.debt.arrangement_fee_pct)
+        if self.debt.target_dscr_base is not None:
+            out.append(self.debt.target_dscr_base)
+        if self.debt.target_dscr_downside is not None:
+            out.append(self.debt.target_dscr_downside)
         out.extend(self.covenant.threshold_by_year)
         out.append(self.covenant.lock_up_threshold)
         out.append(self.equity.target_irr)

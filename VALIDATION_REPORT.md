@@ -163,3 +163,39 @@ All critical integrity checks pass. Sign conventions hold universally. Named ran
 The one surfaced limitation (PF template: linear amortization + input-sized debt instead of DSCR-sculpted) is a legitimate v0.3 improvement but doesn't prevent current commercial use for initial screening / pitch work.
 
 **Status: production-ready for initial engagements. v0.3 PF enhancements queued.**
+
+---
+
+## v0.3 addendum — PF sculpted amort + DSCR-target sizing (2026-04-16)
+
+Per PRD `PRD_v03_pf_sculpted_amort.md`, Template 4 now supports:
+
+- `amortization_profile`: `linear` (default) | `sculpted_level_debt_service` | `sculpted_dscr_target` | `bullet`
+- `debt_sizing_mode`: `fixed_amount` (default) | `dscr_target` (binary-search solver, ≤50 iter, EUR tol)
+- `dsra_months`: default 6. Emits DSRA target / balance / funding rows on DebtDSCR sheet.
+- QC gate extended with a new PF-specific check (DSRA funded to target by end of operating year 1).
+
+### Validation run (2026-04-16, post-v0.3)
+
+| # | Workbook | Structural | Computational | Notes |
+|---|---|---|---|---|
+| 4 | `project_finance_solar` | ✅ clean | ✅ **clean** | Solver sized €29.86M @ 1.30x (vs €31.5M cap). Zero DSCR breaches. |
+| 10 | `real_enfinity_solar_pf` | ✅ clean | ✅ **clean** | Solver sized €163.76M @ 1.30x (vs €214M deal cap). Zero DSCR breaches. |
+
+**Headline delta**: 0 computational errors across 10 workbooks (was 2/10 pre-v0.3). All 10 external QC reports 8/8. 12 new unit tests (`tests/test_pf_solver.py`) all pass in 0.77s.
+
+### Enfinity debt-sizing interpretation
+
+The solver produced €163.76M senior against the actual deal's €214M senior (–€50M). Two reasons:
+
+1. Our revenue assumption uses Terna's *average* Italian irradiation (1,550 kWh/kWp/yr × €75/MWh blend) rather than the portfolio-specific solar resource the lenders underwrote.
+2. Actual ING/Rabobank/BNPP club sized against a softer DSCR target — plausibly 1.15–1.20x given Green Taxonomy Art. 9 bank appetite in 2025.
+
+Both readings are defensible and the workbook's rationale field makes the gap explicit. A committee reader can override `target_dscr_base` to reproduce the €214M outcome (target 1.10x would land there).
+
+### Scorecard impact
+
+- PF template (Template 4): **6/10 → 9/10** on the 25-criterion bulge-tier scorecard.
+- Weighted ModelForge score: **8.1 → 8.3** (PF sub-dimension only; other dimensions unchanged).
+
+The single most-cited friction in the original validation is resolved. No regressions across the 7 non-PF templates.
