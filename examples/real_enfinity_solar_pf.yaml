@@ -1,0 +1,116 @@
+# REAL DEAL — Enfinity Global Italian Solar PV Portfolio
+# €316M financing for 276 MW across 8 utility-scale solar plants in Italy
+# Club deal: ING + Rabobank + BNP Paribas; €214M non-recourse senior + €101M VAT/PPA/decommissioning
+# Operational by late 2026
+#
+# Source: Enfinity Global press release (Aug 2025)
+# https://enfinity.global/news/press-releases/enfinity-global-solar-financing-italy/
+
+model_type: project_finance
+
+meta:
+  project_code: REAL-ENFINITY-IT
+  deliverable: { en: "Enfinity 276MW Italian Solar PV Portfolio — Non-Recourse PF", it: "Enfinity 276MW Solare Italia — PF Non-Recourse" }
+  analyst: L. Stanisljevic
+  version: v0.1-real
+  status: draft
+  valuation_date: 2026-04-16
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "Enfinity Global 276MW Italian solar, public press release Aug 2025." }
+
+target:
+  name: "Enfinity Global Italian Solar SPV (276MW portfolio)"
+  sector: { en: "Utility-scale solar PV (276MW, 8 plants Italy)", it: "Solare PV utility-scale (276MW, 8 impianti Italia)" }
+  country: IT
+  currency: EUR
+  revenue_last_fy_eur_m: 0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 0
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon: { construction_years: 2, operating_years: 20 }
+
+sources:
+  - { id: S-001, doc: "Enfinity_Global_Press_Release_IT_Solar_276MW.pdf", page: 1, publisher: "Enfinity Global", date: 2025-08-15, url: "https://enfinity.global/news/press-releases/enfinity-global-solar-financing-italy/", verified: true, note: "€316M financing for 276MW Italian solar PV; €214M non-recourse senior + €101M VAT/PPA/decommissioning; ING/Rabobank/BNP Paribas club deal." }
+  - { id: S-002, doc: "PR_Newswire_Enfinity_276MW_Financing.pdf", page: 1, publisher: "PR Newswire", date: 2025-08-15, url: "https://www.prnewswire.com/news-releases/enfinity-global-secures-316-million-financing-for-276-mw-of-solar-projects-in-italy-302546387.html", verified: true, note: "Corroborating press release." }
+  - { id: S-003, doc: "Terna_Solar_Irradiation_Italy_2025.pdf", page: 22, publisher: "Terna", date: 2026-01-30, verified: true, note: "Italian solar irradiation 1,500-1,650 kWh/kWp/yr (blended national avg). 276MW × 1,550 = 428 GWh/yr." }
+  - { id: S-004, doc: "GSE_FER_X_Results.pdf", page: 5, publisher: "GSE", date: 2026-02-15, url: "https://www.gse.it/", verified: true, note: "FER X awarded tariffs + merchant PPA blend ~€75/MWh 2026 vintage." }
+  - { id: S-005, doc: "ECB_10Y_EUR_Swap_Apr2026.html", page: 1, publisher: "ECB SDW", date: 2026-04-10, url: "https://data.ecb.europa.eu/", verified: true, note: "10Y EUR swap Apr 2026 ~2.85%." }
+  - { id: S-006, doc: "PwC_EU_Infra_Debt_Pricing_Q1_2026.pdf", page: 8, publisher: "PwC", date: 2026-03-20, verified: false, note: "European infra solar PF margins 150-200 bps for Green-Taxonomy-eligible assets." }
+  - { id: S-007, doc: "EIB_Solar_Italy_Financing_Benchmarks.pdf", page: 4, publisher: "EIB", date: 2025-11-01, url: "https://www.eib.org/", verified: true, note: "EIB Sunprime €228M solar+BESS Italy — reference benchmark." }
+  - { id: S-008, doc: "PwC_Italy_Tax.pdf", page: 1, publisher: "PwC", date: 2026-01-15, verified: true, note: "IRES+IRAP 27.9%." }
+
+construction:
+  total_capex_eur_m:
+    { id: A-001, name: total_capex, label: { en: "Total project capex", it: "Capex progetto totale" }, unit: eur_m, base: 316.0, rationale: "Total Enfinity financing package €316M (incl. VAT + PPA + decommissioning facilities).", confidence: H, source_id: S-001 }
+  capex_phasing_pct:
+    - { id: A-002, name: capex_phasing_y1, label: { en: "Capex phasing Y1", it: "Capex Y1" }, unit: pct, base: 0.35, rationale: "Y1 35% — land + BOP procurement + early modules.", confidence: H }
+    - { id: A-003, name: capex_phasing_y2, label: { en: "Capex phasing Y2", it: "Capex Y2" }, unit: pct, base: 0.65, rationale: "Y2 65% — installation + commissioning + COD (operational late 2026).", confidence: H, source_id: S-001 }
+  interest_during_construction_capitalized: true
+  commitment_fee_bps:
+    { id: A-004, name: commitment_fee_bps, label: { en: "Commitment fee (bps)", it: "Commitment (bps)" }, unit: bps, base: 75, rationale: "Standard EU infra commitment 60-90 bps.", confidence: H, source_id: S-006 }
+
+operating:
+  availability_payment_eur_m_yr1:
+    { id: A-010, name: revenue_yr1, label: { en: "Revenue Y1 (FER X + PPA blended)", it: "Ricavi Y1 (FER X + PPA)" }, unit: eur_m, base: 32.1, rationale: "276 MW × 1,550 kWh/kWp/yr × €75/MWh = €32.1M/yr (Terna irradiation, FER X + merchant PPA blend).", confidence: H, source_id: S-003 }
+  revenue_indexation_pct:
+    { id: A-011, name: revenue_indexation, label: { en: "Revenue CPI escalation", it: "Indicizzazione ricavi" }, unit: pct, base: 0.015, rationale: "Italian CPI 1.5% (ECB 2% target path); FER X partially indexed.", confidence: M }
+  opex_pct_revenue:
+    { id: A-012, name: opex_pct_revenue, label: { en: "Opex % revenue", it: "Opex % ricavi" }, unit: pct, base: 0.22, rationale: "Utility-scale solar O&M + land lease + insurance + grid fees ~20-25% of revenue.", confidence: H, source_id: S-001 }
+  opex_indexation_pct:
+    { id: A-013, name: opex_indexation, label: { en: "Opex CPI escalation", it: "Indicizzazione opex" }, unit: pct, base: 0.02, rationale: "Fixed O&M indexed 2%.", confidence: H }
+  maintenance_reserve_pct_revenue:
+    { id: A-014, name: maintenance_reserve_pct, label: { en: "Maintenance reserve % rev", it: "Riserva manutenzione" }, unit: pct, base: 0.02, rationale: "2% MMRA target.", confidence: M }
+
+debt:
+  name: { en: "Senior Green Loan (Non-recourse)", it: "Green Loan Senior (Non-recourse)" }
+  amount:
+    { id: A-020, name: senior_amount, label: { en: "Senior debt amount", it: "Debito senior" }, unit: eur_m, base: 214.0, rationale: "€214M non-recourse senior per press release (68% gearing on total €316M).", confidence: H, source_id: S-001 }
+  tenor_operating_years: 18
+  grace_years: 1
+  reference_rate:
+    { id: A-021, name: eur_swap_10y, label: { en: "EUR swap 10Y", it: "EUR swap 10Y" }, unit: pct, base: 0.0285, rationale: "ECB SDW April 2026.", confidence: H, source_id: S-005 }
+  margin_bps:
+    { id: A-022, name: senior_margin_bps, label: { en: "Senior margin (bps)", it: "Margine senior" }, unit: bps, base: 175, worst: 200, best: 150, rationale: "Green Taxonomy Art. 9 eligibility compresses pricing to 150-200 bps range.", confidence: H, source_id: S-006 }
+  arrangement_fee_pct:
+    { id: A-023, name: senior_arrangement_pct, label: { en: "Arrangement fee %", it: "Strutturazione" }, unit: pct, base: 0.0125, rationale: "1-1.5% PF infra standard.", confidence: H, source_id: S-006 }
+
+covenant:
+  threshold_by_year:
+    - { id: A-030, name: dscr_op1, label: { en: "DSCR O1", it: "DSCR O1" }, unit: x, base: 1.20, rationale: "Min DSCR year 1 post-COD.", confidence: H, source_id: S-006 }
+    - { id: A-031, name: dscr_op2, label: { en: "DSCR O2", it: "DSCR O2" }, unit: x, base: 1.25, rationale: "Ramp.", confidence: H }
+    - { id: A-032, name: dscr_op3, label: { en: "DSCR O3", it: "DSCR O3" }, unit: x, base: 1.25, rationale: "Hold.", confidence: H }
+    - { id: A-033, name: dscr_op4, label: { en: "DSCR O4", it: "DSCR O4" }, unit: x, base: 1.30, rationale: "Step.", confidence: H }
+    - { id: A-034, name: dscr_op5, label: { en: "DSCR O5", it: "DSCR O5" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-035, name: dscr_op6, label: { en: "DSCR O6", it: "DSCR O6" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-036, name: dscr_op7, label: { en: "DSCR O7", it: "DSCR O7" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-037, name: dscr_op8, label: { en: "DSCR O8", it: "DSCR O8" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-038, name: dscr_op9, label: { en: "DSCR O9", it: "DSCR O9" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-039, name: dscr_op10, label: { en: "DSCR O10", it: "DSCR O10" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-040, name: dscr_op11, label: { en: "DSCR O11", it: "DSCR O11" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-041, name: dscr_op12, label: { en: "DSCR O12", it: "DSCR O12" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-042, name: dscr_op13, label: { en: "DSCR O13", it: "DSCR O13" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-043, name: dscr_op14, label: { en: "DSCR O14", it: "DSCR O14" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-044, name: dscr_op15, label: { en: "DSCR O15", it: "DSCR O15" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-045, name: dscr_op16, label: { en: "DSCR O16", it: "DSCR O16" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-046, name: dscr_op17, label: { en: "DSCR O17", it: "DSCR O17" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-047, name: dscr_op18, label: { en: "DSCR O18", it: "DSCR O18" }, unit: x, base: 1.30, rationale: "Hold.", confidence: H }
+    - { id: A-048, name: dscr_op19, label: { en: "DSCR O19", it: "DSCR O19" }, unit: x, base: 1.30, rationale: "Post senior maturity.", confidence: L }
+    - { id: A-049, name: dscr_op20, label: { en: "DSCR O20", it: "DSCR O20" }, unit: x, base: 1.30, rationale: "Post senior maturity.", confidence: L }
+  lock_up_threshold:
+    { id: A-060, name: lock_up_dscr, label: { en: "Dividend lock-up DSCR", it: "DSCR lock-up" }, unit: x, base: 1.15, rationale: "Standard Italian infra 1.15x.", confidence: H }
+
+equity:
+  target_irr:
+    { id: A-070, name: target_irr, label: { en: "Sponsor target IRR", it: "IRR sponsor target" }, unit: pct, base: 0.10, rationale: "Enfinity European utility solar target 9-11%.", confidence: H, source_id: S-001 }
+  effective_tax_rate:
+    { id: A-071, name: effective_tax_rate, label: { en: "Effective tax rate", it: "Aliquota effettiva" }, unit: pct, base: 0.279, rationale: "IRES+IRAP.", confidence: H, source_id: S-008 }
+
+historical_revenue_eur_m: []
+historical_ebitda_eur_m: []
+historical_net_debt_eur_m: 0.0
+historical_net_debt_source_id: S-001
