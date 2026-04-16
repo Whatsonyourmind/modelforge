@@ -1,27 +1,27 @@
 """Claude-driven per-section extractor.
 
-One Claude call per spec section. Tool schema is derived from the target
-Pydantic model via model_json_schema(). System prompt + tool schema are
-cached so multi-section runs share a single paid prefix.
+One LLM call per spec section. Tool schema is derived from the target
+Pydantic model via model_json_schema(). Uses the LLM backend abstraction
+(CLI or API) for the actual call.
 """
 
 from __future__ import annotations
 
-import os
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
 from pydantic import BaseModel, ValidationError
 
-from modelforge.ingest.readers.base import DocChunk, DocIndex
+from modelforge.ingest.llm import LLMBackend, LLMResponse
+from modelforge.ingest.readers.base import DocChunk
 
 _PROMPT_DIR = Path(__file__).parent / "prompts"
 _EXTRACTOR_SYSTEM = (_PROMPT_DIR / "extractor_system.md").read_text(encoding="utf-8")
 
 
 def _load_template_guide(template: str) -> str:
-    """Load template-specific extractor guidance from prompts/."""
     path = _PROMPT_DIR / f"template_{template}.md"
     if path.exists():
         return path.read_text(encoding="utf-8")
@@ -40,22 +40,14 @@ class ExtractionResult:
 
 
 def _inline_refs(schema: dict) -> dict:
-    """Inline all $ref nodes in a JSON schema by substituting from $defs.
-
-    Pydantic emits `{"$ref": "#/$defs/Label"}` for nested models. Anthropic
-    tool_use accepts the schema with `$defs` but some picky setups prefer
-    inline. This walker makes the schema self-contained.
-    """
+    """Inline all $ref nodes in a JSON schema by substituting from $defs."""
     defs = schema.get("$defs", {})
     def resolve(node):
         if isinstance(node, dict):
             if "$ref" in node and node["$ref"].startswith("#/$defs/"):
                 name = node["$ref"].split("/")[-1]
                 resolved = defs.get(name, {})
-                # Deep copy + recursive inlining to prevent infinite recursion
-                # with mutually-recursive schemas (none in our spec, but safe)
                 out = {k: resolve(v) for k, v in resolved.items()}
-                # Merge sibling fields (e.g. description override)
                 for k, v in node.items():
                     if k != "$ref":
                         out[k] = resolve(v)
@@ -68,22 +60,13 @@ def _inline_refs(schema: dict) -> dict:
     return inlined
 
 
-def _build_tool(section_name: str, section_cls: type[BaseModel]) -> dict:
-    """Build an Anthropic tool spec from a Pydantic model section."""
+def _build_tool_schema(section_name: str, section_cls: type[BaseModel]) -> dict:
+    """Derive a JSON schema from a Pydantic model with $refs inlined."""
     raw = section_cls.model_json_schema()
-    inlined = _inline_refs(raw)
-    return {
-        "name": f"emit_{section_name}",
-        "description": (
-            f"Emit the `{section_name}` section of the ModelForge spec. "
-            f"Every field must match the ModelForge conventions — see the system prompt."
-        ),
-        "input_schema": inlined,
-    }
+    return _inline_refs(raw)
 
 
 def _render_source_table(sources: list[dict]) -> str:
-    """Format available sources as a compact markdown table for the prompt."""
     if not sources:
         return "(no sources yet)"
     lines = ["| S-id | Doc | Publisher | Date | Verified |",
@@ -97,7 +80,6 @@ def _render_source_table(sources: list[dict]) -> str:
 
 
 def _render_context_chunks(chunks: list[DocChunk], max_chars: int = 25000) -> str:
-    """Concatenate chunks with source tags; cap total chars for context budget."""
     out = []
     used = 0
     for c in chunks:
@@ -111,37 +93,27 @@ def _render_context_chunks(chunks: list[DocChunk], max_chars: int = 25000) -> st
     return "\n---\n".join(out)
 
 
-def _get_client():
-    from anthropic import Anthropic
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set. `modelforge ingest` requires a "
-            "valid Anthropic API key."
-        )
-    return Anthropic()
-
-
 def extract_section(
     template: str,
     section_name: str,
     section_cls: type[BaseModel],
     available_sources: list[dict],
     context_chunks: list[DocChunk],
-    model: str = "claude-opus-4-6",
-    client: Any = None,
-    use_cache: bool = True,
-    max_context_chars: int = 25000,
+    backend: LLMBackend | None = None,
     retry_on_validation: bool = True,
+    max_context_chars: int = 25000,
+    **kwargs,
 ) -> ExtractionResult:
-    """Extract one section via a single Claude call.
+    """Extract one section via a single LLM call.
 
     On Pydantic validation failure, retry once with the error message
-    appended to the user prompt. Returns ExtractionResult with payload +
-    diagnostics regardless of validity (caller decides what to do with
-    invalid payloads).
+    appended to the user prompt.
     """
-    client = client or _get_client()
-    tool = _build_tool(section_name, section_cls)
+    if backend is None:
+        from modelforge.ingest.llm import get_backend
+        backend = get_backend(**kwargs)
+
+    schema = _build_tool_schema(section_name, section_cls)
     template_guide = _load_template_guide(template)
     sources_md = _render_source_table(available_sources)
     context_md = _render_context_chunks(context_chunks, max_chars=max_context_chars)
@@ -152,33 +124,22 @@ def extract_section(
         f"## Template guidance\n{template_guide}\n\n"
         f"## Available sources\n{sources_md}\n\n"
         f"## Data-room excerpts\n{context_md}\n\n"
-        f"Call the `emit_{section_name}` tool with a complete payload."
+        f"Return a complete `{section_name}` payload."
     )
 
-    system_block = {"type": "text", "text": _EXTRACTOR_SYSTEM}
-    tool_block: dict[str, Any] = dict(tool)
-    if use_cache:
-        system_block["cache_control"] = {"type": "ephemeral"}
-        tool_block["cache_control"] = {"type": "ephemeral"}
+    tool_name = f"emit_{section_name}"
 
-    def _call(messages):
-        return client.messages.create(
-            model=model,
-            max_tokens=4096,
-            system=[system_block],
-            tools=[tool_block],
-            tool_choice={"type": "tool", "name": tool["name"]},
-            messages=messages,
-        )
+    resp = backend.call_json(
+        system_prompt=_EXTRACTOR_SYSTEM,
+        user_prompt=user_prompt,
+        tool_name=tool_name,
+        tool_schema=schema,
+    )
 
-    messages = [{"role": "user", "content": user_prompt}]
-    response = _call(messages)
-
-    payload = _extract_tool_payload(response, tool["name"])
-    cache_read = getattr(response.usage, "cache_read_input_tokens", 0) or 0
-    input_tokens = getattr(response.usage, "input_tokens", 0) or 0
-    output_tokens = getattr(response.usage, "output_tokens", 0) or 0
-    cache_hit = cache_read > 0
+    payload = resp.payload
+    total_in = resp.input_tokens
+    total_out = resp.output_tokens
+    cache_hit = resp.cache_hit
 
     # Validate against Pydantic
     first_error: str | None = None
@@ -186,7 +147,7 @@ def extract_section(
         section_cls.model_validate(payload)
         return ExtractionResult(
             section_name=section_name, payload=payload, validation_ok=True,
-            cache_hit=cache_hit, input_tokens=input_tokens, output_tokens=output_tokens,
+            cache_hit=cache_hit, input_tokens=total_in, output_tokens=total_out,
         )
     except ValidationError as e:
         first_error = str(e)
@@ -194,7 +155,7 @@ def extract_section(
             return ExtractionResult(
                 section_name=section_name, payload=payload, validation_ok=False,
                 validation_error=first_error, cache_hit=cache_hit,
-                input_tokens=input_tokens, output_tokens=output_tokens,
+                input_tokens=total_in, output_tokens=total_out,
             )
 
     # One retry with error feedback
@@ -202,32 +163,28 @@ def extract_section(
         user_prompt
         + "\n\n---\n\n# Previous attempt failed Pydantic validation\n"
         + "```\n" + (first_error or "")[:3000] + "\n```\n"
-        + "Fix the errors and call the tool again."
+        + "Fix the errors and return valid JSON."
     )
-    messages = [{"role": "user", "content": retry_prompt}]
-    response = _call(messages)
-    payload = _extract_tool_payload(response, tool["name"])
-    cache_read2 = getattr(response.usage, "cache_read_input_tokens", 0) or 0
-    input_tokens += getattr(response.usage, "input_tokens", 0) or 0
-    output_tokens += getattr(response.usage, "output_tokens", 0) or 0
+    resp2 = backend.call_json(
+        system_prompt=_EXTRACTOR_SYSTEM,
+        user_prompt=retry_prompt,
+        tool_name=tool_name,
+        tool_schema=schema,
+    )
+    payload = resp2.payload
+    total_in += resp2.input_tokens
+    total_out += resp2.output_tokens
 
     try:
         section_cls.model_validate(payload)
         return ExtractionResult(
             section_name=section_name, payload=payload, validation_ok=True,
-            cache_hit=cache_hit or cache_read2 > 0,
-            input_tokens=input_tokens, output_tokens=output_tokens,
+            cache_hit=cache_hit or resp2.cache_hit,
+            input_tokens=total_in, output_tokens=total_out,
         )
     except ValidationError as e2:
         return ExtractionResult(
             section_name=section_name, payload=payload, validation_ok=False,
-            validation_error=str(e2), cache_hit=cache_hit or cache_read2 > 0,
-            input_tokens=input_tokens, output_tokens=output_tokens,
+            validation_error=str(e2), cache_hit=cache_hit or resp2.cache_hit,
+            input_tokens=total_in, output_tokens=total_out,
         )
-
-
-def _extract_tool_payload(response, tool_name: str) -> dict:
-    for block in response.content:
-        if getattr(block, "type", None) == "tool_use" and block.name == tool_name:
-            return block.input
-    raise RuntimeError(f"No tool_use block for {tool_name} in response")

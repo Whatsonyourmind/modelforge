@@ -2,13 +2,25 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-from unittest.mock import MagicMock
-
 import pytest
 
-from modelforge.ingest.extractor import _build_tool, _inline_refs, extract_section
+from modelforge.ingest.extractor import _build_tool_schema, _inline_refs, extract_section
+from modelforge.ingest.llm import LLMResponse
 from modelforge.ingest.readers.base import DocChunk
+
+
+class MockBackend:
+    """Returns pre-set payloads in order. Tracks call count."""
+    def __init__(self, responses: list[dict] | None = None, default: dict | None = None):
+        self._responses = list(responses or [])
+        self._default = default or {}
+        self.call_count = 0
+
+    def call_json(self, system_prompt, user_prompt, tool_name=None, tool_schema=None):
+        self.call_count += 1
+        payload = self._responses.pop(0) if self._responses else self._default
+        return LLMResponse(payload=payload, cache_hit=self.call_count > 1,
+                           input_tokens=2000, output_tokens=400)
 
 
 def test_inline_refs_resolves_pydantic_defs():
@@ -28,43 +40,26 @@ def test_inline_refs_resolves_pydantic_defs():
     assert "en" in inlined["properties"]["field"]["properties"]
 
 
-def test_build_tool_from_pf_construction():
+def test_build_tool_schema_from_pf_construction():
     from modelforge.spec.project_finance import ConstructionPhase
-    tool = _build_tool("construction", ConstructionPhase)
-    assert tool["name"] == "emit_construction"
-    assert tool["input_schema"]["type"] == "object"
-    assert "$defs" not in tool["input_schema"]  # should be inlined
-    assert "total_capex_eur_m" in tool["input_schema"]["properties"]
+    schema = _build_tool_schema("construction", ConstructionPhase)
+    assert schema["type"] == "object"
+    assert "$defs" not in schema
+    assert "total_capex_eur_m" in schema["properties"]
 
 
-def test_build_tool_from_pf_debt_includes_v03_fields():
-    """PFDebt should expose v0.3 fields (amortization_profile, dsra_months)."""
+def test_build_tool_schema_from_pf_debt_includes_v03_fields():
     from modelforge.spec.project_finance import PFDebt
-    tool = _build_tool("debt", PFDebt)
-    props = tool["input_schema"]["properties"]
+    schema = _build_tool_schema("debt", PFDebt)
+    props = schema["properties"]
     assert "amortization_profile" in props
     assert "debt_sizing_mode" in props
     assert "dsra_months" in props
 
 
-def _mock_extractor_response(payload: dict, cache_read: int = 0):
-    tool_block = SimpleNamespace(
-        type="tool_use",
-        name="emit_operating",
-        input=payload,
-    )
-    usage = SimpleNamespace(
-        input_tokens=2000,
-        output_tokens=400,
-        cache_read_input_tokens=cache_read,
-    )
-    return SimpleNamespace(content=[tool_block], usage=usage)
-
-
 def test_extract_section_returns_valid_payload():
     from modelforge.spec.project_finance import OperatingPhase
-    mock_client = MagicMock()
-    mock_client.messages.create.return_value = _mock_extractor_response({
+    payload = {
         "availability_payment_eur_m_yr1": {
             "id": "A-010", "name": "revenue_yr1",
             "label": {"en": "Revenue Y1", "it": "Ricavi Y1"},
@@ -76,39 +71,35 @@ def test_extract_section_returns_valid_payload():
             "id": "A-011", "name": "revenue_indexation",
             "label": {"en": "Revenue CPI escalation", "it": "Indicizzazione ricavi"},
             "unit": "pct", "base": 0.015,
-            "rationale": "1.5% per IM section 7.",
-            "confidence": "M", "source_id": "S-002",
+            "rationale": "1.5% per IM section 7.", "confidence": "M", "source_id": "S-002",
         },
         "opex_pct_revenue": {
             "id": "A-012", "name": "opex_pct_revenue",
             "label": {"en": "Opex % revenue", "it": "Opex % ricavi"},
             "unit": "pct", "base": 0.22,
-            "rationale": "22% per IM operating cost section.",
-            "confidence": "M", "source_id": "S-002",
+            "rationale": "22% per IM.", "confidence": "M", "source_id": "S-002",
         },
         "opex_indexation_pct": {
             "id": "A-013", "name": "opex_indexation",
             "label": {"en": "Opex CPI escalation", "it": "Indicizzazione opex"},
             "unit": "pct", "base": 0.02,
-            "rationale": "2% per IM operating cost section.",
-            "confidence": "M", "source_id": "S-002",
+            "rationale": "2% per IM.", "confidence": "M", "source_id": "S-002",
         },
         "maintenance_reserve_pct_revenue": {
             "id": "A-014", "name": "maintenance_reserve_pct",
             "label": {"en": "Maintenance reserve % rev", "it": "Riserva manutenzione"},
             "unit": "pct", "base": 0.02,
-            "rationale": "2% MMRA per IM.",
-            "confidence": "M", "source_id": "S-002",
+            "rationale": "2% MMRA per IM.", "confidence": "M", "source_id": "S-002",
         },
-    })
-
+    }
+    backend = MockBackend(default=payload)
     sources = [{"id": f"S-{i:03d}", "doc": f"doc_{i}.pdf", "publisher": "t",
                 "date": "2026-01-01", "verified": True, "note": "t"}
                for i in range(1, 10)]
     chunks = [DocChunk(doc_filename="doc_1.pdf", page=1, text="Sample text.")]
     result = extract_section(
         "project_finance", "operating", OperatingPhase,
-        available_sources=sources, context_chunks=chunks, client=mock_client,
+        available_sources=sources, context_chunks=chunks, backend=backend,
     )
     assert result.validation_ok is True
     assert "availability_payment_eur_m_yr1" in result.payload
@@ -116,20 +107,34 @@ def test_extract_section_returns_valid_payload():
 
 def test_extract_section_retries_on_validation_error():
     from modelforge.spec.project_finance import OperatingPhase
-    mock_client = MagicMock()
-    # First call: invalid (missing required fields)
-    bad_resp = _mock_extractor_response({"availability_payment_eur_m_yr1": {}})
-    # Second call: still invalid — simulates failure after retry
-    mock_client.messages.create.side_effect = [bad_resp, bad_resp]
+    # Both calls return invalid payloads
+    bad = {"availability_payment_eur_m_yr1": {}}
+    backend = MockBackend(responses=[bad, bad])
 
     sources = [{"id": "S-001", "doc": "d.pdf", "publisher": "t",
                 "date": "2026-01-01", "verified": True, "note": ""}]
     chunks = [DocChunk(doc_filename="d.pdf", page=1, text="x")]
     result = extract_section(
         "project_finance", "operating", OperatingPhase,
-        available_sources=sources, context_chunks=chunks, client=mock_client,
+        available_sources=sources, context_chunks=chunks, backend=backend,
     )
     assert result.validation_ok is False
     assert result.validation_error
-    # Should have been called twice (original + retry)
-    assert mock_client.messages.create.call_count == 2
+    assert backend.call_count == 2
+
+
+def test_json_parser_handles_fenced_markdown():
+    from modelforge.ingest.llm import _parse_json_from_text
+    text = 'Here is the result:\n```json\n{"key": "value"}\n```\nDone.'
+    assert _parse_json_from_text(text) == {"key": "value"}
+
+
+def test_json_parser_handles_raw_json():
+    from modelforge.ingest.llm import _parse_json_from_text
+    assert _parse_json_from_text('{"a": 1}') == {"a": 1}
+
+
+def test_json_parser_handles_leading_prose():
+    from modelforge.ingest.llm import _parse_json_from_text
+    text = 'I think the answer is: {"result": true}'
+    assert _parse_json_from_text(text) == {"result": True}
