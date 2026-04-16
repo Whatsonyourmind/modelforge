@@ -193,6 +193,9 @@ def lineage_cmd(graph_db: Path, cell_id: str) -> None:
               help="Output YAML path. Defaults to output/<dir_name>.yaml.")
 @click.option("--model", default="claude-opus-4-6",
               help="Anthropic model (default: claude-opus-4-6).")
+@click.option("--backend", "backend_name", default="cli",
+              type=click.Choice(["cli", "api"]),
+              help="LLM backend: 'cli' (Claude Code, no API key) or 'api' (Anthropic SDK).")
 @click.option("--max-docs", type=int, default=50,
               help="Cap docs scanned (default: 50).")
 @click.option("--strict", is_flag=True,
@@ -200,15 +203,20 @@ def lineage_cmd(graph_db: Path, cell_id: str) -> None:
 @click.option("--dry-run", is_flag=True,
               help="Classify + report only; skip extraction.")
 @click.option("--no-cache", is_flag=True,
-              help="Disable Anthropic prompt caching.")
+              help="Disable Anthropic prompt caching (api backend only).")
 @click.option("-v", "--verbose", is_flag=True,
               help="Print per-step progress.")
 def ingest_cmd(
     dataroom_dir: Path, template: str, output_yaml: Path | None,
-    model: str, max_docs: int, strict: bool, dry_run: bool,
-    no_cache: bool, verbose: bool,
+    model: str, backend_name: str, max_docs: int, strict: bool,
+    dry_run: bool, no_cache: bool, verbose: bool,
 ) -> None:
-    """Ingest a data room (PDFs/XLSX/CSV) and produce a ModelForge YAML spec."""
+    """Ingest a data room (PDFs/XLSX/CSV) and produce a ModelForge YAML spec.
+
+    Default backend is 'cli' which uses your Claude Code subscription
+    (no API key needed). Use '--backend api' with ANTHROPIC_API_KEY for
+    the Anthropic SDK path with prompt caching.
+    """
     from modelforge.ingest.pipeline import ingest
     if output_yaml is None:
         output_yaml = Path("output") / f"{dataroom_dir.name}.yaml"
@@ -218,7 +226,7 @@ def ingest_cmd(
             console.print(f"[dim]{msg}[/dim]")
 
     console.print(f"[bold]Ingesting[/bold] {dataroom_dir} -> {output_yaml}")
-    console.print(f"Template: {template}  Model: {model}  Cache: {'off' if no_cache else 'on'}")
+    console.print(f"Template: {template}  Backend: {backend_name}  Model: {model}")
     try:
         result = ingest(
             dataroom_dir=dataroom_dir,
@@ -229,6 +237,7 @@ def ingest_cmd(
             use_cache=not no_cache,
             strict=strict,
             dry_run=dry_run,
+            backend_name=backend_name,
             log=log,
         )
     except RuntimeError as e:
