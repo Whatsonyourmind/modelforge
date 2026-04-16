@@ -44,6 +44,27 @@ modelforge build examples/unitranche_cdmo.yaml
 modelforge qc output/unitranche_cdmo.xlsx
 ```
 
+## Data-room ingestion (v0.3.1)
+
+Turn a directory of PDFs, XLSXs and CSVs into a validated ModelForge YAML spec using Claude Opus. Every extracted number traces back to a doc page via the auto-built Sources registry.
+
+```bash
+pip install -e .[ingest]                # installs anthropic, pdfplumber, pypdf
+export ANTHROPIC_API_KEY=sk-ant-...      # required
+
+modelforge ingest path/to/dataroom/ \
+    --template project_finance \
+    -o output/my_deal.yaml --verbose
+
+# Review output/my_deal.yaml + output/my_deal.ingestion.md
+# (INGESTION_REPORT.md lists every extracted field, S-id, confidence)
+
+modelforge build output/my_deal.yaml     # produces the workbook
+modelforge qc output/my_deal.xlsx        # 8/8 quality gate
+```
+
+Supported template: `project_finance` (MVP). Templates 1, 3, 5-8 queued for v0.3.2. See `PRD_v03_dataroom_ingestion.md` for the full spec.
+
 ## Package layout
 
 ```
