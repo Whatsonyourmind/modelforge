@@ -63,16 +63,18 @@ modelforge/
 └── cli.py            # modelforge build|qc|sources|inspect
 ```
 
-## Template roadmap
+## Templates (all shipped)
 
-1. ✅ Unitranche LBO (Italian mid-market direct lending)
-2. Minibond pricing + investor returns
-3. Credit memo + covenant headroom
-4. Project Finance (infra, RE, energy)
-5. Real Estate DCF + waterfall
-6. NPL portfolio recovery waterfall + IRR
-7. Structured Credit tranche allocation
-8. 3-statement corporate
+1. ✅ **Unitranche LBO** — Italian mid-market direct lending (Cash sweep + IFRS 9 EIR)
+2. ✅ **Minibond** — a regional bank territory (Gross YTM + Net YTM + Italian WHT)
+3. ✅ **Credit Memo** — Extends Unitranche with recovery waterfall + PD×LGD×EAD
+4. ✅ **Project Finance** — Construction + operating phases, DSCR-driven
+5. ✅ **Real Estate** — NOI build, exit cap, LP/GP promote waterfall
+6. ✅ **NPL Portfolio** — Collection curves, servicing fees, senior/mezz capital structure
+7. ✅ **Structured Credit** — Tranche waterfall with attachment/detachment points
+8. ✅ **3-Statement** — P&L + BS + CFS with BS balance integrity check
+
+Run `modelforge list-templates` to see them all. Each ships with an anonymized Italian example YAML in `examples/`.
 
 ## The pitch
 

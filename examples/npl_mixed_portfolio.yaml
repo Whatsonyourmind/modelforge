@@ -1,0 +1,88 @@
+# Italian NPL Mixed Portfolio (Cherry Bank / Apollo type deal)
+# €200M GBV, mixed secured/unsecured, 10y collection horizon
+
+model_type: npl
+
+meta:
+  project_code: DEMO-NPL-MIX
+  deliverable: { en: "NPL Portfolio Acquisition Model", it: "Modello di Acquisizione Portafoglio NPL" }
+  analyst: L. maintainer
+  version: v0.1
+  status: draft
+  valuation_date: 2026-04-16
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "Mixed secured/unsecured Italian NPL portfolio." }
+
+target:
+  name: "NPL Portfolio (anonymized)"
+  sector: { en: "Distressed credit — mixed Italian NPL", it: "Credito distressed — NPL misto" }
+  country: IT
+  currency: EUR
+  revenue_last_fy_eur_m: 0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 0
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon: { collection_years: 10 }
+
+sources:
+  - { id: S-001, doc: Data_Tape_Portfolio_Cut.xlsx, page: 1, publisher: "Seller bank", date: 2026-03-01, verified: true, note: "Loan-level data tape, GBV, vintage, DPD, collateral breakdown." }
+  - { id: S-002, doc: PwC_Italian_NPL_Market_Q1_2026.pdf, page: 18, publisher: PwC, date: 2026-03-15, verified: true, note: "Italian NPL market — €22bn/yr secondary volume, pricing 15-25% of GBV (secured), 5-12% (unsecured)." }
+  - { id: S-003, doc: Banca_Italia_NPL_Recovery_Curves_2025.pdf, page: 12, publisher: Banca d'Italia, date: 2025-12-15, url: "https://www.bancaditalia.it/", verified: true, note: "Italian NPL recovery curves by loan type — secured 35-50% over 8-10y." }
+  - { id: S-004, doc: Cerved_Group_NPL_Servicing_Fee_Survey_2025.pdf, page: 8, publisher: Cerved, date: 2026-01-20, verified: false, note: "Italian NPL servicing fees 7-10% of collections." }
+  - { id: S-005, doc: Cherry_Bank_Apollo_Partnership_Press.pdf, page: 1, publisher: "Cherry Bank", date: 2026-02-28, verified: true, note: "Cherry Bank / Apollo Italian NPL JV structure." }
+  - { id: S-006, doc: PwC_Italy_Tax_IRES_IRAP.pdf, page: 1, publisher: PwC, date: 2026-01-15, verified: true, note: "IRES+IRAP 27.9%." }
+
+portfolio:
+  gbv_eur_m:
+    { id: A-001, name: gbv_eur_m, label: { en: "GBV (€m)", it: "GBV (€m)" }, unit: eur_m, base: 200.0, rationale: "€200M mixed portfolio face value.", confidence: H, source_id: S-001 }
+  purchase_price_pct_gbv:
+    { id: A-002, name: purchase_price_pct_gbv, label: { en: "Purchase % GBV", it: "Prezzo % GBV" }, unit: pct, base: 0.18, worst: 0.15, best: 0.22, rationale: "18% blended (secured ~25%, unsecured ~8%) — PwC Italian NPL pricing 2026.", confidence: H, source_id: S-002 }
+  secured_pct_gbv:
+    { id: A-003, name: secured_pct_gbv, label: { en: "Secured % GBV", it: "Garantito % GBV" }, unit: pct, base: 0.65, rationale: "65% secured (mortgage / RE collateral).", confidence: H, source_id: S-001 }
+  unsecured_pct_gbv:
+    { id: A-004, name: unsecured_pct_gbv, label: { en: "Unsecured % GBV", it: "Non garantito % GBV" }, unit: pct, base: 0.35, rationale: "35% unsecured (consumer / SME signature).", confidence: H, source_id: S-001 }
+  cumulative_collection_curve_pct:
+    - { id: A-010, name: cum_col_y1, label: { en: "Cum collection Y1", it: "Recupero cum Y1" }, unit: pct, base: 0.03, worst: 0.02, best: 0.04, rationale: "Year 1 early collections: 3% blended — Banca Italia curves.", confidence: H, source_id: S-003 }
+    - { id: A-011, name: cum_col_y2, label: { en: "Cum collection Y2", it: "Recupero cum Y2" }, unit: pct, base: 0.08, worst: 0.05, best: 0.11, rationale: "Year 2 cumulative.", confidence: H, source_id: S-003 }
+    - { id: A-012, name: cum_col_y3, label: { en: "Cum collection Y3", it: "Recupero cum Y3" }, unit: pct, base: 0.15, worst: 0.10, best: 0.19, rationale: "Year 3 — legal recovery starts.", confidence: H, source_id: S-003 }
+    - { id: A-013, name: cum_col_y4, label: { en: "Cum collection Y4", it: "Recupero cum Y4" }, unit: pct, base: 0.22, worst: 0.16, best: 0.27, rationale: "Year 4 — peak collections.", confidence: H, source_id: S-003 }
+    - { id: A-014, name: cum_col_y5, label: { en: "Cum collection Y5", it: "Recupero cum Y5" }, unit: pct, base: 0.28, worst: 0.20, best: 0.34, rationale: "Year 5.", confidence: H, source_id: S-003 }
+    - { id: A-015, name: cum_col_y6, label: { en: "Cum collection Y6", it: "Recupero cum Y6" }, unit: pct, base: 0.32, worst: 0.24, best: 0.38, rationale: "Year 6.", confidence: M, source_id: S-003 }
+    - { id: A-016, name: cum_col_y7, label: { en: "Cum collection Y7", it: "Recupero cum Y7" }, unit: pct, base: 0.35, worst: 0.26, best: 0.41, rationale: "Year 7 — secured recovery ramping.", confidence: M, source_id: S-003 }
+    - { id: A-017, name: cum_col_y8, label: { en: "Cum collection Y8", it: "Recupero cum Y8" }, unit: pct, base: 0.37, worst: 0.28, best: 0.43, rationale: "Year 8.", confidence: M }
+    - { id: A-018, name: cum_col_y9, label: { en: "Cum collection Y9", it: "Recupero cum Y9" }, unit: pct, base: 0.39, worst: 0.29, best: 0.44, rationale: "Year 9 — tail.", confidence: L }
+    - { id: A-019, name: cum_col_y10, label: { en: "Cum collection Y10", it: "Recupero cum Y10" }, unit: pct, base: 0.40, worst: 0.30, best: 0.45, rationale: "Year 10 — terminal recovery rate ~40%.", confidence: L }
+
+servicing:
+  servicing_fee_pct_collections:
+    { id: A-020, name: servicing_fee_pct_collections, label: { en: "Servicing fee % collections", it: "Fee servicing % recuperi" }, unit: pct, base: 0.08, rationale: "Cerved Italian NPL 7-10%.", confidence: H, source_id: S-004 }
+  setup_fee_pct_gbv:
+    { id: A-021, name: setup_fee_pct_gbv, label: { en: "Setup fee % GBV", it: "Fee setup % GBV" }, unit: pct, base: 0.003, rationale: "0.3% upfront on GBV.", confidence: H }
+  legal_fee_pct_collections:
+    { id: A-022, name: legal_fee_pct_collections, label: { en: "Legal fee % collections", it: "Fee legali % recuperi" }, unit: pct, base: 0.03, rationale: "Legal recovery costs 2-4%.", confidence: M }
+  data_tape_cost_eur_m:
+    { id: A-023, name: data_tape_cost_eur_m, label: { en: "Data tape cost", it: "Costo data tape" }, unit: eur_m, base: 0.08, rationale: "Data tape analytics + DD.", confidence: H }
+
+capital:
+  senior_note_pct_purchase:
+    { id: A-030, name: senior_note_pct_purchase, label: { en: "Senior note % purchase", it: "Nota senior % prezzo" }, unit: pct, base: 0.50, rationale: "50% senior leverage (GACS-eligible structure).", confidence: H, source_id: S-005 }
+  senior_note_rate:
+    { id: A-031, name: senior_note_rate, label: { en: "Senior note rate", it: "Tasso nota senior" }, unit: pct, base: 0.055, rationale: "Senior NPL note 5-6% 2026.", confidence: H }
+  senior_note_tenor_years: 10
+  mezz_note_pct_purchase:
+    { id: A-032, name: mezz_note_pct_purchase, label: { en: "Mezz note % purchase", it: "Nota mezz % prezzo" }, unit: pct, base: 0.20, rationale: "20% mezz.", confidence: H }
+  mezz_note_rate:
+    { id: A-033, name: mezz_note_rate, label: { en: "Mezz note rate", it: "Tasso nota mezz" }, unit: pct, base: 0.10, rationale: "Mezz NPL note 9-11%.", confidence: H }
+
+effective_tax_rate:
+  { id: A-040, name: effective_tax_rate, label: { en: "Effective tax rate", it: "Aliquota" }, unit: pct, base: 0.279, rationale: "IRES+IRAP.", confidence: H, source_id: S-006 }
+
+historical_revenue_eur_m: []
+historical_ebitda_eur_m: []
+historical_net_debt_eur_m: 0.0
+historical_net_debt_source_id: S-001

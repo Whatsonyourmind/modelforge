@@ -1,0 +1,91 @@
+# Italian PBSA student housing — DD Talks 2026 "gold" sector
+# 300-bed asset in Milan, 7y hold, LP/GP promote structure
+
+model_type: real_estate
+
+meta:
+  project_code: DEMO-PBSA-MI
+  deliverable: { en: "PBSA Acquisition & Financing Memo", it: "Memo Acquisizione e Finanziamento PBSA" }
+  analyst: L. maintainer
+  version: v0.1
+  status: draft
+  valuation_date: 2026-04-16
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "Milan PBSA, 300 beds, 7y hold." }
+
+target:
+  name: "Milan PBSA Asset (anonymized)"
+  sector: { en: "PBSA — Purpose-Built Student Accommodation", it: "PBSA — Studentato" }
+  country: IT
+  currency: EUR
+  revenue_last_fy_eur_m: 0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 0
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon: { hold_years: 7 }
+
+sources:
+  - { id: S-001, doc: PBSA_Asset_OM_Milan.pdf, page: 8, publisher: "Asset owner", date: 2026-03-05, verified: true, note: "Offering memorandum — 300 beds, €/bed pricing, occupancy history." }
+  - { id: S-002, doc: an asset manager_SGR_iGeneration_market_report_2026.pdf, page: 22, publisher: "an asset manager", date: 2026-02-28, verified: true, note: "Italian PBSA market — rent growth 4-5% y/y, occupancy 95%+ in Milan/Rome." }
+  - { id: S-003, doc: CBRE_Italy_Living_Cap_Rate_Survey_Q1_2026.pdf, page: 12, publisher: CBRE, date: 2026-04-10, verified: true, note: "Italian prime PBSA cap rates 4.50-4.75% Q1 2026." }
+  - { id: S-004, doc: PwC_Italy_Senior_RE_Debt_Pricing_Q1_2026.pdf, page: 15, publisher: PwC, date: 2026-03-20, verified: false, note: "Italian RE senior debt 5.5-6.25% all-in, 55-60% LTV." }
+  - { id: S-005, doc: Deloitte_European_RE_Transaction_Costs.pdf, page: 6, publisher: Deloitte, date: 2025-12-01, verified: true, note: "Italian RE transaction costs 2.5-3.0% (imposta di registro + notaio + broker)." }
+  - { id: S-006, doc: ISTAT_CPI_Italy_Rent_Index_2026.html, page: 1, publisher: ISTAT, date: 2026-04-05, url: "https://www.istat.it/", verified: true, note: "Italian rent index 2026 +2.5% y/y." }
+
+property:
+  acquisition_price_eur_m:
+    { id: A-001, name: acquisition_price_eur_m, label: { en: "Acquisition price", it: "Prezzo acquisto" }, unit: eur_m, base: 42.0, rationale: "300 beds × €140k/bed (Milan prime).", confidence: H, source_id: S-001 }
+  lettable_area_sqm:
+    { id: A-002, name: lettable_area_sqm, label: { en: "Lettable area (sqm)", it: "Superficie locabile" }, unit: count, base: 7500, rationale: "300 beds × 25 sqm avg.", confidence: H, source_id: S-001 }
+  rent_eur_sqm_year1:
+    { id: A-003, name: rent_eur_sqm_year1, label: { en: "Rent (€/sqm/year)", it: "Canone €/sqm/anno" }, unit: eur, base: 420, rationale: "€350/bed/month Milan PBSA = ~€420/sqm/y.", confidence: H, source_id: S-002 }
+  vacancy_pct:
+    { id: A-004, name: vacancy_pct, label: { en: "Vacancy %", it: "Sfitto %" }, unit: pct, base: 0.04, worst: 0.08, best: 0.02, rationale: "Milan PBSA historical 95%+.", confidence: H, source_id: S-002 }
+  rent_indexation_pct:
+    { id: A-005, name: rent_indexation_pct, label: { en: "Rent indexation %", it: "Indicizzazione canone" }, unit: pct, base: 0.035, rationale: "PBSA commanding higher than CPI due to housing shortage.", confidence: H, source_id: S-006 }
+  opex_pct_gross_rent:
+    { id: A-006, name: opex_pct_gross_rent, label: { en: "Opex % gross rent", it: "Opex % canone lordo" }, unit: pct, base: 0.28, rationale: "PBSA has higher opex (service-inclusive) vs. traditional resi.", confidence: H, source_id: S-001 }
+  capex_pct_gross_rent:
+    { id: A-007, name: capex_pct_gross_rent, label: { en: "Maintenance capex % rent", it: "Capex % canone" }, unit: pct, base: 0.04, rationale: "Standard PBSA maintenance reserve.", confidence: M }
+
+financing:
+  ltv_pct:
+    { id: A-010, name: ltv_pct, label: { en: "LTV at close", it: "LTV al closing" }, unit: pct, base: 0.55, worst: 0.50, best: 0.60, rationale: "Conservative RE debt Q1 2026.", confidence: H, source_id: S-004 }
+  senior_interest_rate:
+    { id: A-011, name: senior_interest_rate, label: { en: "Senior all-in rate", it: "Tasso senior all-in" }, unit: pct, base: 0.0575, worst: 0.065, best: 0.050, rationale: "PwC RE senior debt 5.5-6.25% range.", confidence: H, source_id: S-004 }
+  senior_tenor_years: 7
+  senior_amortization: bullet
+  arrangement_fee_pct:
+    { id: A-012, name: arrangement_fee_pct, label: { en: "Arrangement fee %", it: "Strutturazione %" }, unit: pct, base: 0.015, rationale: "RE senior arrangement 1-2%.", confidence: H }
+
+exit:
+  exit_cap_rate:
+    { id: A-020, name: exit_cap_rate, label: { en: "Exit cap rate", it: "Cap rate uscita" }, unit: pct, base: 0.050, worst: 0.0525, best: 0.0475, rationale: "CBRE prime PBSA 4.75%; +25bps buffer for exit.", confidence: H, source_id: S-003 }
+  transaction_costs_pct:
+    { id: A-021, name: transaction_costs_pct, label: { en: "Transaction costs %", it: "Costi transazione" }, unit: pct, base: 0.025, rationale: "Italian RE 2.5-3%.", confidence: H, source_id: S-005 }
+
+waterfall:
+  lp_capital_commitment_pct:
+    { id: A-030, name: lp_capital_commitment_pct, label: { en: "LP capital %", it: "% capitale LP" }, unit: pct, base: 0.95, rationale: "95/5 LP/GP standard RE JV.", confidence: H }
+  tiers:
+    - name: { en: "Return of capital", it: "Restituzione capitale" }
+      hurdle_irr_pct: { id: A-031, name: tier1_hurdle, label: { en: "Tier 1 hurdle", it: "Tier 1 hurdle" }, unit: pct, base: 0.0, rationale: "Return of capital first.", confidence: H }
+      lp_share_pct: { id: A-032, name: tier1_lp_share, label: { en: "LP share T1", it: "Quota LP T1" }, unit: pct, base: 1.0, rationale: "100% LP.", confidence: H }
+    - name: { en: "Pref return", it: "Rendimento preferenziale" }
+      hurdle_irr_pct: { id: A-033, name: tier2_hurdle, label: { en: "Pref return %", it: "Pref return %" }, unit: pct, base: 0.09, rationale: "9% pref return — Italian RE standard.", confidence: H }
+      lp_share_pct: { id: A-034, name: tier2_lp_share, label: { en: "LP share T2", it: "Quota LP T2" }, unit: pct, base: 1.0, rationale: "100% LP until pref.", confidence: H }
+    - name: { en: "Catch-up", it: "Catch-up" }
+      hurdle_irr_pct: { id: A-035, name: tier3_hurdle, label: { en: "Catch-up hurdle", it: "Catch-up hurdle" }, unit: pct, base: 0.12, rationale: "Catch-up until 12%.", confidence: H }
+      lp_share_pct: { id: A-036, name: tier3_lp_share, label: { en: "LP share T3", it: "Quota LP T3" }, unit: pct, base: 0.50, rationale: "50/50 split.", confidence: H }
+    - name: { en: "Promote (residual)", it: "Promote residuale" }
+      lp_share_pct: { id: A-037, name: tier4_lp_share, label: { en: "LP share T4", it: "Quota LP T4" }, unit: pct, base: 0.80, rationale: "80/20 above 12% IRR.", confidence: H }
+
+historical_revenue_eur_m: []
+historical_ebitda_eur_m: []
+historical_net_debt_eur_m: 0.0
+historical_net_debt_source_id: S-001

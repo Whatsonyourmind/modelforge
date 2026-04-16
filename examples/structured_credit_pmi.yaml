@@ -1,0 +1,88 @@
+# Italian PMI securitization — a regional bank basket bond / legge 130/1999
+# €150M receivables, 7y horizon, 4 tranches
+
+model_type: structured_credit
+
+meta:
+  project_code: DEMO-SEC-PMI
+  deliverable: { en: "PMI Securitization — Tranche Rating Deck", it: "Cartolarizzazione PMI — Deck di Rating" }
+  analyst: L. maintainer
+  version: v0.1
+  status: draft
+  valuation_date: 2026-04-16
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "Italian PMI securitization, 4 tranches." }
+
+target:
+  name: "Project PMI Securitization (anonymized)"
+  sector: { en: "Italian SME trade receivables securitization", it: "Cartolarizzazione crediti PMI" }
+  country: IT
+  currency: EUR
+  revenue_last_fy_eur_m: 0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 0
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon: { collection_years: 7 }
+
+sources:
+  - { id: S-001, doc: Originator_data_tape_SME_receivables.xlsx, page: 1, publisher: "Originator bank", date: 2026-03-10, verified: true, note: "SME trade receivables data tape, sector and geography split." }
+  - { id: S-002, doc: Moodys_Italian_SME_ABS_Default_Study_2025.pdf, page: 18, publisher: "Moody's Investors Service", date: 2026-01-20, verified: true, note: "Italian SME ABS cumulative defaults — investment grade tranches 2-4% over 7y." }
+  - { id: S-003, doc: Banca_a regional bank_PMI_Basket_Bond_precedent.pdf, page: 4, publisher: "a regional bank", date: 2026-02-05, verified: true, note: "a regional bank basket bond structure Italian legge 130/1999 precedent." }
+  - { id: S-004, doc: EBA_Risk_Dashboard_Q4_2025.pdf, page: 32, publisher: EBA, date: 2026-02-28, url: "https://www.eba.europa.eu/", verified: true, note: "European SME recovery rates 45-55% on default." }
+  - { id: S-005, doc: Cerved_Italian_SME_PD_By_Sector.pdf, page: 12, publisher: Cerved, date: 2026-01-15, verified: false, note: "Italian SME PD by sector." }
+
+collateral:
+  face_value_eur_m:
+    { id: A-001, name: face_value_eur_m, label: { en: "Pool face value", it: "Valore nominale pool" }, unit: eur_m, base: 150.0, rationale: "€150M SME receivables pool.", confidence: H, source_id: S-001 }
+  weighted_avg_life_years:
+    { id: A-002, name: wal_years, label: { en: "WAL (years)", it: "WAL (anni)" }, unit: years, base: 3.5, rationale: "3-4y WAL typical for SME trade receivables.", confidence: H, source_id: S-001 }
+  cumulative_default_curve_pct:
+    - { id: A-010, name: def_y1, label: { en: "Cum default Y1", it: "Default cum Y1" }, unit: pct, base: 0.01, rationale: "1% Y1 — Moody's IG SME curve.", confidence: H, source_id: S-002 }
+    - { id: A-011, name: def_y2, label: { en: "Cum default Y2", it: "Default cum Y2" }, unit: pct, base: 0.025, rationale: "Y2.", confidence: H, source_id: S-002 }
+    - { id: A-012, name: def_y3, label: { en: "Cum default Y3", it: "Default cum Y3" }, unit: pct, base: 0.045, rationale: "Y3.", confidence: H, source_id: S-002 }
+    - { id: A-013, name: def_y4, label: { en: "Cum default Y4", it: "Default cum Y4" }, unit: pct, base: 0.060, rationale: "Y4.", confidence: H, source_id: S-002 }
+    - { id: A-014, name: def_y5, label: { en: "Cum default Y5", it: "Default cum Y5" }, unit: pct, base: 0.070, rationale: "Y5.", confidence: M, source_id: S-002 }
+    - { id: A-015, name: def_y6, label: { en: "Cum default Y6", it: "Default cum Y6" }, unit: pct, base: 0.075, rationale: "Y6 — tail.", confidence: M }
+    - { id: A-016, name: def_y7, label: { en: "Cum default Y7", it: "Default cum Y7" }, unit: pct, base: 0.080, rationale: "Y7 final maturity.", confidence: M }
+  recovery_pct_on_default:
+    { id: A-020, name: recovery_pct_on_default, label: { en: "Recovery % on default", it: "Recupero % su default" }, unit: pct, base: 0.50, rationale: "EBA European SME 45-55% LGD inverted.", confidence: H, source_id: S-004 }
+  prepayment_rate_annual:
+    { id: A-021, name: prepayment_rate_annual, label: { en: "Annual prepayment rate", it: "Tasso prepagamento annuo" }, unit: pct, base: 0.05, rationale: "5% typical Italian SME.", confidence: M }
+
+tranches:
+  - name: { en: "Senior (AAA)", it: "Senior (AAA)" }
+    rating: AAA
+    attachment_point_pct: { id: A-030, name: senior_attach, label: { en: "Senior attachment", it: "Attacco senior" }, unit: pct, base: 0.10, rationale: "10% subordination — AAA-equivalent for IG SME ABS.", confidence: H, source_id: S-002 }
+    detachment_point_pct: { id: A-031, name: senior_detach, label: { en: "Senior detachment", it: "Stacco senior" }, unit: pct, base: 1.00, rationale: "Top of capital stack.", confidence: H }
+    coupon_pct: { id: A-032, name: senior_coupon, label: { en: "Senior coupon", it: "Cedola senior" }, unit: pct, base: 0.038, rationale: "AAA 2026 pricing.", confidence: H }
+  - name: { en: "Mezz (A)", it: "Mezz (A)" }
+    rating: A
+    attachment_point_pct: { id: A-040, name: mezz_attach, label: { en: "Mezz attachment", it: "Attacco mezz" }, unit: pct, base: 0.05, rationale: "5% attachment.", confidence: H }
+    detachment_point_pct: { id: A-041, name: mezz_detach, label: { en: "Mezz detachment", it: "Stacco mezz" }, unit: pct, base: 0.10, rationale: "Below senior.", confidence: H }
+    coupon_pct: { id: A-042, name: mezz_coupon, label: { en: "Mezz coupon", it: "Cedola mezz" }, unit: pct, base: 0.058, rationale: "A rating 2026.", confidence: H }
+  - name: { en: "Junior (BB)", it: "Junior (BB)" }
+    rating: BB
+    attachment_point_pct: { id: A-050, name: junior_attach, label: { en: "Junior attachment", it: "Attacco junior" }, unit: pct, base: 0.02, rationale: "2%.", confidence: H }
+    detachment_point_pct: { id: A-051, name: junior_detach, label: { en: "Junior detachment", it: "Stacco junior" }, unit: pct, base: 0.05, rationale: "Below mezz.", confidence: H }
+    coupon_pct: { id: A-052, name: junior_coupon, label: { en: "Junior coupon", it: "Cedola junior" }, unit: pct, base: 0.095, rationale: "BB-equivalent.", confidence: H }
+  - name: { en: "Equity (first loss)", it: "Equity (prima perdita)" }
+    rating: Equity
+    attachment_point_pct: { id: A-060, name: equity_attach, label: { en: "Equity attachment", it: "Attacco equity" }, unit: pct, base: 0.00, rationale: "First loss.", confidence: H }
+    detachment_point_pct: { id: A-061, name: equity_detach, label: { en: "Equity detachment", it: "Stacco equity" }, unit: pct, base: 0.02, rationale: "Up to 2%.", confidence: H }
+    coupon_pct: { id: A-062, name: equity_coupon, label: { en: "Equity coupon (residual)", it: "Cedola equity (residuale)" }, unit: pct, base: 0.20, rationale: "Residual equity holders target ~20%.", confidence: M }
+
+servicing_fee_pct_collections:
+  { id: A-070, name: servicing_fee_pct_collections, label: { en: "Servicing fee %", it: "Fee servicing %" }, unit: pct, base: 0.05, rationale: "Italian SME securitization 4-6%.", confidence: H }
+
+effective_tax_rate:
+  { id: A-080, name: effective_tax_rate, label: { en: "Effective tax rate (SPV)", it: "Aliquota (SPV)" }, unit: pct, base: 0.0, rationale: "Legge 130/1999 SPV tax-neutral.", confidence: H, source_id: S-003 }
+
+historical_revenue_eur_m: []
+historical_ebitda_eur_m: []
+historical_net_debt_eur_m: 0.0
+historical_net_debt_source_id: S-001
