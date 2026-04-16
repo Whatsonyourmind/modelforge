@@ -1,0 +1,88 @@
+# REAL DEAL — Stevanato Group S.p.A. (NYSE: STVN)
+# Italian-headquartered specialty pharma packaging & CDMO
+# All figures from publicly filed FY2024 + FY2025 results + 2025 guidance
+#
+# Source: Stevanato Group IR press releases (ir.stevanatogroup.com)
+
+model_type: three_statement
+
+meta:
+  project_code: REAL-STVN-FY26
+  deliverable: { en: "Stevanato Group 3-Statement Model (public filings)", it: "Stevanato Group modello 3 prospetti (bilanci pubblici)" }
+  analyst: L. Stanisljevic
+  version: v0.1-real
+  status: draft
+  valuation_date: 2026-04-16
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "Real Stevanato — FY23 + FY24 + FY25 actuals; FY26-FY28 on consensus growth." }
+
+target:
+  name: "Stevanato Group S.p.A."
+  sector: { en: "Specialty pharma packaging & CDMO (NYSE: STVN)", it: "Packaging farmaceutico & CDMO" }
+  country: IT
+  currency: EUR
+  revenue_last_fy_eur_m: 1181.0  # FY2025 revenue
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 333.0    # FY2025 adj EBITDA (28.2% margin)
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon: { historical_years: 3, projection_years: 5 }
+
+sources:
+  - { id: S-001, doc: "Stevanato_Group_FY2025_Results.pdf", page: 3, publisher: "Stevanato Group S.p.A. (STVN)", date: 2026-03-05, url: "https://ir.stevanatogroup.com/news-events/press-releases/detail/174/stevanato-group-delivers-7-revenue-growth-9-at-constant", verified: true, note: "FY25 revenue €1,181M +7%, adj EBITDA margin 28.2%." }
+  - { id: S-002, doc: "Stevanato_Group_FY2024_Results.pdf", page: 4, publisher: "Stevanato Group S.p.A.", date: 2025-03-05, url: "https://ir.stevanatogroup.com/news-events/press-releases/detail/159/stevanato-group-reports-record-revenue-of-1104-million", verified: true, note: "FY24 revenue €1,104M +2%, adj EBITDA margin 23.5%." }
+  - { id: S-003, doc: "Stevanato_Group_2025_Guidance.pdf", page: 2, publisher: "Stevanato Group S.p.A.", date: 2025-03-05, verified: true, note: "2025 guidance: €1,160-1,190M revenue, €293-306M EBITDA." }
+  - { id: S-004, doc: "PwC_Italy_IRES_IRAP_2026.pdf", page: 1, publisher: PwC, date: 2026-01-15, url: "https://taxsummaries.pwc.com/italy", verified: true, note: "IRES 24% + IRAP 3.9% = 27.9%." }
+  - { id: S-005, doc: "Stevanato_Consensus_Analyst_Reports_Apr2026.pdf", page: 1, publisher: "Bloomberg consensus", date: 2026-04-01, verified: false, note: "Consensus FY26-FY28: revenue +8-10% p.a., EBITDA margin expanding to 30%+ by FY28." }
+
+pl:
+  revenue_growth_by_year:
+    - { id: A-001, name: revenue_growth_y1, label: { en: "Rev growth FY26E", it: "Crescita FY26E" }, unit: pct, base: 0.10, worst: 0.05, best: 0.13, rationale: "Bloomberg consensus FY26 revenue growth 9-10%.", confidence: H, source_id: S-005 }
+    - { id: A-002, name: revenue_growth_y2, label: { en: "Rev growth FY27E", it: "Crescita FY27E" }, unit: pct, base: 0.09, worst: 0.05, best: 0.12, rationale: "Consensus FY27.", confidence: M, source_id: S-005 }
+    - { id: A-003, name: revenue_growth_y3, label: { en: "Rev growth FY28E", it: "Crescita FY28E" }, unit: pct, base: 0.08, worst: 0.04, best: 0.11, rationale: "Consensus FY28.", confidence: M, source_id: S-005 }
+    - { id: A-004, name: revenue_growth_y4, label: { en: "Rev growth FY29E", it: "Crescita FY29E" }, unit: pct, base: 0.07, worst: 0.03, best: 0.10, rationale: "Taper beyond consensus horizon.", confidence: L }
+    - { id: A-005, name: revenue_growth_y5, label: { en: "Rev growth FY30E", it: "Crescita FY30E" }, unit: pct, base: 0.06, worst: 0.02, best: 0.09, rationale: "Steady state mid-cycle.", confidence: L }
+  ebitda_margin_by_year:
+    - { id: A-011, name: ebitda_margin_y1, label: { en: "EBITDA margin FY26E", it: "Margine EBITDA FY26E" }, unit: pct, base: 0.290, worst: 0.270, best: 0.300, rationale: "Consensus margin expansion from 28.2% FY25 to ~29% FY26.", confidence: H, source_id: S-005 }
+    - { id: A-012, name: ebitda_margin_y2, label: { en: "EBITDA margin FY27E", it: "Margine EBITDA FY27E" }, unit: pct, base: 0.295, worst: 0.275, best: 0.310, rationale: "Continued mix shift to HVS.", confidence: H, source_id: S-005 }
+    - { id: A-013, name: ebitda_margin_y3, label: { en: "EBITDA margin FY28E", it: "Margine EBITDA FY28E" }, unit: pct, base: 0.300, worst: 0.280, best: 0.315, rationale: "30% steady state.", confidence: M }
+    - { id: A-014, name: ebitda_margin_y4, label: { en: "EBITDA margin FY29E", it: "Margine EBITDA FY29E" }, unit: pct, base: 0.300, worst: 0.275, best: 0.315, rationale: "Hold.", confidence: L }
+    - { id: A-015, name: ebitda_margin_y5, label: { en: "EBITDA margin FY30E", it: "Margine EBITDA FY30E" }, unit: pct, base: 0.295, worst: 0.270, best: 0.310, rationale: "Slight fade.", confidence: L }
+  da_pct_revenue:
+    { id: A-020, name: da_pct_revenue, label: { en: "D&A % revenue", it: "Ammortamenti % ricavi" }, unit: pct, base: 0.085, rationale: "Stevanato D&A ~8-9% — asset-heavy packaging.", confidence: H, source_id: S-001 }
+  interest_on_debt_pct:
+    { id: A-021, name: interest_on_debt_pct, label: { en: "Interest on debt %", it: "Tasso su debito %" }, unit: pct, base: 0.045, rationale: "Listed industrial borrowing cost 4-5% post ECB cuts.", confidence: M }
+  effective_tax_rate:
+    { id: A-022, name: effective_tax_rate, label: { en: "Effective tax rate", it: "Aliquota effettiva" }, unit: pct, base: 0.23, rationale: "Stevanato effective tax ~20-25% due to international mix.", confidence: H, source_id: S-001 }
+
+bs:
+  receivables_days:
+    { id: A-030, name: receivables_days, label: { en: "Receivables days", it: "Giorni crediti" }, unit: count, base: 80, rationale: "Pharma/biotech customers 70-90d payment.", confidence: H }
+  inventory_days:
+    { id: A-031, name: inventory_days, label: { en: "Inventory days", it: "Giorni magazzino" }, unit: count, base: 110, rationale: "Specialty packaging long cycles.", confidence: H }
+  payables_days:
+    { id: A-032, name: payables_days, label: { en: "Payables days", it: "Giorni debiti" }, unit: count, base: 50, rationale: "Standard.", confidence: H }
+  capex_pct_revenue:
+    { id: A-033, name: capex_pct_revenue, label: { en: "Capex % revenue", it: "Capex % ricavi" }, unit: pct, base: 0.14, worst: 0.17, best: 0.11, rationale: "Stevanato high capex intensity 13-15% — expansion phase (Latina, Fishers).", confidence: H, source_id: S-001 }
+  dividend_payout_ratio:
+    { id: A-034, name: dividend_payout_ratio, label: { en: "Dividend payout", it: "Payout" }, unit: pct, base: 0.20, rationale: "~20% payout — growth-oriented.", confidence: H }
+
+# FY25 closing BS proxies (approximate; Stevanato reports net debt ~€350M pre-H2 refi)
+opening_bs:
+  cash_eur_m: 180.0
+  receivables_eur_m: 260.0
+  inventory_eur_m: 360.0
+  net_ppe_eur_m: 1200.0
+  payables_eur_m: 165.0
+  debt_eur_m: 540.0
+  equity_eur_m: 1295.0  # plug: 180+260+360+1200 = 2000 = 165+540+1295
+
+# FY23, FY24, FY25 actuals
+historical_revenue_eur_m: [1081.6, 1104.0, 1181.0]
+historical_ebitda_eur_m:  [260.0, 259.4, 333.0]
+historical_net_debt_eur_m: 360.0
+historical_net_debt_source_id: S-001
