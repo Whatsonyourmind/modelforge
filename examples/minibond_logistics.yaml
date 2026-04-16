@@ -1,0 +1,175 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ModelForge example: Italian mid-market logistics company minibond
+#
+# Anonymized issuer modelled on Gruppo ICM-style issuance pattern
+# (Banca Finint arranger, 6y amortizing, ExtraMOT Pro listing).
+#
+# Benchmarks: Codess 3.85% fixed coupon · Polimi Osservatorio Minibond 2025
+# benchmarks · AIFI arrangement fee ranges · Italian WHT 26% default.
+# ─────────────────────────────────────────────────────────────────────────────
+
+model_type: minibond
+
+meta:
+  project_code: DEMO-LOGI-MB
+  deliverable: { en: "Senior Secured Minibond Placement", it: "Collocamento Minibond Senior Secured" }
+  analyst: L. Stanisljevic
+  version: v0.1
+  status: draft
+  valuation_date: 2026-04-16
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "Initial draft — base case, ICM-pattern structure." }
+
+target:
+  name: "Issuer SpA (anonymized)"
+  sector: { en: "Logistics & specialized construction", it: "Logistica e costruzioni specializzate" }
+  country: IT
+  currency: EUR
+  revenue_last_fy_eur_m: 85.0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 11.5
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon:
+  historical_years: 3
+  projection_years: 7
+
+sources:
+  - id: S-001
+    doc: Dataroom_FY25_Audited.pdf
+    page: 12
+    publisher: Issuer SpA (data room)
+    date: 2026-03-15
+    verified: true
+    note: Audited FY23-FY25 financials; revenue and EBITDA baseline.
+  - id: S-002
+    doc: Polimi_Osservatorio_Minibond_Report_2025.pdf
+    page: 34
+    publisher: Politecnico di Milano Osservatorio Minibond
+    date: 2026-02-20
+    url: https://www.osservatorimi.it/
+    verified: true
+    note: Italian minibond 2025 market — Banca Finint top arranger, tenor & pricing benchmarks.
+  - id: S-003
+    doc: Banca_Finint_ICM_minibond_25M_press.pdf
+    page: 1
+    publisher: Banca Finint
+    date: 2026-01-15
+    url: https://www.bancafinint.com/
+    verified: true
+    note: ICM Gruppo €25M minibond precedent — 6y amortizing, ExtraMOT Pro.
+  - id: S-004
+    doc: ECB_EURIBOR_6M_fixing.html
+    page: 1
+    publisher: ECB SDW / EMMI
+    date: 2026-04-10
+    url: https://data.ecb.europa.eu/
+    verified: true
+    note: EURIBOR 6M fixing, April 2026.
+  - id: S-005
+    doc: Agenzia_Entrate_Imposta_Sostitutiva_26pct.pdf
+    page: 1
+    publisher: Agenzia delle Entrate
+    date: 2026-01-01
+    url: https://www.agenziaentrate.gov.it/
+    verified: true
+    note: Italian withholding tax 26% on corporate bond coupons (non-qualified investors).
+  - id: S-006
+    doc: IRES_IRAP_2026.pdf
+    page: 1
+    publisher: PwC Italy Tax Summary
+    date: 2026-01-15
+    url: https://taxsummaries.pwc.com/italy
+    verified: true
+    note: Italian combined IRES (24%) + IRAP (3.9%) = 27.9%.
+
+operating:
+  revenue_growth_by_year:
+    - { id: A-001, name: revenue_growth_y1, label: { en: "Revenue growth Y1", it: "Crescita ricavi Y1" }, unit: pct, base: 0.06, worst: 0.02, best: 0.09, rationale: "FY26 order book visibility per data room, logistics sector +5-7% consensus.", confidence: M, source_id: S-001 }
+    - { id: A-002, name: revenue_growth_y2, label: { en: "Revenue growth Y2", it: "Crescita ricavi Y2" }, unit: pct, base: 0.05, worst: 0.02, best: 0.08, rationale: "Steady-state infra construction growth.", confidence: M }
+    - { id: A-003, name: revenue_growth_y3, label: { en: "Revenue growth Y3", it: "Crescita ricavi Y3" }, unit: pct, base: 0.04, worst: 0.01, best: 0.07, rationale: "Taper to sector growth.", confidence: M }
+    - { id: A-004, name: revenue_growth_y4, label: { en: "Revenue growth Y4", it: "Crescita ricavi Y4" }, unit: pct, base: 0.04, worst: 0.01, best: 0.06, rationale: "Steady state.", confidence: L }
+    - { id: A-005, name: revenue_growth_y5, label: { en: "Revenue growth Y5", it: "Crescita ricavi Y5" }, unit: pct, base: 0.03, worst: 0.01, best: 0.05, rationale: "Steady state.", confidence: L }
+    - { id: A-006, name: revenue_growth_y6, label: { en: "Revenue growth Y6", it: "Crescita ricavi Y6" }, unit: pct, base: 0.03, worst: 0.01, best: 0.05, rationale: "Terminal placeholder.", confidence: L }
+    - { id: A-007, name: revenue_growth_y7, label: { en: "Revenue growth Y7", it: "Crescita ricavi Y7" }, unit: pct, base: 0.03, worst: 0.01, best: 0.05, rationale: "Post-maturity placeholder.", confidence: L }
+  ebitda_margin_by_year:
+    - { id: A-011, name: ebitda_margin_y1, label: { en: "EBITDA margin Y1", it: "Margine EBITDA Y1" }, unit: pct, base: 0.135, worst: 0.11, best: 0.145, rationale: "Logistics/construction peer set 12-15%.", confidence: H, source_id: S-001 }
+    - { id: A-012, name: ebitda_margin_y2, label: { en: "EBITDA margin Y2", it: "Margine EBITDA Y2" }, unit: pct, base: 0.14, worst: 0.11, best: 0.15, rationale: "Modest leverage from scale.", confidence: H }
+    - { id: A-013, name: ebitda_margin_y3, label: { en: "EBITDA margin Y3", it: "Margine EBITDA Y3" }, unit: pct, base: 0.14, worst: 0.11, best: 0.15, rationale: "Steady state.", confidence: M }
+    - { id: A-014, name: ebitda_margin_y4, label: { en: "EBITDA margin Y4", it: "Margine EBITDA Y4" }, unit: pct, base: 0.14, worst: 0.11, best: 0.15, rationale: "Steady state.", confidence: M }
+    - { id: A-015, name: ebitda_margin_y5, label: { en: "EBITDA margin Y5", it: "Margine EBITDA Y5" }, unit: pct, base: 0.14, worst: 0.11, best: 0.15, rationale: "Steady state.", confidence: L }
+    - { id: A-016, name: ebitda_margin_y6, label: { en: "EBITDA margin Y6", it: "Margine EBITDA Y6" }, unit: pct, base: 0.135, worst: 0.10, best: 0.14, rationale: "Slight fade.", confidence: L }
+    - { id: A-017, name: ebitda_margin_y7, label: { en: "EBITDA margin Y7", it: "Margine EBITDA Y7" }, unit: pct, base: 0.135, worst: 0.10, best: 0.14, rationale: "Placeholder post-maturity.", confidence: L }
+  da_pct_revenue:
+    { id: A-020, name: da_pct_revenue, label: { en: "D&A % revenue", it: "Ammortamenti % ricavi" }, unit: pct, base: 0.045, worst: 0.055, best: 0.04, rationale: "Historical 4-5%, asset-heavy logistics.", confidence: H, source_id: S-001 }
+  capex_pct_revenue:
+    { id: A-021, name: capex_pct_revenue, label: { en: "Capex % revenue", it: "Capex % ricavi" }, unit: pct, base: 0.04, worst: 0.05, best: 0.035, rationale: "Maintenance + modest fleet growth.", confidence: M, source_id: S-001 }
+  nwc_pct_revenue_delta:
+    { id: A-022, name: nwc_pct_revenue_delta, label: { en: "ΔNWC % ΔRevenue", it: "ΔCCN % ΔRicavi" }, unit: pct, base: 0.10, worst: 0.15, best: 0.07, rationale: "Logistics receivables 45d average.", confidence: M }
+  effective_tax_rate:
+    { id: A-023, name: effective_tax_rate, label: { en: "Effective tax rate", it: "Aliquota effettiva" }, unit: pct, base: 0.28, rationale: "IRES 24% + IRAP 3.9%.", confidence: H, source_id: S-006 }
+
+bond:
+  notional:
+    { id: A-030, name: bond_notional, label: { en: "Notional", it: "Nominale" }, unit: eur_m, base: 20.0, rationale: "In line with ICM precedent (€25M); €20M size for conservative leverage.", confidence: H, source_id: S-003 }
+  tenor_years: 6
+  coupon:
+    kind: fixed
+    fixed_rate:
+      { id: A-031, name: fixed_coupon, label: { en: "Fixed coupon", it: "Cedola fissa" }, unit: pct, base: 0.065, worst: 0.075, best: 0.058, rationale: "2026 unsecured minibond benchmark 6-7%; Codess 3.85% was pre-hike. Senior secured + ICM precedent support ~6.5%.", confidence: H, source_id: S-002 }
+  amortization: linear_from_year
+  amortization_start_year: 3
+  call_protection_years: 3
+  make_whole_pct:
+    { id: A-032, name: make_whole_pct, label: { en: "Make-whole premium", it: "Make-whole" }, unit: pct, base: 0.02, rationale: "2% par premium inside call protection.", confidence: M }
+  arrangement_fee_pct:
+    { id: A-033, name: arrangement_fee_pct, label: { en: "Arrangement fee %", it: "Commissione strutturazione %" }, unit: pct, base: 0.015, rationale: "Italian minibond arrangement 1-2% (Banca Finint norm).", confidence: H, source_id: S-002 }
+  legal_fees_eur_m:
+    { id: A-034, name: legal_fees, label: { en: "Legal fees (€m)", it: "Spese legali" }, unit: eur_m, base: 0.10, rationale: "Standard €100-150k for €20M issuance.", confidence: H }
+  listing_fees_eur_m:
+    { id: A-035, name: listing_fees, label: { en: "Listing fees ExtraMOT Pro", it: "Quotazione ExtraMOT Pro" }, unit: eur_m, base: 0.015, rationale: "Borsa Italiana ExtraMOT Pro listing €10-20k.", confidence: H }
+  rating_fees_eur_m:
+    { id: A-036, name: rating_fees, label: { en: "Rating fees", it: "Spese rating" }, unit: eur_m, base: 0.04, rationale: "Cerved Rating Agency typical for Italian minibond.", confidence: M }
+  listed_extramot_pro: true
+  eltif_eligible: true
+  basket_bond: false
+  subscribers: ["Cassa Depositi e Prestiti (CDP)", "Banca Finint Private Debt Fund", "Assicurazioni Italia (hypothetical)"]
+
+covenants:
+  - name: { en: "Net Leverage (Net Debt / EBITDA)", it: "Leva netta" }
+    kind: leverage
+    test_frequency: annual
+    threshold_by_year:
+      - { id: A-040, name: leverage_threshold_y1, label: { en: "Leverage threshold Y1", it: "Soglia leva Y1" }, unit: x, base: 3.75, rationale: "Opening headroom vs ~3.0x expected.", confidence: H }
+      - { id: A-041, name: leverage_threshold_y2, label: { en: "Leverage threshold Y2", it: "Soglia leva Y2" }, unit: x, base: 3.50, rationale: "Step down.", confidence: H }
+      - { id: A-042, name: leverage_threshold_y3, label: { en: "Leverage threshold Y3", it: "Soglia leva Y3" }, unit: x, base: 3.25, rationale: "Step down.", confidence: H }
+      - { id: A-043, name: leverage_threshold_y4, label: { en: "Leverage threshold Y4", it: "Soglia leva Y4" }, unit: x, base: 3.00, rationale: "Step down.", confidence: H }
+      - { id: A-044, name: leverage_threshold_y5, label: { en: "Leverage threshold Y5", it: "Soglia leva Y5" }, unit: x, base: 2.75, rationale: "Step down.", confidence: H }
+      - { id: A-045, name: leverage_threshold_y6, label: { en: "Leverage threshold Y6", it: "Soglia leva Y6" }, unit: x, base: 2.50, rationale: "Final step down pre-maturity.", confidence: H }
+      - { id: A-046, name: leverage_threshold_y7, label: { en: "Leverage threshold Y7", it: "Soglia leva Y7" }, unit: x, base: 2.50, rationale: "Hold post-maturity.", confidence: H }
+  - name: { en: "ICR (EBITDA / Interest)", it: "ICR (EBITDA / Oneri)" }
+    kind: icr
+    test_frequency: annual
+    threshold_by_year:
+      - { id: A-050, name: icr_threshold_y1, label: { en: "ICR threshold Y1", it: "Soglia ICR Y1" }, unit: x, base: 2.50, rationale: "Typical minibond ICR.", confidence: H }
+      - { id: A-051, name: icr_threshold_y2, label: { en: "ICR threshold Y2", it: "Soglia ICR Y2" }, unit: x, base: 2.75, rationale: "Step up as principal amortizes.", confidence: H }
+      - { id: A-052, name: icr_threshold_y3, label: { en: "ICR threshold Y3", it: "Soglia ICR Y3" }, unit: x, base: 3.00, rationale: "Step up.", confidence: H }
+      - { id: A-053, name: icr_threshold_y4, label: { en: "ICR threshold Y4", it: "Soglia ICR Y4" }, unit: x, base: 3.00, rationale: "Hold.", confidence: H }
+      - { id: A-054, name: icr_threshold_y5, label: { en: "ICR threshold Y5", it: "Soglia ICR Y5" }, unit: x, base: 3.00, rationale: "Hold.", confidence: H }
+      - { id: A-055, name: icr_threshold_y6, label: { en: "ICR threshold Y6", it: "Soglia ICR Y6" }, unit: x, base: 3.00, rationale: "Hold.", confidence: H }
+      - { id: A-056, name: icr_threshold_y7, label: { en: "ICR threshold Y7", it: "Soglia ICR Y7" }, unit: x, base: 3.00, rationale: "Hold post-maturity.", confidence: H }
+
+investor_adjustments:
+  withholding_tax_pct:
+    { id: A-060, name: withholding_tax_pct, label: { en: "Italian WHT on coupon", it: "Ritenuta su cedola" }, unit: pct, base: 0.26, rationale: "Italian WHT 26% for non-qualified retail investors per Agenzia Entrate.", confidence: H, source_id: S-005 }
+  transaction_cost_bps:
+    { id: A-061, name: transaction_cost_bps, label: { en: "Investor transaction cost (bps)", it: "Costo transazione investitore (bps)" }, unit: bps, base: 50, rationale: "Typical professional investor subscription fee 25-75 bps.", confidence: M }
+
+historical_revenue_eur_m: [72.0, 78.5, 85.0]
+historical_ebitda_eur_m:  [9.0, 10.5, 11.5]
+historical_net_debt_eur_m: 8.0
+historical_net_debt_source_id: S-001
