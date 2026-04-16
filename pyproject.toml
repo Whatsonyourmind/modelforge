@@ -22,7 +22,8 @@ dependencies = [
 [project.optional-dependencies]
 validate = ["formulas>=1.2.7"]
 data = ["requests>=2.31", "pandas>=2.2"]
-dev = ["pytest>=8", "ruff>=0.3"]
+ingest = ["anthropic>=0.89", "pdfplumber>=0.11", "pypdf>=5.0"]
+dev = ["pytest>=8", "ruff>=0.3", "reportlab>=4.0"]
 
 [project.scripts]
 modelforge = "modelforge.cli:main"
