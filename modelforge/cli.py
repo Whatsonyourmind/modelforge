@@ -319,6 +319,60 @@ def verify_cmd(xlsx_path: Path, spec_path: Path | None) -> None:
     sys.exit(1)
 
 
+@main.command("drift")
+@click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--threshold-bps", default=50.0, show_default=True, type=float,
+              help="Absolute bps delta to flag for rate drivers.")
+@click.option("--threshold-rel", default=0.10, show_default=True, type=float,
+              help="Relative delta to flag for non-rate drivers.")
+@click.option("-o", "--output", "md_path", type=click.Path(path_type=Path),
+              default=None, help="Optional markdown report path.")
+def drift_cmd(xlsx_path: Path, threshold_bps: float, threshold_rel: float,
+              md_path: Path | None) -> None:
+    """Flag workbook drivers that have drifted from current market values.
+
+    Reads ECB + Damodaran feeds and compares to the workbook's assumption
+    BASE cells. Flags any driver where |Δbps| ≥ threshold-bps (rate
+    drivers) or |Δ%| ≥ threshold-rel (value drivers). Exits 0 if clean,
+    1 if any driver is flagged.
+    """
+    from modelforge.drift import check_drift, render_markdown
+    rep = check_drift(xlsx_path, threshold_bps=threshold_bps,
+                      threshold_rel=threshold_rel)
+
+    tbl = Table(title=f"Drift report — {xlsx_path.name} "
+                       f"({rep.checked_drivers} drivers checked, "
+                       f"{rep.n_flagged} flagged)")
+    tbl.add_column("Driver", style="bold")
+    tbl.add_column("Assumed", justify="right")
+    tbl.add_column("Current", justify="right")
+    tbl.add_column("Δ bps", justify="right")
+    tbl.add_column("Δ %", justify="right")
+    tbl.add_column("Source")
+    tbl.add_column("Flag")
+    for it in rep.items:
+        assumed_f = (f"{it.assumed_value:.4%}" if it.kind == "rate"
+                     else f"{it.assumed_value:,.3f}")
+        current_f = (f"{it.current_value:.4%}" if it.kind == "rate"
+                     else f"{it.current_value:,.3f}")
+        flag = "[red]⚠ FLAG[/red]" if it.flagged else "[green]OK[/green]"
+        tbl.add_row(it.driver_name, assumed_f, current_f,
+                    f"{it.delta_bps:+,.1f}", f"{it.delta_rel:+.2%}",
+                    it.source, flag)
+    console.print(tbl)
+
+    if rep.missing_drivers:
+        console.print(f"[dim]Missing from workbook ({len(rep.missing_drivers)}): "
+                      f"{', '.join(rep.missing_drivers[:8])}"
+                      f"{'...' if len(rep.missing_drivers) > 8 else ''}[/dim]")
+
+    if md_path is not None:
+        md_path.write_text(render_markdown(rep), encoding="utf-8")
+        console.print(f"[green]Markdown:[/green] {md_path}")
+
+    sys.exit(0 if rep.clean else 1)
+
+
 @main.command("edgar")
 @click.argument("ticker")
 @click.option("--years", default=5, show_default=True, type=int,
