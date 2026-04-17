@@ -1,0 +1,54 @@
+site_name: ModelForge
+site_description: Bulge-tier Excel financial model factory — every cell live, every number sourced, every assumption defended.
+site_author: Luka Stanisljevic
+site_url: https://modelforge.app
+repo_name: modelforge
+repo_url: https://github.com/Whatsonyourmind/modelforge
+
+theme:
+  name: material
+  palette:
+    scheme: default
+    primary: indigo
+    accent: amber
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Architecture: architecture.md
+  - CLI Reference: cli-reference.md
+  - Template Gallery: templates.md
+  - Comparison: comparison.md
+  - FAQ: faq.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+
+plugins:
+  - search

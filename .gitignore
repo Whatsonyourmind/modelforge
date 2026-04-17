@@ -12,3 +12,5 @@ output/*.pdf
 *.db
 .env
 .DS_Store
+.pytest_cache
+site/
