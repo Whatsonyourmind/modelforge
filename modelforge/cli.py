@@ -319,6 +319,87 @@ def verify_cmd(xlsx_path: Path, spec_path: Path | None) -> None:
     sys.exit(1)
 
 
+@main.command("roi")
+@click.option("--deals", "deals_per_year", type=int, default=20,
+              show_default=True, help="Deals closed per year.")
+@click.option("--hours-legacy", "hours_legacy", type=float, default=40.0,
+              show_default=True, help="Analyst hours per deal (hand-built).")
+@click.option("--hours-mf", "hours_mf", type=float, default=6.0,
+              show_default=True, help="Analyst hours per deal with ModelForge.")
+@click.option("--rate", "rate", type=float, default=180.0, show_default=True,
+              help="Loaded analyst cost per hour (€).")
+@click.option("--legacy-error-rate", type=float, default=0.15,
+              show_default=True, help="Share of deals needing rework today.")
+@click.option("--mf-error-rate", type=float, default=0.03, show_default=True,
+              help="Share of deals needing rework with ModelForge.")
+@click.option("--audit-hours-legacy", type=float, default=20.0,
+              show_default=True, help="Audit hours per deal today.")
+@click.option("--audit-hours-mf", type=float, default=4.0, show_default=True,
+              help="Audit hours per deal with ModelForge.")
+@click.option("--seats", type=int, default=3, show_default=True)
+@click.option("--seat-price", "seat_price", type=float, default=499.0,
+              show_default=True, help="Monthly price per seat (€).")
+@click.option("--customer", default="(customer)",
+              help="Customer name for the markdown header.")
+@click.option("-o", "--output", "md_path", type=click.Path(path_type=Path),
+              default=None, help="Markdown one-pager export path.")
+def roi_cmd(deals_per_year: int, hours_legacy: float, hours_mf: float,
+            rate: float, legacy_error_rate: float, mf_error_rate: float,
+            audit_hours_legacy: float, audit_hours_mf: float,
+            seats: int, seat_price: float,
+            customer: str, md_path: Path | None) -> None:
+    """Compute the business case for a prospective ModelForge buyer.
+
+    Takes fund-specific assumptions (deal volume, analyst cost, current
+    error + audit workload), outputs annual savings, ROI, and payback.
+    Deterministic — every number traces to Python in
+    `modelforge.roi.calculator`.
+    """
+    from modelforge.roi import ROIInputs, compute_roi, render_markdown
+    inp = ROIInputs(
+        deals_per_year=deals_per_year,
+        hours_per_deal_legacy=hours_legacy,
+        hours_per_deal_modelforge=hours_mf,
+        loaded_analyst_cost_eur_per_hour=rate,
+        legacy_error_rate=legacy_error_rate,
+        modelforge_error_rate=mf_error_rate,
+        audit_hours_legacy=audit_hours_legacy,
+        audit_hours_modelforge=audit_hours_mf,
+        seats=seats,
+        monthly_price_per_seat_eur=seat_price,
+    )
+    res = compute_roi(inp)
+
+    tbl = Table(title=f"ModelForge ROI — {customer}")
+    tbl.add_column("Metric", style="bold")
+    tbl.add_column("Value", justify="right")
+    tbl.add_row("Hours saved per deal", f"{res.hours_saved_per_deal:.1f}")
+    tbl.add_row("Annual time savings",
+                f"EUR {res.annual_time_savings_eur:,.0f}")
+    tbl.add_row("Rework reduction savings",
+                f"EUR {res.rework_savings_eur:,.0f}")
+    tbl.add_row("Audit time savings",
+                f"EUR {res.audit_savings_eur:,.0f}")
+    tbl.add_row("[bold]Gross annual savings[/bold]",
+                f"[bold]EUR {res.total_gross_savings_eur:,.0f}[/bold]")
+    tbl.add_row("Subscription cost",
+                f"EUR {res.subscription_cost_eur:,.0f}")
+    tbl.add_row("[bold]Net annual savings[/bold]",
+                f"[bold]EUR {res.net_savings_eur:,.0f}[/bold]")
+    tbl.add_row("1-year ROI", f"{res.roi_1y_pct:.1%}")
+    tbl.add_row("Payback period",
+                f"{res.payback_months:.1f} months")
+    console.print(tbl)
+
+    for n in res.notes:
+        console.print(f"[yellow]note:[/yellow] {n}")
+
+    if md_path is not None:
+        md_path.write_text(render_markdown(res, customer=customer),
+                            encoding="utf-8")
+        console.print(f"[green]Markdown:[/green] {md_path}")
+
+
 @main.command("scan")
 @click.argument("folder", type=click.Path(exists=True, file_okay=False,
                                            path_type=Path))
