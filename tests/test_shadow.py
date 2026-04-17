@@ -17,9 +17,18 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_registry_covers_expected_templates():
-    # These five must have shadow engines in v0.4.x
-    for mt in ("dcf", "unitranche", "credit_memo", "project_finance", "merger"):
+    # v0.4.12: all 10 scalar-output templates must have shadow engines
+    # (fairness is the only template without — football field is the output)
+    expected = ("dcf", "unitranche", "credit_memo", "project_finance", "merger",
+                "three_statement", "minibond", "real_estate", "npl",
+                "structured_credit")
+    for mt in expected:
         assert has_shadow_engine(mt), f"{mt} should have a shadow engine"
+
+
+def test_fairness_has_no_shadow_engine():
+    """Fairness is a valuation-range aggregator — no scalar primary output."""
+    assert not has_shadow_engine("fairness")
 
 
 def test_unknown_template_has_no_engine():
@@ -170,3 +179,93 @@ def test_irr_positive_yield():
 def test_npv_at_zero_rate_is_sum():
     cf = [-100, 50, 50, 50]
     assert abs(npv(0.0, cf) - sum(cf)) < 1e-9
+
+
+# ─── New v0.4.12 shadow engines ──────────────────────────────────────────────
+
+
+def test_three_statement_ni_y1_reasonable():
+    spec = _load("three_statement_cdmo.yaml",
+                 ("modelforge.spec.three_statement", "ThreeStatementSpec"))
+    ni = compute_primary_output(spec, {})
+    # CDMO illustrative: positive NI in reasonable €m range
+    assert -50 < ni < 200
+
+
+def test_three_statement_ebitda_margin_shock_lifts_ni():
+    spec = _load("three_statement_cdmo.yaml",
+                 ("modelforge.spec.three_statement", "ThreeStatementSpec"))
+    base = compute_primary_output(spec, {})
+    m_base = next(a.base for a in spec.all_assumptions()
+                  if a.name == "ebitda_margin_y1")
+    higher = compute_primary_output(spec, {"ebitda_margin_y1": m_base * 1.20})
+    assert higher > base
+
+
+def test_minibond_net_ytm_matches_expected_range():
+    spec = _load("minibond_logistics.yaml",
+                 ("modelforge.spec.minibond", "MinibondSpec"))
+    ytm = compute_primary_output(spec, {})
+    # After 26% Italian WHT on a ~6.5% coupon minus 1.5% upfront fee
+    # → ~3.5-5.5% net YTM
+    assert 0.02 < ytm < 0.07
+
+
+def test_minibond_withholding_shock_reduces_ytm():
+    spec = _load("minibond_logistics.yaml",
+                 ("modelforge.spec.minibond", "MinibondSpec"))
+    base = compute_primary_output(spec, {})
+    wht_base = next(a.base for a in spec.all_assumptions()
+                    if a.name == "withholding_tax_pct")
+    higher_wht = compute_primary_output(
+        spec, {"withholding_tax_pct": wht_base * 1.50}
+    )
+    assert higher_wht < base
+
+
+def test_real_estate_irr_reasonable():
+    spec = _load("real_estate_pbsa.yaml",
+                 ("modelforge.spec.real_estate", "RealEstateSpec"))
+    irr = compute_primary_output(spec, {})
+    # Milan PBSA unlevered returns 5-10%; levered equity IRR 10-18%
+    assert 0.05 < irr < 0.25
+
+
+def test_real_estate_cap_rate_shock_inverse():
+    spec = _load("real_estate_pbsa.yaml",
+                 ("modelforge.spec.real_estate", "RealEstateSpec"))
+    base = compute_primary_output(spec, {})
+    cap_base = next(a.base for a in spec.all_assumptions()
+                    if a.name == "exit_cap_rate")
+    higher_cap = compute_primary_output(spec, {"exit_cap_rate": cap_base * 1.20})
+    # Higher exit cap → lower exit value → lower equity IRR
+    assert higher_cap < base
+
+
+def test_npl_irr_reasonable():
+    spec = _load("npl_mixed_portfolio.yaml",
+                 ("modelforge.spec.npl", "NPLSpec"))
+    irr = compute_primary_output(spec, {})
+    # Italian NPL mixed equity IRR targets 15-30% (risk-adjusted)
+    assert 0.05 < irr < 0.50
+
+
+def test_npl_higher_purchase_price_reduces_irr():
+    spec = _load("npl_mixed_portfolio.yaml",
+                 ("modelforge.spec.npl", "NPLSpec"))
+    base = compute_primary_output(spec, {})
+    pp_base = next(a.base for a in spec.all_assumptions()
+                   if a.name == "purchase_price_pct_gbv")
+    # Paying more → lower IRR
+    higher = compute_primary_output(spec, {"purchase_price_pct_gbv": pp_base * 1.25})
+    assert higher < base
+
+
+def test_structured_credit_senior_irr_near_coupon():
+    spec = _load("structured_credit_pmi.yaml",
+                 ("modelforge.spec.structured_credit", "StructuredCreditSpec"))
+    irr = compute_primary_output(spec, {})
+    # Well-structured senior with subordination protection → IRR ≈ coupon
+    coupon = next(a.base for a in spec.all_assumptions()
+                  if a.name == "senior_coupon")
+    assert abs(irr - coupon) < 0.02  # within 200bps
