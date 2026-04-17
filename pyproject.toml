@@ -18,6 +18,8 @@ dependencies = [
     "rich>=13.7",
     "click>=8.1",
     "formulas>=1.2.7",
+    "reportlab>=4.0",
+    "numpy>=1.26",
 ]
 
 [project.optional-dependencies]
