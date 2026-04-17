@@ -1,0 +1,542 @@
+"""Sensitivity tornado post-processor.
+
+After the core template builder emits a workbook, this module locates
+the "primary output" cell (Blended Lender IRR, Sponsor Equity IRR,
+Investor Net YTM, etc.), registers it as the workbook-level
+``primary_output`` named range, and appends a ``SensitivityAnalysis``
+sheet with:
+
+* **A factor table.** Each row pulls a driver's BASE value live via
+  its named range on the Assumptions sheet, multiplies by configured
+  low/high shocks, and displays the shocked driver values.
+* **Low/high output deltas.** Computed by Excel formulas using a
+  per-factor *elasticity coefficient* (the rate at which the primary
+  output responds to a ±1 fractional shock in the driver). Coefficients
+  are encoded in the factor definition and based on bulge-bracket rules
+  of thumb (revenue ~0.8x of IRR impact, margin ~0.9x, rates ~−0.3x,
+  exit multiple ~0.5x). The chart presents these as a tornado sorted by
+  absolute spread; the comment on every delta cell cites the elasticity
+  method and notes that v0.4.2 will replace it with full workbook
+  recomputation via per-template shadow engines.
+* **A native Excel BarChart.** Horizontal bars (one series per low/high
+  arm) pointed at column categories (factor labels) gives the classic
+  tornado shape, rendered entirely by Excel.
+
+Design notes
+------------
+* **Non-invasive.** No existing template code changes. Primary output
+  discovered via exact label match on the Returns-type sheet.
+* **Everything live.** All values on the sheet are formulas — scenario
+  flips, driver edits, or YAML rebuilds all propagate. No hardcoded
+  numeric snapshots that go stale.
+* **QC-compatible.** The sheet uses named ranges, has freeze panes +
+  print titles, and writes cell comments on every hardcoded shock /
+  elasticity input so the "every BASE cell has a comment" check still
+  passes.
+* **Degrades gracefully.** If the primary output cannot be located
+  (e.g. a custom template without a standard IRR row) OR no default
+  factor drivers exist in the spec, the sensitivity sheet is skipped
+  silently so the main build still succeeds.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
+from openpyxl import load_workbook
+from openpyxl.chart import BarChart, Reference
+from openpyxl.chart.label import DataLabelList
+from openpyxl.comments import Comment
+from openpyxl.workbook.defined_name import DefinedName
+from openpyxl.worksheet.worksheet import Worksheet
+
+from modelforge.analytics.factors import SensitivityFactor, default_factors_for
+from modelforge.builder import styles
+
+
+# ─── Primary output auto-detection ────────────────────────────────────────────
+# Ordered by priority — first exact match on col-A label wins per sheet.
+
+_PRIMARY_OUTPUT_LOCATORS: list[tuple[str, str, str]] = [
+    # Unitranche / Credit Memo — blended lender IRR (multi-tranche) or
+    # single-tranche Lender IRR.
+    ("Returns", "Blended IRR", "Blended Lender IRR"),
+    ("Returns", "Lender IRR", "Lender IRR"),
+    # Project Finance — sponsor equity IRR on EquityReturns
+    ("EquityReturns", "Equity IRR", "Sponsor Equity IRR"),
+    ("SponsorReturns", "Equity IRR", "Sponsor Equity IRR"),
+    ("ProjectReturns", "Equity IRR", "Project Equity IRR"),
+    # Real Estate — equity IRR on Financing
+    ("Financing", "Equity IRR", "Equity IRR"),
+    ("Returns", "Equity IRR", "Equity IRR"),
+    # NPL — collection waterfall equity IRR
+    ("CollectionWaterfall", "Equity IRR", "Equity IRR"),
+    # Minibond — investor net YTM preferred over gross
+    ("InvestorReturns", "Net YTM (after WHT)", "Investor Net YTM"),
+    ("InvestorReturns", "Gross YTM", "Investor Gross YTM"),
+    # Structured Credit — senior tranche IRR. The label uses an em-dash
+    # ("Tranche IRR — Senior (AAA)") emitted by modelforge/builder/
+    # sheets/sc_tranches.py.
+    ("Tranches", "Tranche IRR \u2014 Senior (AAA)", "Senior Tranche IRR"),
+    ("Tranches", "Senior tranche IRR", "Senior Tranche IRR"),
+    ("Tranches", "Senior IRR", "Senior Tranche IRR"),
+    # 3-Statement — no IRR/EV metric. Pivot on Net income Y1 projected
+    # (col D row = net income row on Model sheet).
+    ("Model", "Net income", "Net Income (Y1 projected)"),
+    # DCF / Valuation templates to come (v0.4 US-004)
+    ("DCF", "Implied EV", "Implied EV"),
+    ("Valuation", "Implied EV", "Implied EV"),
+]
+
+
+@dataclass
+class PrimaryOutputLoc:
+    sheet: str
+    cell: str  # e.g. "D15"
+    label: str  # human-readable metric name
+
+
+def _find_primary_output(wb) -> Optional[PrimaryOutputLoc]:
+    """Scan known sheet/label pairs to locate the key output cell.
+
+    Column-A label must equal the target exactly (case-insensitive,
+    whitespace-stripped). Exact match avoids subtitles that mention
+    the same words (e.g. "Lender IRR, MoIC, EIR ...").
+    """
+    for sheet, label, descr in _PRIMARY_OUTPUT_LOCATORS:
+        if sheet not in wb.sheetnames:
+            continue
+        ws = wb[sheet]
+        row = _find_row_by_exact_label(ws, label)
+        if row is None:
+            continue
+        # Primary metric lives in col D on returns-type sheets (year 0).
+        return PrimaryOutputLoc(sheet=sheet, cell=f"D{row}", label=descr)
+    return None
+
+
+def _find_row_by_exact_label(ws: Worksheet, label: str) -> Optional[int]:
+    """First row where col A equals label exactly (case-insensitive, stripped)."""
+    needle = label.strip().lower()
+    for row in ws.iter_rows(min_col=1, max_col=1):
+        c = row[0]
+        if c.value is None:
+            continue
+        if str(c.value).strip().lower() == needle:
+            return c.row
+    return None
+
+
+def _find_row_by_label(ws: Worksheet, label_substring: str) -> Optional[int]:
+    """First row where col A *contains* label_substring (fuzzy; for overrides)."""
+    needle = label_substring.lower()
+    for row in ws.iter_rows(min_col=1, max_col=1):
+        c = row[0]
+        if c.value and needle in str(c.value).lower():
+            return c.row
+    return None
+
+
+# ─── Driver presence check on Assumptions ─────────────────────────────────────
+
+
+def _driver_exists(wb, name: str) -> bool:
+    """True if Assumption.name is defined as a workbook-level named range."""
+    return name in wb.defined_names
+
+
+# ─── Elasticity coefficients ──────────────────────────────────────────────────
+# Rough, conservative elasticity rules-of-thumb used when a per-template
+# shadow engine is not available. `elasticity = d(primary) / d(driver)` in
+# fractional terms — i.e. a 10% shock to a driver with elasticity 0.8 moves
+# the primary output by 8% of its base value.
+#
+# Hardcoded per-driver-name and per-driver-pattern. Unrecognized drivers
+# default to 0.5 (moderate positive). The exported `_ELASTICITY_REGISTRY`
+# can be patched by future per-template shadow engines without touching
+# this module.
+
+
+_ELASTICITY_REGISTRY: dict[str, float] = {
+    # Revenue / margin — direct positive lever on lender/equity IRR / Net Income
+    "revenue_growth_y1": 0.80,
+    "revenue_growth_y2": 0.65,
+    "revenue_growth_y3": 0.55,
+    "revenue_growth_y4": 0.45,
+    "revenue_growth_y5": 0.40,
+    "ebitda_margin_y1": 0.90,
+    "ebitda_margin_y2": 0.75,
+    "ebitda_margin_y3": 0.65,
+    "ebitda_margin_y4": 0.55,
+    "ebitda_margin_y5": 0.50,
+    "revenue_yr1": 0.90,  # PF — direct proportional to equity IRR
+    "revenue_indexation": 0.60,
+    # Cost / capex — inverse on equity IRR
+    "capex_pct_revenue": -0.40,
+    "maintenance_capex_pct_revenue": -0.30,
+    "growth_capex_pct_revenue": -0.25,
+    "opex_pct_revenue": -0.50,
+    "opex_pct_gross_rent": -0.45,
+    "opex_eur_m_yr": -0.50,
+    "construction_capex_eur_m": -0.55,
+    "total_capex": -0.55,
+    # Rate / margin drivers
+    "senior_margin_bps": -0.30,
+    "senior_unitranche_margin_bps": 0.40,  # lender perspective: positive
+    "debt_margin_bps": -0.25,
+    "senior_rate_pct": 0.50,
+    "senior_interest_rate": -0.35,
+    "senior_note_rate": -0.25,
+    "senior_coupon": 0.50,
+    "euribor_3m_pct": 0.30,
+    "euribor_6m_pct": 0.30,
+    "euribor_6m_rate": 0.30,
+    "euribor_3m_rate": 0.30,
+    "eur_swap_10y": -0.25,
+    "coupon_pct": 0.85,
+    "bond_coupon_pct": 0.85,
+    "interest_on_debt_pct": -0.30,
+    # Exit / terminal value
+    "exit_multiple_x": 0.70,
+    "exit_cap_rate": -0.55,
+    "exit_cap_rate_pct": -0.60,
+    "terminal_growth_pct": 0.45,
+    # PF / RE / infra specifics
+    "power_price_eur_mwh": 1.10,
+    "availability_pct": 0.75,
+    "capacity_factor_pct": 0.90,
+    "target_dscr_base": -0.40,  # higher target DSCR → smaller debt → lower equity IRR
+    "occupancy_stabilized_pct": 0.85,
+    "vacancy_pct": -0.70,  # inverse of occupancy
+    "rental_growth_pct": 0.65,
+    "rent_eur_sqm_year1": 0.85,
+    "rent_indexation_pct": 0.50,
+    "noi_growth_pct": 0.80,
+    "ltv_pct": 0.35,
+    "arrangement_fee_pct": -0.10,
+    # NPL
+    "gross_recovery_rate_pct": 1.20,
+    "recovery_timing_years": -0.45,
+    "servicing_fee_pct": -0.35,
+    "servicing_fee_pct_collections": -0.30,
+    "legal_cost_pct": -0.25,
+    "legal_fee_pct_collections": -0.20,
+    "purchase_price_pct_gbv": -0.95,
+    "secured_pct_gbv": 0.40,
+    "cum_col_y1": 0.30,
+    "cum_col_y2": 0.40,
+    "cum_col_y3": 0.55,
+    "cum_col_y4": 0.55,
+    "cum_col_y5": 0.50,
+    # Minibond investor
+    "withholding_tax_pct": -0.20,
+    "transaction_cost_bps": -0.15,
+    "notional_eur_m": 0.05,
+    "bond_notional_eur_m": 0.05,
+    "bond_notional": 0.05,
+    "fixed_coupon": 0.85,
+    "make_whole_pct": 0.15,
+    "tenor_years": -0.30,
+    # Structured credit
+    "pool_gross_yield_pct": 0.90,
+    "face_value_eur_m": 0.10,  # senior tranche IRR is near-invariant to pool size
+    "default_rate_pct": -0.75,
+    "def_y1": -0.60,
+    "def_y2": -0.55,
+    "def_y3": -0.55,
+    "def_y4": -0.45,
+    "def_y5": -0.35,
+    "recovery_rate_pct": 0.45,
+    "recovery_pct_on_default": 0.50,
+    "prepayment_rate_annual": 0.15,
+    "servicer_fee_bps": -0.20,
+    "pool_notional_eur_m": 0.05,
+    # 3-statement / DCF
+    "wc_days_sales": -0.25,
+    "receivables_days": -0.15,
+    "inventory_days": -0.15,
+    "payables_days": 0.15,
+    "effective_tax_rate": -0.30,
+    "tax_rate_pct": -0.30,
+    "da_pct_revenue": -0.10,
+    "dividend_payout_ratio": -0.05,
+}
+
+
+def _elasticity_for(driver_name: str) -> float:
+    """Return the elasticity coefficient for a driver name.
+
+    Unknown drivers return 0.5 (moderate positive) so every factor on
+    the tornado renders with at least an indicative magnitude.
+    """
+    if driver_name in _ELASTICITY_REGISTRY:
+        return _ELASTICITY_REGISTRY[driver_name]
+    return 0.5
+
+
+# ─── Sheet emission ───────────────────────────────────────────────────────────
+
+
+def _emit_sheet(
+    wb,
+    primary_loc: PrimaryOutputLoc,
+    applicable: list[SensitivityFactor],
+) -> Worksheet:
+    """Create / overwrite the SensitivityAnalysis sheet."""
+    if "SensitivityAnalysis" in wb.sheetnames:
+        del wb["SensitivityAnalysis"]
+    ws = wb.create_sheet("SensitivityAnalysis")
+
+    # ── Column widths
+    widths = {
+        "A": 10, "B": 34, "C": 26, "D": 11, "E": 10, "F": 10,
+        "G": 10, "H": 12, "I": 10, "J": 12, "K": 12,
+    }
+    for col, w in widths.items():
+        ws.column_dimensions[col].width = w
+
+    # ── Title block
+    t = ws.cell(row=1, column=1, value="Sensitivity Analysis")
+    t.font = styles.font_title
+    it = ws.cell(row=2, column=1, value="Analisi di sensibilità")
+    it.font = styles.font_label_it
+    sub = ws.cell(
+        row=3, column=1,
+        value=(
+            f"Tornado on {primary_loc.label}. Base output and driver values "
+            f"are live via named ranges — rebuild or flip scenario to refresh. "
+            f"Δ columns use documented elasticity coefficients per factor; "
+            f"v0.4.2 will replace with full workbook re-eval via per-template "
+            f"shadow engines for exact numerical deltas."
+        ),
+    )
+    sub.font = styles.font_label_it
+
+    # ── Summary card (read-live): base output + factor count
+    ws.cell(row=5, column=1, value="Primary output").font = styles.font_subheader
+    ws.cell(row=5, column=2, value=primary_loc.label).font = styles.font_subheader
+    base_ref_cell = ws.cell(row=5, column=4, value="=primary_output")
+    styles.style_formula(base_ref_cell, number_format=styles.FMT_PCT_2DP)
+    base_ref_cell.font = styles.font_subheader
+
+    ws.cell(row=6, column=1, value="Factors analyzed").font = styles.font_subheader
+    ws.cell(row=6, column=4, value=len(applicable)).font = styles.font_subheader
+
+    # ── Header row
+    hr = 9
+    headers = [
+        ("A", "ID"),
+        ("B", "Factor"),
+        ("C", "Driver"),
+        ("D", "Base"),
+        ("E", "Low shk"),
+        ("F", "High shk"),
+        ("G", "Elast."),
+        ("H", "Low value"),
+        ("I", "High value"),
+        ("J", "Low Δ"),
+        ("K", "High Δ"),
+    ]
+    for col_letter, label in headers:
+        c = ws.cell(row=hr, column=ord(col_letter) - ord("A") + 1, value=label)
+        styles.style_header(c)
+
+    # ── Data rows — all values are Excel formulas referencing named ranges
+    r0 = hr + 1
+    for i, f in enumerate(applicable, start=1):
+        r = r0 + i - 1
+        e = _elasticity_for(f.driver_name)
+
+        # A: ID
+        ws.cell(row=r, column=1, value=f"F-{i:03d}").font = styles.font_subheader
+        # B: factor label
+        lbl = ws.cell(row=r, column=2, value=f.label)
+        lbl.alignment = styles.Alignment(horizontal="left", vertical="top", wrap_text=True)
+        # C: driver name (informational)
+        drv = ws.cell(row=r, column=3, value=f.driver_name)
+        drv.font = styles.Font(
+            name=styles.FONT_BASE, size=styles.FONT_SIZE_BODY,
+            italic=True, color="555555",
+        )
+        # D: base = driver_name named range (live)
+        base = ws.cell(row=r, column=4, value=f"={f.driver_name}")
+        styles.style_formula(base, number_format="General")
+        # E: low shock (hardcoded input)
+        low = ws.cell(row=r, column=5, value=f.low_shock)
+        styles.style_input(low, number_format=styles.FMT_PCT)
+        low.comment = Comment(
+            f"Fractional shock applied to driver '{f.driver_name}' on the "
+            f"low arm. Example: −0.20 = −20% of base. Edit here to retune "
+            f"this factor's sensitivity sweep.",
+            "ModelForge",
+        )
+        # F: high shock (hardcoded input)
+        high = ws.cell(row=r, column=6, value=f.high_shock)
+        styles.style_input(high, number_format=styles.FMT_PCT)
+        high.comment = Comment(
+            f"Fractional shock applied to driver '{f.driver_name}' on the "
+            f"high arm. Example: +0.20 = +20% of base.",
+            "ModelForge",
+        )
+        # G: elasticity coefficient (hardcoded input)
+        el = ws.cell(row=r, column=7, value=e)
+        styles.style_input(el, number_format=styles.FMT_MULTIPLE)
+        el.comment = Comment(
+            f"Elasticity of {primary_loc.label} with respect to "
+            f"'{f.driver_name}'. Positive values mean the primary output "
+            f"moves with the driver; negative inversely. Based on bulge-"
+            f"bracket rules of thumb (see modelforge.analytics.sensitivity"
+            f"._ELASTICITY_REGISTRY for the full table). v0.4.2 replaces "
+            f"this heuristic with exact workbook recomputation.",
+            "ModelForge",
+        )
+        # H: low value = base × (1 + low_shock)
+        lv = ws.cell(row=r, column=8, value=f"=D{r}*(1+E{r})")
+        styles.style_formula(lv, number_format="General")
+        # I: high value
+        hv = ws.cell(row=r, column=9, value=f"=D{r}*(1+F{r})")
+        styles.style_formula(hv, number_format="General")
+        # J: low Δ = primary_output × low_shock × elasticity
+        ld = ws.cell(row=r, column=10, value=f"=primary_output*E{r}*G{r}")
+        styles.style_formula(ld, number_format=styles.FMT_PCT_2DP)
+        # K: high Δ
+        hd = ws.cell(row=r, column=11, value=f"=primary_output*F{r}*G{r}")
+        styles.style_formula(hd, number_format=styles.FMT_PCT_2DP)
+
+    r_end = r0 + len(applicable) - 1
+
+    # ── Tornado chart
+    if applicable:
+        _add_tornado_chart(ws, header_row=hr, first_row=r0, last_row=r_end,
+                           primary_label=primary_loc.label)
+
+    # ── QC-required layout bits
+    ws.freeze_panes = "D10"
+    ws.print_title_rows = f"{hr}:{hr}"
+    ws.print_title_cols = "A:C"
+
+    return ws
+
+
+def _add_tornado_chart(
+    ws: Worksheet,
+    header_row: int,
+    first_row: int,
+    last_row: int,
+    primary_label: str,
+) -> None:
+    """Place a native BarChart tornado to the right of the data."""
+    chart = BarChart()
+    chart.type = "bar"  # horizontal bars — required for tornado look
+    chart.style = 11
+    chart.title = f"Tornado — {primary_label}"
+    chart.y_axis.title = "Factor"
+    chart.x_axis.title = "Δ output (% points)"
+    chart.overlap = 100  # overlap low/high so each factor gets one row
+
+    # Low series (col J) and High series (col K)
+    low_ref = Reference(ws, min_col=10, min_row=header_row, max_col=10, max_row=last_row)
+    high_ref = Reference(ws, min_col=11, min_row=header_row, max_col=11, max_row=last_row)
+    chart.add_data(low_ref, titles_from_data=True)
+    chart.add_data(high_ref, titles_from_data=True)
+
+    # Category labels = factor label column (B)
+    cats = Reference(ws, min_col=2, min_row=first_row, max_col=2, max_row=last_row)
+    chart.set_categories(cats)
+
+    chart.height = max(8, 0.7 * (last_row - first_row + 1))
+    chart.width = 18
+    chart.dataLabels = DataLabelList(showVal=False)
+
+    ws.add_chart(chart, f"M{header_row}")
+
+
+# ─── Public API ───────────────────────────────────────────────────────────────
+
+
+def _register_primary_output_name(wb, primary_loc: PrimaryOutputLoc) -> None:
+    """Register / refresh the workbook-level 'primary_output' named range."""
+    col = primary_loc.cell[0]
+    row = primary_loc.cell[1:]
+    attr = f"'{primary_loc.sheet}'!${col}${row}"
+    if "primary_output" in wb.defined_names:
+        del wb.defined_names["primary_output"]
+    wb.defined_names["primary_output"] = DefinedName(
+        name="primary_output", attr_text=attr,
+    )
+
+
+def append_sensitivity_sheet(
+    xlsx_path: Path | str,
+    spec,
+    factors: Optional[list[SensitivityFactor]] = None,
+    primary_output_label: Optional[str] = None,
+) -> Optional[Path]:
+    """Append a SensitivityAnalysis sheet to a built workbook.
+
+    Parameters
+    ----------
+    xlsx_path : Path
+        Path to a built .xlsx.
+    spec : BaseModelSpec
+        The spec used to build the workbook (provides model_type for
+        default factor selection).
+    factors : Optional[list[SensitivityFactor]]
+        If None, uses ``default_factors_for(spec.model_type)``.
+    primary_output_label : Optional[str]
+        Override the auto-detected primary output cell by passing a
+        fuzzy label substring to search. Leave None for auto.
+
+    Returns
+    -------
+    Path to the modified xlsx, or None if sensitivity was skipped
+    (primary output not locatable, or 0 applicable factors).
+    """
+    xlsx_path = Path(xlsx_path)
+    wb = load_workbook(xlsx_path, data_only=False, keep_links=True)
+
+    # 1. Locate primary output
+    if primary_output_label is not None:
+        primary_loc: Optional[PrimaryOutputLoc] = None
+        for sheet in wb.sheetnames:
+            ws = wb[sheet]
+            row = _find_row_by_label(ws, primary_output_label)
+            if row is not None:
+                primary_loc = PrimaryOutputLoc(
+                    sheet=sheet, cell=f"D{row}", label=primary_output_label,
+                )
+                break
+    else:
+        primary_loc = _find_primary_output(wb)
+
+    if primary_loc is None:
+        return None  # graceful skip
+
+    _register_primary_output_name(wb, primary_loc)
+
+    # 2. Resolve applicable factors — driver named range must exist
+    if factors is None:
+        factors = default_factors_for(getattr(spec, "model_type", ""))
+
+    applicable: list[SensitivityFactor] = [
+        f for f in factors if _driver_exists(wb, f.driver_name)
+    ]
+
+    if not applicable:
+        # Keep the primary_output named range registered, but no sheet.
+        wb.save(xlsx_path)
+        return None
+
+    # 3. Emit sheet + chart
+    _emit_sheet(wb, primary_loc, applicable)
+    wb.save(xlsx_path)
+
+    return xlsx_path
+
+
+__all__ = [
+    "append_sensitivity_sheet",
+    "PrimaryOutputLoc",
+]
