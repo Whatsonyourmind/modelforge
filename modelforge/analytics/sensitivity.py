@@ -85,9 +85,11 @@ _PRIMARY_OUTPUT_LOCATORS: list[tuple[str, str, str]] = [
     # 3-Statement — no IRR/EV metric. Pivot on Net income Y1 projected
     # (col D row = net income row on Model sheet).
     ("Model", "Net income", "Net Income (Y1 projected)"),
-    # DCF / Valuation templates to come (v0.4 US-004)
-    ("DCF", "Implied EV", "Implied EV"),
+    # DCF-WACC (US-004) — enterprise value on Valuation sheet
     ("Valuation", "Implied EV", "Implied EV"),
+    ("DCF", "Implied EV", "Implied EV"),
+    # M&A merger (US-003) — Y1 accretion/dilution %
+    ("AccretionDilution", "Accretion / (dilution) %", "Y1 Accretion / Dilution"),
 ]
 
 
@@ -254,6 +256,21 @@ _ELASTICITY_REGISTRY: dict[str, float] = {
     "servicer_fee_bps": -0.20,
     "pool_notional_eur_m": 0.05,
     # 3-statement / DCF
+    # DCF / merger / fairness specifics
+    "exit_ev_ebitda_x": 0.70,
+    "beta_levered": -0.25,
+    "equity_risk_premium": -0.30,
+    "risk_free_rate": -0.35,
+    "pretax_cost_of_debt": -0.20,
+    "target_debt_weight": 0.10,
+    "offer_premium_pct": -0.80,  # higher premium → lower accretion
+    "cash_mix_pct": -0.15,
+    "financing_rate_pct": -0.30,
+    "revenue_synergies_eur_m": 0.30,
+    "cost_synergies_eur_m": 0.55,
+    "synergy_realization_y1_pct": 0.30,
+    "integration_cost_eur_m": -0.20,
+    "target_ebitda_eur_m": 0.90,
     "wc_days_sales": -0.25,
     "receivables_days": -0.15,
     "inventory_days": -0.15,

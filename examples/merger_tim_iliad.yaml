@@ -1,0 +1,150 @@
+model_type: merger
+
+meta:
+  project_code: MRG-TIM-ILD-2026
+  deliverable:
+    en: Italian telecom merger — accretion/dilution illustrative
+    it: Fusione telecom italiano — accretion/diluizione illustrativa
+  analyst: maintainer
+  version: v0.1
+  status: draft
+  valuation_date: 2026-04-17
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - version: v0.1
+      date: 2026-04-17
+      analyst: maintainer
+      note: Initial illustrative merger spec
+
+target:
+  name: Iliad Italia (illustrative)
+  sector:
+    en: Telecom services (Italy)
+    it: Telecom (Italia)
+  country: IT
+  currency: EUR
+  revenue_last_fy_eur_m: 1000.0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 250.0
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+sources:
+  - id: S-001
+    doc: iliad_italia_fy25.pdf
+    publisher: Iliad Italia
+    date: 2026-02-20
+    verified: false
+    note: FY25 illustrative (public approximation)
+  - id: S-002
+    doc: tim_fy25.pdf
+    publisher: TIM S.p.A. investor relations
+    date: 2026-02-25
+    verified: false
+    note: FY25 illustrative (public approximation)
+
+acquirer_name: TIM S.p.A. (illustrative)
+acquirer:
+  revenue_eur_m: 15800.0
+  ebitda_eur_m: 6300.0
+  net_income_eur_m: 400.0
+  shares_outstanding_m: 21200.0
+  share_price_eur: 0.24
+  net_debt_eur_m: 25000.0
+
+target_financials:
+  revenue_eur_m: 1000.0
+  ebitda_eur_m: 250.0
+  net_income_eur_m: 60.0
+  shares_outstanding_m: 200.0
+  share_price_eur: 25.0
+  net_debt_eur_m: 800.0
+
+horizon:
+  projection_years: 5
+
+deal:
+  offer_premium_pct:
+    id: A-001
+    name: offer_premium_pct
+    label: {en: Offer premium over target price, it: Premio sull'offerta}
+    unit: pct
+    base: 0.30
+    worst: 0.15
+    best: 0.40
+    rationale: Typical European telecom take-private premium
+    confidence: M
+  cash_mix_pct:
+    id: A-002
+    name: cash_mix_pct
+    label: {en: Cash consideration %, it: Cash consideration %}
+    unit: pct
+    base: 0.60
+    worst: 0.80
+    best: 0.40
+    rationale: Mixed consideration; cash funded by new debt
+    confidence: M
+  financing_rate_pct:
+    id: A-003
+    name: financing_rate_pct
+    label: {en: Financing rate (cash), it: Tasso di finanziamento}
+    unit: pct
+    base: 0.055
+    worst: 0.070
+    best: 0.045
+    rationale: Acquisition facility blended rate
+    confidence: M
+  effective_tax_rate:
+    id: A-004
+    name: effective_tax_rate
+    label: {en: Effective tax rate, it: Aliquota effettiva}
+    unit: pct
+    base: 0.275
+    worst: 0.28
+    best: 0.27
+    rationale: IRES + IRAP weighted
+    confidence: H
+
+synergies:
+  revenue_synergies_eur_m:
+    id: A-101
+    name: revenue_synergies_eur_m
+    label: {en: Revenue synergies (run-rate), it: Sinergie di ricavo}
+    unit: eur_m
+    base: 120.0
+    worst: 60.0
+    best: 180.0
+    rationale: Cross-sell + convergent bundles
+    confidence: L
+  cost_synergies_eur_m:
+    id: A-102
+    name: cost_synergies_eur_m
+    label: {en: Cost synergies (run-rate), it: Sinergie di costo}
+    unit: eur_m
+    base: 300.0
+    worst: 180.0
+    best: 400.0
+    rationale: Network consolidation + overlapping retail footprint
+    confidence: M
+  synergy_realization_y1_pct:
+    id: A-103
+    name: synergy_realization_y1_pct
+    label: {en: Y1 synergy realization %, it: Realizzazione sinergie Y1}
+    unit: pct
+    base: 0.25
+    worst: 0.10
+    best: 0.40
+    rationale: Phase-in Y1
+    confidence: M
+  integration_cost_eur_m:
+    id: A-104
+    name: integration_cost_eur_m
+    label: {en: Integration cost (one-time), it: Costi d'integrazione}
+    unit: eur_m
+    base: 250.0
+    worst: 400.0
+    best: 150.0
+    rationale: Network migration, redundancies, rebranding
+    confidence: M

@@ -61,9 +61,19 @@ def _load_spec_class(model_type: str):
     if model_type == "three_statement":
         from modelforge.spec.three_statement import ThreeStatementSpec
         return ThreeStatementSpec
+    if model_type == "dcf":
+        from modelforge.spec.dcf import DCFSpec
+        return DCFSpec
+    if model_type == "merger":
+        from modelforge.spec.merger import MergerSpec
+        return MergerSpec
+    if model_type == "fairness":
+        from modelforge.spec.fairness import FairnessSpec
+        return FairnessSpec
     raise ValueError(
         f"Unknown model_type {model_type!r}. Known: unitranche, minibond, "
-        "credit_memo, project_finance, real_estate, npl, structured_credit, three_statement"
+        "credit_memo, project_finance, real_estate, npl, structured_credit, "
+        "three_statement, dcf, merger, fairness"
     )
 
 

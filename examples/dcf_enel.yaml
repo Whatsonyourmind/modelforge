@@ -1,0 +1,282 @@
+model_type: dcf
+
+meta:
+  project_code: DCF-ENEL-2026
+  deliverable:
+    en: Standalone DCF-WACC valuation (Italy)
+    it: Valutazione DCF-WACC autonoma (Italia)
+  analyst: maintainer
+  version: v0.1
+  status: draft
+  valuation_date: 2026-04-17
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - version: v0.1
+      date: 2026-04-17
+      analyst: maintainer
+      note: Initial DCF illustrative spec
+
+target:
+  name: Enel S.p.A. (illustrative)
+  sector:
+    en: Regulated utilities
+    it: Utility regolate
+  country: IT
+  currency: EUR
+  revenue_last_fy_eur_m: 95000.0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 22500.0
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+sources:
+  - id: S-001
+    doc: enel_fy25_annual_report.pdf
+    page: 12
+    publisher: Enel Investor Relations
+    date: 2026-02-15
+    url: https://www.enel.com/investors
+    verified: true
+    note: FY25 consolidated financials
+  - id: S-002
+    doc: damodaran_country_risk_2026.csv
+    publisher: NYU Stern / Damodaran
+    date: 2026-01-01
+    url: https://pages.stern.nyu.edu/~adamodar/
+    verified: true
+    note: Italy ERP 6.7% (mature 4.23%)
+  - id: S-003
+    doc: btp_10y_snapshot_apr2026.pdf
+    publisher: MTS
+    date: 2026-04-15
+    verified: true
+    note: 10Y BTP yield benchmark
+
+net_debt_eur_m: 60000.0
+net_debt_source_id: S-001
+shares_outstanding_m: 10166.0
+valuation_date_price_eur: 6.45
+
+horizon:
+  historical_years: 3
+  projection_years: 5
+
+wacc:
+  risk_free_rate:
+    id: A-001
+    name: risk_free_rate
+    label:
+      en: Risk-free rate (10Y BTP)
+      it: Tasso risk-free (BTP 10Y)
+    unit: pct
+    base: 0.039
+    worst: 0.045
+    best: 0.035
+    rationale: 10Y BTP yield as of Apr 2026
+    confidence: H
+    source_id: S-003
+  equity_risk_premium:
+    id: A-002
+    name: equity_risk_premium
+    label:
+      en: Equity risk premium (Italy)
+      it: Premio per il rischio (Italia)
+    unit: pct
+    base: 0.067
+    worst: 0.075
+    best: 0.060
+    rationale: Damodaran 2026 Italy ERP
+    confidence: H
+    source_id: S-002
+  beta_levered:
+    id: A-003
+    name: beta_levered
+    label:
+      en: Beta (levered, 5Y weekly)
+      it: Beta (levered, 5 anni)
+    unit: x
+    base: 0.85
+    worst: 1.00
+    best: 0.75
+    rationale: Regulated utility, defensive; 5Y weekly vs FTSE MIB
+    confidence: M
+  pretax_cost_of_debt:
+    id: A-004
+    name: pretax_cost_of_debt
+    label:
+      en: Pre-tax cost of debt
+      it: Costo del debito pre-tax
+    unit: pct
+    base: 0.045
+    worst: 0.055
+    best: 0.040
+    rationale: Blended cost on existing bond stack + new issuance
+    confidence: M
+  target_debt_weight:
+    id: A-005
+    name: target_debt_weight
+    label:
+      en: Target D / (D+E)
+      it: Leva obiettivo
+    unit: pct
+    base: 0.40
+    worst: 0.45
+    best: 0.35
+    rationale: Utility investment-grade target capital structure
+    confidence: M
+  effective_tax_rate:
+    id: A-006
+    name: effective_tax_rate
+    label:
+      en: Effective tax rate
+      it: Aliquota effettiva
+    unit: pct
+    base: 0.28
+    worst: 0.30
+    best: 0.26
+    rationale: IRES 24% + IRAP 3.9% weighted
+    confidence: H
+
+fcf:
+  revenue_growth_by_year:
+    - id: A-101
+      name: revenue_growth_y1
+      label: {en: Revenue growth Y1, it: Crescita ricavi Y1}
+      unit: pct
+      base: 0.03
+      worst: 0.01
+      best: 0.05
+      rationale: Low-single-digit org growth base case
+      confidence: M
+    - id: A-102
+      name: revenue_growth_y2
+      label: {en: Revenue growth Y2, it: Crescita ricavi Y2}
+      unit: pct
+      base: 0.03
+      worst: 0.01
+      best: 0.05
+      rationale: Steady-state
+      confidence: M
+    - id: A-103
+      name: revenue_growth_y3
+      label: {en: Revenue growth Y3, it: Crescita ricavi Y3}
+      unit: pct
+      base: 0.025
+      worst: 0.01
+      best: 0.04
+      rationale: Steady-state
+      confidence: M
+    - id: A-104
+      name: revenue_growth_y4
+      label: {en: Revenue growth Y4, it: Crescita ricavi Y4}
+      unit: pct
+      base: 0.025
+      worst: 0.01
+      best: 0.04
+      rationale: Steady-state
+      confidence: M
+    - id: A-105
+      name: revenue_growth_y5
+      label: {en: Revenue growth Y5, it: Crescita ricavi Y5}
+      unit: pct
+      base: 0.02
+      worst: 0.01
+      best: 0.03
+      rationale: Approaching terminal
+      confidence: M
+  ebitda_margin_by_year:
+    - id: A-201
+      name: ebitda_margin_y1
+      label: {en: EBITDA margin Y1, it: Marg EBITDA Y1}
+      unit: pct
+      base: 0.238
+      worst: 0.220
+      best: 0.255
+      rationale: FY25 baseline 23.7%
+      confidence: H
+    - id: A-202
+      name: ebitda_margin_y2
+      label: {en: EBITDA margin Y2, it: Marg EBITDA Y2}
+      unit: pct
+      base: 0.240
+      worst: 0.220
+      best: 0.260
+      rationale: Slight expansion from digitisation
+      confidence: M
+    - id: A-203
+      name: ebitda_margin_y3
+      label: {en: EBITDA margin Y3, it: Marg EBITDA Y3}
+      unit: pct
+      base: 0.242
+      worst: 0.220
+      best: 0.265
+      rationale: Operating leverage
+      confidence: M
+    - id: A-204
+      name: ebitda_margin_y4
+      label: {en: EBITDA margin Y4, it: Marg EBITDA Y4}
+      unit: pct
+      base: 0.245
+      worst: 0.225
+      best: 0.270
+      rationale: Operating leverage
+      confidence: M
+    - id: A-205
+      name: ebitda_margin_y5
+      label: {en: EBITDA margin Y5, it: Marg EBITDA Y5}
+      unit: pct
+      base: 0.245
+      worst: 0.225
+      best: 0.270
+      rationale: Steady-state margin
+      confidence: M
+  da_pct_revenue:
+    id: A-301
+    name: da_pct_revenue
+    label: {en: D&A % revenue, it: A&A % ricavi}
+    unit: pct
+    base: 0.10
+    rationale: Historical avg
+    confidence: M
+  capex_pct_revenue:
+    id: A-302
+    name: capex_pct_revenue
+    label: {en: Capex % revenue, it: Capex % ricavi}
+    unit: pct
+    base: 0.12
+    worst: 0.14
+    best: 0.10
+    rationale: Grid + transition capex plan
+    confidence: M
+  nwc_pct_revenue_delta:
+    id: A-303
+    name: nwc_pct_revenue_delta
+    label: {en: ΔNWC % Δ revenue, it: ΔNWC % Δ ricavi}
+    unit: pct
+    base: 0.05
+    rationale: Receivables + inventory net of payables growth
+    confidence: M
+
+terminal:
+  terminal_growth_pct:
+    id: A-401
+    name: terminal_growth_pct
+    label: {en: Terminal growth, it: Crescita terminale}
+    unit: pct
+    base: 0.020
+    worst: 0.010
+    best: 0.025
+    rationale: Long-run EU inflation + mild real growth
+    confidence: M
+  exit_ev_ebitda_x:
+    id: A-402
+    name: exit_ev_ebitda_x
+    label: {en: Exit EV/EBITDA, it: Exit EV/EBITDA}
+    unit: x
+    base: 7.5
+    worst: 6.5
+    best: 9.0
+    rationale: EU utility multiple range
+    confidence: M
