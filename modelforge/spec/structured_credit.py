@@ -12,6 +12,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from modelforge.spec.base import Assumption, Label, ModelMeta, Source, Target
+from modelforge.spec.risk_block import RiskAnalysisSpec
 
 
 class SCHorizon(BaseModel):
@@ -51,6 +52,9 @@ class StructuredCreditSpec(BaseModel):
     tranches: list[SCTranche]  # Ordered senior → mezz → junior → equity
     servicing_fee_pct_collections: Assumption
     effective_tax_rate: Assumption
+
+    # Optional probabilistic-credit block (triggers RiskAnalysis sheet).
+    risk_analysis: RiskAnalysisSpec | None = None
 
     historical_revenue_eur_m: list[float] = Field(default_factory=list)
     historical_ebitda_eur_m: list[float] = Field(default_factory=list)

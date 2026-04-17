@@ -59,10 +59,13 @@ def build_model(
         try:
             from modelforge.analytics.sensitivity import append_sensitivity_sheet
             from modelforge.analytics.monte_carlo import append_monte_carlo_sheet
+            from modelforge.analytics.risk_sheet import append_risk_analysis_sheet
             append_sensitivity_sheet(xlsx_path, spec)
             # MC runs after sensitivity so it can reuse the primary_output
             # named range that sensitivity registers.
             append_monte_carlo_sheet(xlsx_path, spec)
+            # Risk analysis only emits if spec.risk_analysis is set
+            append_risk_analysis_sheet(xlsx_path, spec)
         except Exception:
             # Analytics are nice-to-haves; never block the build.
             pass
