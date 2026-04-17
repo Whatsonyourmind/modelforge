@@ -1,0 +1,116 @@
+model_type: fairness
+
+meta:
+  project_code: FAIR-AMPL-2026
+  deliverable:
+    en: Fairness opinion football field — illustrative
+    it: Fairness opinion football field — illustrativa
+  analyst: Luka Stanisljevic
+  version: v0.1
+  status: draft
+  valuation_date: 2026-04-17
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - version: v0.1
+      date: 2026-04-17
+      analyst: Luka Stanisljevic
+      note: Initial illustrative fairness spec
+
+target:
+  name: Amplifon S.p.A. (illustrative)
+  sector:
+    en: Medical devices / hearing
+    it: Dispositivi medici / udito
+  country: IT
+  currency: EUR
+  revenue_last_fy_eur_m: 2300.0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 530.0
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+sources:
+  - id: S-001
+    doc: amplifon_fy25_presentation.pdf
+    publisher: Amplifon IR
+    date: 2026-03-01
+    verified: false
+    note: FY25 illustrative
+  - id: S-002
+    doc: healthcare_comps_apr2026.xlsx
+    publisher: Analyst research (illustrative)
+    date: 2026-04-10
+    verified: false
+    note: Trading comps
+
+current_price_eur: 25.00
+shares_outstanding_m: 226.0
+net_debt_eur_m: 950.0
+
+target_ebitda_eur_m:
+  id: A-001
+  name: target_ebitda_eur_m
+  label:
+    en: Target EBITDA (€m, run-rate)
+    it: EBITDA target (€m, run-rate)
+  unit: eur_m
+  base: 530.0
+  worst: 480.0
+  best: 590.0
+  rationale: FY25 actual EBITDA (illustrative)
+  confidence: H
+  source_id: S-001
+
+trading_comps:
+  - name: Sonova Holding
+    ev_ebitda_x: 14.5
+    ev_revenue_x: 3.1
+  - name: Demant A/S
+    ev_ebitda_x: 13.0
+    ev_revenue_x: 2.7
+  - name: GN Store Nord
+    ev_ebitda_x: 11.5
+    ev_revenue_x: 2.1
+  - name: Cochlear
+    ev_ebitda_x: 25.0
+    ev_revenue_x: 7.2
+
+transaction_comps:
+  - name: Sonova / Sennheiser Consumer
+    ev_ebitda_x: 16.0
+    ev_revenue_x: 3.5
+    date: "2024-Q3"
+  - name: WS Audiology / Widex-Sivantos
+    ev_ebitda_x: 14.0
+    ev_revenue_x: 3.3
+    date: "2019"
+  - name: EQT / HTL-Strefa (audio adjacency)
+    ev_ebitda_x: 12.5
+    ev_revenue_x: 2.8
+    date: "2023"
+
+valuation_ranges:
+  - method: Trading comps (EV/EBITDA median ±1x)
+    ev_low_eur_m: 6890.0
+    ev_high_eur_m: 7950.0
+    note: 13.0x–15.0x median with ±1x
+    source_id: S-002
+  - method: Transaction comps (EV/EBITDA median ±1x)
+    ev_low_eur_m: 7420.0
+    ev_high_eur_m: 8480.0
+    note: 14.0x–16.0x range on precedent deals
+    source_id: S-002
+  - method: DCF (WACC 8.0–9.0%, g 1.5–2.5%)
+    ev_low_eur_m: 7200.0
+    ev_high_eur_m: 9100.0
+    note: Base case run-rate EBITDA with 5Y forecast
+  - method: LBO (5-year, target IRR 20–25%)
+    ev_low_eur_m: 6200.0
+    ev_high_eur_m: 7400.0
+    note: Sponsor-affordability view
+  - method: 52-week trading range
+    ev_low_eur_m: 5850.0
+    ev_high_eur_m: 7060.0
+    note: Low €22 — high €29 market observations

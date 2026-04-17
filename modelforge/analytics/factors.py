@@ -229,6 +229,79 @@ _THREE_STATEMENT = [
 ]
 
 
+_DCF = [
+    SensitivityFactor(driver_name="revenue_growth_y1", label="Revenue growth Y1 ±20%",
+                      low_shock=-0.20, high_shock=+0.20),
+    SensitivityFactor(driver_name="ebitda_margin_y1", label="EBITDA margin Y1 ±25%",
+                      low_shock=-0.25, high_shock=+0.25),
+    SensitivityFactor(driver_name="capex_pct_revenue", label="Capex % revenue ±20%",
+                      low_shock=-0.20, high_shock=+0.20),
+    SensitivityFactor(driver_name="terminal_growth_pct",
+                      label="Terminal growth ±50bps",
+                      low_shock=-0.50, high_shock=+0.50),
+    SensitivityFactor(driver_name="exit_ev_ebitda_x",
+                      label="Exit EV/EBITDA ±1x",
+                      low_shock=-0.15, high_shock=+0.15),
+    SensitivityFactor(driver_name="beta_levered",
+                      label="Beta ±0.10",
+                      low_shock=-0.15, high_shock=+0.15),
+    SensitivityFactor(driver_name="equity_risk_premium",
+                      label="ERP ±100bps",
+                      low_shock=-0.15, high_shock=+0.15),
+]
+
+
+_MERGER = [
+    SensitivityFactor(driver_name="offer_premium_pct",
+                      label="Offer premium ±10pp",
+                      low_shock=-0.30, high_shock=+0.30),
+    SensitivityFactor(driver_name="cash_mix_pct",
+                      label="Cash mix ±20pp",
+                      low_shock=-0.30, high_shock=+0.30),
+    SensitivityFactor(driver_name="financing_rate_pct",
+                      label="Financing rate ±100bps",
+                      low_shock=-0.20, high_shock=+0.20),
+    SensitivityFactor(driver_name="revenue_synergies_eur_m",
+                      label="Revenue synergies ±50%",
+                      low_shock=-0.50, high_shock=+0.50),
+    SensitivityFactor(driver_name="cost_synergies_eur_m",
+                      label="Cost synergies ±30%",
+                      low_shock=-0.30, high_shock=+0.30),
+    SensitivityFactor(driver_name="synergy_realization_y1_pct",
+                      label="Y1 synergy realization ±50%",
+                      low_shock=-0.50, high_shock=+0.50),
+    SensitivityFactor(driver_name="integration_cost_eur_m",
+                      label="Integration cost ±50%",
+                      low_shock=-0.50, high_shock=+0.50),
+]
+
+
+_FAIRNESS = [
+    # Fairness is a valuation-range aggregator — the "primary output"
+    # varies by use. Keep factors targeting the one true assumption
+    # (target_ebitda) plus conceptual placeholders that will be
+    # populated when shadow engine lands (v0.4.2).
+    SensitivityFactor(driver_name="target_ebitda_eur_m",
+                      label="Target EBITDA ±10%",
+                      low_shock=-0.10, high_shock=+0.10),
+    SensitivityFactor(driver_name="target_ebitda_eur_m",
+                      label="Target EBITDA ±20%",
+                      low_shock=-0.20, high_shock=+0.20),
+    SensitivityFactor(driver_name="target_ebitda_eur_m",
+                      label="Target EBITDA ±30%",
+                      low_shock=-0.30, high_shock=+0.30),
+    SensitivityFactor(driver_name="target_ebitda_eur_m",
+                      label="Target EBITDA ±5%",
+                      low_shock=-0.05, high_shock=+0.05),
+    SensitivityFactor(driver_name="target_ebitda_eur_m",
+                      label="Target EBITDA ±15%",
+                      low_shock=-0.15, high_shock=+0.15),
+    SensitivityFactor(driver_name="target_ebitda_eur_m",
+                      label="Target EBITDA ±25%",
+                      low_shock=-0.25, high_shock=+0.25),
+]
+
+
 DEFAULT_FACTORS_BY_TYPE: dict[str, list[SensitivityFactor]] = {
     "unitranche": _UNITRANCHE_CREDIT,
     "credit_memo": _UNITRANCHE_CREDIT,
@@ -238,6 +311,9 @@ DEFAULT_FACTORS_BY_TYPE: dict[str, list[SensitivityFactor]] = {
     "minibond": _MINIBOND,
     "structured_credit": _STRUCTURED_CREDIT,
     "three_statement": _THREE_STATEMENT,
+    "dcf": _DCF,
+    "merger": _MERGER,
+    "fairness": _FAIRNESS,
 }
 
 
