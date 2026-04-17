@@ -76,13 +76,21 @@ def read_pdf(path: Path) -> DocIndex:
         except Exception as e:
             warnings.warn(f"pypdf also failed on {path.name}: {e}")
 
-    # Sanity check — scanned PDFs have essentially no text
+    # Scanned-PDF detection: if text layer is essentially empty, try
+    # OCR fallback (v0.4 US-007). Tagged chunks carry meta['source']='ocr'.
     total_len = sum(len(c.text) for c in chunks)
     if total_len < 20:
-        warnings.warn(
-            f"{path.name}: extracted only {total_len} chars. Likely scanned — "
-            "add to review queue. OCR support is queued for v0.3.3."
-        )
+        ocr_chunks = _ocr_pdf(path)
+        if ocr_chunks:
+            chunks = ocr_chunks
+            total_pages = max(total_pages, len(chunks))
+        else:
+            warnings.warn(
+                f"{path.name}: extracted only {total_len} chars and OCR "
+                "unavailable or yielded nothing. Add to review queue. "
+                "Install the `[ingest-ocr]` extra to enable OCR "
+                "(`pip install 'modelforge[ingest-ocr]'` + system tesseract)."
+            )
 
     return DocIndex(
         doc_filename=path.name,
@@ -91,6 +99,63 @@ def read_pdf(path: Path) -> DocIndex:
         total_pages=total_pages,
         chunks=chunks,
     )
+
+
+def _ocr_pdf(path: Path) -> list[DocChunk]:
+    """OCR fallback for scanned PDFs.
+
+    Uses pdf2image (Poppler) + pytesseract if both are installed and a
+    system tesseract binary is on PATH. Returns an empty list if any
+    dependency is missing or OCR produces no text. Every emitted chunk
+    carries ``meta['source'] = 'ocr'`` so downstream code (classifier,
+    dossier) can lower confidence / flag for human review.
+
+    Language pack defaults to Italian + English; override with env
+    var ``MODELFORGE_OCR_LANG`` (e.g. ``ita+eng+fra``).
+    """
+    try:
+        import pytesseract  # type: ignore
+        from pdf2image import convert_from_path  # type: ignore
+    except ImportError:
+        return []
+
+    try:
+        images = convert_from_path(str(path), dpi=250)
+    except Exception as e:
+        warnings.warn(
+            f"{path.name}: OCR conversion failed: {e}. "
+            "Ensure Poppler is installed and on PATH."
+        )
+        return []
+
+    chunks: list[DocChunk] = []
+    lang = _ocr_language()
+    for i, img in enumerate(images, start=1):
+        try:
+            text = pytesseract.image_to_string(img, lang=lang)
+        except pytesseract.TesseractNotFoundError:
+            warnings.warn(
+                f"{path.name}: tesseract binary not found on PATH. "
+                "Install system tesseract (brew/apt/choco install tesseract)."
+            )
+            return []
+        except Exception as e:
+            warnings.warn(f"{path.name} p.{i}: OCR error: {e}")
+            continue
+        if text.strip():
+            chunks.append(DocChunk(
+                doc_filename=path.name,
+                page=i,
+                text=text,
+                kind="text",
+                meta={"source": "ocr", "ocr_lang": lang},
+            ))
+    return chunks
+
+
+def _ocr_language() -> str:
+    import os
+    return os.environ.get("MODELFORGE_OCR_LANG", "ita+eng")
 
 
 def _table_to_markdown(rows: list[list]) -> str:
