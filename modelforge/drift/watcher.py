@@ -195,6 +195,102 @@ def check_drift(
 # ── Rendering ───────────────────────────────────────────────────────────────
 
 
+# ── Portfolio-level sweep ───────────────────────────────────────────────────
+
+
+@dataclass
+class PortfolioDriftReport:
+    folder: Path
+    per_workbook: list[DriftReport] = field(default_factory=list)
+
+    @property
+    def n_workbooks(self) -> int:
+        return len(self.per_workbook)
+
+    @property
+    def n_flagged_workbooks(self) -> int:
+        return sum(1 for r in self.per_workbook if r.n_flagged > 0)
+
+    @property
+    def total_flags(self) -> int:
+        return sum(r.n_flagged for r in self.per_workbook)
+
+    @property
+    def clean(self) -> bool:
+        return self.total_flags == 0
+
+
+def check_portfolio(
+    folder: Path | str,
+    threshold_bps: float = 50.0,
+    threshold_rel: float = 0.10,
+    glob_pattern: str = "*.xlsx",
+) -> PortfolioDriftReport:
+    """Run drift check on every workbook matching glob_pattern in folder.
+
+    Recursive via `**/*.xlsx` supported.
+    """
+    folder = Path(folder)
+    if not folder.is_dir():
+        raise ValueError(f"{folder} is not a directory")
+    rep = PortfolioDriftReport(folder=folder)
+    for xlsx in sorted(folder.glob(glob_pattern)):
+        # Skip dossier PDFs + autosave shadows
+        if xlsx.suffix.lower() != ".xlsx":
+            continue
+        try:
+            one = check_drift(xlsx, threshold_bps=threshold_bps,
+                              threshold_rel=threshold_rel)
+            rep.per_workbook.append(one)
+        except Exception:
+            # Skip unreadable workbooks gracefully
+            continue
+    return rep
+
+
+def render_portfolio_markdown(rep: PortfolioDriftReport) -> str:
+    out = [f"# Portfolio drift report — {rep.folder}", ""]
+    out.append(f"**{rep.n_workbooks} workbook(s) scanned · "
+               f"{rep.n_flagged_workbooks} with flagged drivers · "
+               f"{rep.total_flags} total flags.**")
+    out.append("")
+
+    if not rep.per_workbook:
+        out.append("_(no .xlsx files matched)_")
+        return "\n".join(out)
+
+    out.append("| Workbook | Checked | Flagged | Top driver drift (bps) |")
+    out.append("|---|---|---|---|")
+    for r in rep.per_workbook:
+        top = max(r.flagged, key=lambda i: abs(i.delta_bps), default=None)
+        top_str = (f"`{top.driver_name}` {top.delta_bps:+,.0f}bps"
+                   if top else "—")
+        out.append(
+            f"| {r.xlsx_path.name} | {r.checked_drivers} | "
+            f"{r.n_flagged} | {top_str} |"
+        )
+    out.append("")
+
+    # Per-workbook detail (only the flagged rows)
+    for r in rep.per_workbook:
+        if not r.flagged:
+            continue
+        out.append(f"## {r.xlsx_path.name} — flagged drivers")
+        out.append("")
+        out.append("| Driver | Assumed | Current | Δ bps | Source |")
+        out.append("|---|---|---|---|---|")
+        for i in r.flagged:
+            assumed_f = (f"{i.assumed_value:.4%}" if i.kind == "rate"
+                         else f"{i.assumed_value:,.3f}")
+            current_f = (f"{i.current_value:.4%}" if i.kind == "rate"
+                         else f"{i.current_value:,.3f}")
+            out.append(f"| `{i.driver_name}` | {assumed_f} | {current_f} "
+                       f"| {i.delta_bps:+,.1f} | {i.source} |")
+        out.append("")
+
+    return "\n".join(out)
+
+
 def render_markdown(rep: DriftReport) -> str:
     out = [f"# Drift report — {rep.xlsx_path.name}", ""]
     if rep.clean:

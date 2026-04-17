@@ -14,14 +14,19 @@ threshold.
 """
 
 from modelforge.drift.watcher import (
+    DRIVER_FEED_MAP,
     DriftItem,
     DriftReport,
-    DRIVER_FEED_MAP,
+    PortfolioDriftReport,
     check_drift,
+    check_portfolio,
     render_markdown,
+    render_portfolio_markdown,
 )
 
 __all__ = [
-    "DriftItem", "DriftReport", "DRIVER_FEED_MAP",
-    "check_drift", "render_markdown",
+    "DriftItem", "DriftReport", "PortfolioDriftReport",
+    "DRIVER_FEED_MAP",
+    "check_drift", "check_portfolio",
+    "render_markdown", "render_portfolio_markdown",
 ]

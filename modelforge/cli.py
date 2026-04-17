@@ -348,24 +348,58 @@ def serve_cmd(host: str, port: int, session_dir: Path | None) -> None:
 
 
 @main.command("drift")
-@click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--portfolio", is_flag=True,
+              help="PATH is a directory — scan every .xlsx inside.")
 @click.option("--threshold-bps", default=50.0, show_default=True, type=float,
               help="Absolute bps delta to flag for rate drivers.")
 @click.option("--threshold-rel", default=0.10, show_default=True, type=float,
               help="Relative delta to flag for non-rate drivers.")
 @click.option("-o", "--output", "md_path", type=click.Path(path_type=Path),
               default=None, help="Optional markdown report path.")
-def drift_cmd(xlsx_path: Path, threshold_bps: float, threshold_rel: float,
-              md_path: Path | None) -> None:
+def drift_cmd(path: Path, portfolio: bool, threshold_bps: float,
+              threshold_rel: float, md_path: Path | None) -> None:
     """Flag workbook drivers that have drifted from current market values.
 
-    Reads ECB + Damodaran feeds and compares to the workbook's assumption
-    BASE cells. Flags any driver where |Δbps| ≥ threshold-bps (rate
-    drivers) or |Δ%| ≥ threshold-rel (value drivers). Exits 0 if clean,
-    1 if any driver is flagged.
+    Reads ECB + Damodaran feeds and compares to each workbook's
+    Assumption BASE cells. Flags any driver where |Δbps| ≥
+    threshold-bps (rate drivers) or |Δ%| ≥ threshold-rel (value
+    drivers). Pass --portfolio to sweep every .xlsx in a folder.
+
+    Exits 0 clean, 1 on any flag.
     """
-    from modelforge.drift import check_drift, render_markdown
-    rep = check_drift(xlsx_path, threshold_bps=threshold_bps,
+    from modelforge.drift import (
+        check_drift, check_portfolio, render_markdown, render_portfolio_markdown,
+    )
+    if portfolio:
+        if not path.is_dir():
+            console.print(f"[red]{path} is not a directory.[/red]")
+            sys.exit(2)
+        p_rep = check_portfolio(path, threshold_bps=threshold_bps,
+                                 threshold_rel=threshold_rel)
+        tbl = Table(title=f"Portfolio drift — {path} "
+                           f"({p_rep.n_workbooks} workbook(s); "
+                           f"{p_rep.n_flagged_workbooks} with flags; "
+                           f"{p_rep.total_flags} total flags)")
+        tbl.add_column("Workbook", style="bold")
+        tbl.add_column("Checked", justify="right")
+        tbl.add_column("Flagged", justify="right")
+        tbl.add_column("Top driver drift")
+        for r in p_rep.per_workbook:
+            top = max(r.flagged, key=lambda i: abs(i.delta_bps), default=None)
+            top_str = (f"{top.driver_name} {top.delta_bps:+,.0f}bps"
+                       if top else "—")
+            tbl.add_row(r.xlsx_path.name, str(r.checked_drivers),
+                        str(r.n_flagged), top_str)
+        console.print(tbl)
+        if md_path is not None:
+            md_path.write_text(render_portfolio_markdown(p_rep),
+                                encoding="utf-8")
+            console.print(f"[green]Markdown:[/green] {md_path}")
+        sys.exit(0 if p_rep.clean else 1)
+
+    # Single-workbook mode
+    rep = check_drift(path, threshold_bps=threshold_bps,
                       threshold_rel=threshold_rel)
 
     tbl = Table(title=f"Drift report — {xlsx_path.name} "

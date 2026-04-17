@@ -1,0 +1,56 @@
+# docker-compose for ModelForge on-prem / boutique deployment.
+#
+# Usage:
+#   docker compose up -d            # start the web UI on http://localhost:8000
+#   docker compose logs -f web      # tail logs
+#   docker compose exec web modelforge build /specs/my_deal.yaml
+#
+# Volumes:
+#   ./data    — persistent workbook + dossier store (/data in container)
+#   ./specs   — your YAML spec library (mount read-only; CLI writes nothing)
+#   ./output  — build outputs visible on the host
+
+services:
+  web:
+    build: .
+    image: modelforge:local
+    container_name: modelforge-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"   # localhost-only by default; override for LAN
+    volumes:
+      - ./data:/data
+      - ./specs:/specs:ro
+      - ./output:/output
+    environment:
+      # Zero-data-retention toggle if/when LLM calls are added to the web
+      # surface. Currently the web app never calls the LLM.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - MODELFORGE_SESSION_DIR=/data
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request, sys;
+              r=urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3);
+              sys.exit(0 if r.status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Optional cron-style job running `modelforge drift --portfolio` on the
+  # same session dir every 6 hours. Alerts land in ./output/drift_*.md.
+  drift-watcher:
+    image: modelforge:local
+    depends_on:
+      - web
+    volumes:
+      - ./data:/data:ro
+      - ./output:/output
+    entrypoint: >
+      sh -c 'while true; do
+        modelforge drift --portfolio /data \
+          -o /output/drift_$$(date +%Y-%m-%dT%H-%M-%S).md || true;
+        sleep 21600;
+      done'
+    restart: unless-stopped
+    profiles: ["agents"]
