@@ -300,8 +300,15 @@ def _elasticity_for(driver_name: str) -> float:
 class _ShadowResult:
     """Exact numeric deltas computed via a shadow engine."""
     base_output: float
-    low_deltas: list[float]   # in fractional terms (low_output/base - 1)
+    low_deltas: list[float]   # fractional OR absolute — see .delta_mode
     high_deltas: list[float]
+    delta_mode: str = "fractional"  # "fractional" or "absolute"
+
+
+# When the base primary_output is near zero (e.g. a PF deal whose base
+# Equity IRR sits at -1% to +1%), fractional deltas (shocked-base)/base
+# blow up. Fall back to ABSOLUTE deltas in that regime.
+_NEAR_ZERO_THRESHOLD = 0.01
 
 
 def _compute_shadow_deltas(
@@ -311,18 +318,20 @@ def _compute_shadow_deltas(
     """Use the per-template shadow engine to compute exact deltas.
 
     Returns None if no shadow engine exists for this model_type —
-    caller falls back to elasticity. Deltas are fractional (e.g.
-    -0.08 = primary output moves -8% under the low shock).
+    caller falls back to elasticity. Deltas are FRACTIONAL for
+    reasonable-base outputs, ABSOLUTE when |base| < threshold (to avoid
+    division-by-near-zero artefacts on deals where the primary output
+    itself crosses zero).
     """
     from modelforge.shadow import compute_primary_output, has_shadow_engine
     mt = getattr(spec, "model_type", "")
     if not has_shadow_engine(mt):
         return None
     base = compute_primary_output(spec, {})
-    if base is None or abs(base) < 1e-12:
+    if base is None:
         return None
 
-    # Resolve base driver values from spec.all_assumptions()
+    use_absolute = abs(base) < _NEAR_ZERO_THRESHOLD
     all_assums = {a.name: a for a in spec.all_assumptions()}
     low_deltas: list[float] = []
     high_deltas: list[float] = []
@@ -335,10 +344,16 @@ def _compute_shadow_deltas(
         low_v, high_v = f.shocked_values(bv)
         lo = compute_primary_output(spec, {f.driver_name: low_v})
         hi = compute_primary_output(spec, {f.driver_name: high_v})
-        low_deltas.append((lo - base) / base if lo is not None else 0.0)
-        high_deltas.append((hi - base) / base if hi is not None else 0.0)
-    return _ShadowResult(base_output=base, low_deltas=low_deltas,
-                         high_deltas=high_deltas)
+        if use_absolute:
+            low_deltas.append((lo - base) if lo is not None else 0.0)
+            high_deltas.append((hi - base) if hi is not None else 0.0)
+        else:
+            low_deltas.append((lo - base) / base if lo is not None else 0.0)
+            high_deltas.append((hi - base) / base if hi is not None else 0.0)
+    return _ShadowResult(
+        base_output=base, low_deltas=low_deltas, high_deltas=high_deltas,
+        delta_mode="absolute" if use_absolute else "fractional",
+    )
 
 
 def _emit_sheet(
@@ -414,6 +429,7 @@ def _emit_sheet(
     # ── Data rows
     # Method label for column header's comment
     method = "shadow" if shadow is not None else "elasticity"
+    delta_mode = shadow.delta_mode if shadow is not None else "fractional"
     r0 = hr + 1
     for i, f in enumerate(applicable, start=1):
         r = r0 + i - 1
@@ -490,8 +506,8 @@ def _emit_sheet(
     r_end = r0 + len(applicable) - 1
 
     # Method badge next to headers
-    badge = ws.cell(row=hr - 1, column=10,
-                    value=f"Method: {method}")
+    badge_text = f"Method: {method} ({delta_mode} Δ)"
+    badge = ws.cell(row=hr - 1, column=10, value=badge_text)
     badge.font = styles.Font(
         name=styles.FONT_BASE, size=styles.FONT_SIZE_BODY,
         bold=True, color="006100" if method == "shadow" else "7F6000",
