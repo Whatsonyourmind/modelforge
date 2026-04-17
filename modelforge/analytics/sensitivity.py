@@ -296,12 +296,63 @@ def _elasticity_for(driver_name: str) -> float:
 # ─── Sheet emission ───────────────────────────────────────────────────────────
 
 
+@dataclass
+class _ShadowResult:
+    """Exact numeric deltas computed via a shadow engine."""
+    base_output: float
+    low_deltas: list[float]   # in fractional terms (low_output/base - 1)
+    high_deltas: list[float]
+
+
+def _compute_shadow_deltas(
+    spec,
+    factors: list[SensitivityFactor],
+) -> Optional[_ShadowResult]:
+    """Use the per-template shadow engine to compute exact deltas.
+
+    Returns None if no shadow engine exists for this model_type —
+    caller falls back to elasticity. Deltas are fractional (e.g.
+    -0.08 = primary output moves -8% under the low shock).
+    """
+    from modelforge.shadow import compute_primary_output, has_shadow_engine
+    mt = getattr(spec, "model_type", "")
+    if not has_shadow_engine(mt):
+        return None
+    base = compute_primary_output(spec, {})
+    if base is None or abs(base) < 1e-12:
+        return None
+
+    # Resolve base driver values from spec.all_assumptions()
+    all_assums = {a.name: a for a in spec.all_assumptions()}
+    low_deltas: list[float] = []
+    high_deltas: list[float] = []
+    for f in factors:
+        if f.driver_name not in all_assums:
+            low_deltas.append(0.0)
+            high_deltas.append(0.0)
+            continue
+        bv = all_assums[f.driver_name].base
+        low_v, high_v = f.shocked_values(bv)
+        lo = compute_primary_output(spec, {f.driver_name: low_v})
+        hi = compute_primary_output(spec, {f.driver_name: high_v})
+        low_deltas.append((lo - base) / base if lo is not None else 0.0)
+        high_deltas.append((hi - base) / base if hi is not None else 0.0)
+    return _ShadowResult(base_output=base, low_deltas=low_deltas,
+                         high_deltas=high_deltas)
+
+
 def _emit_sheet(
     wb,
     primary_loc: PrimaryOutputLoc,
     applicable: list[SensitivityFactor],
+    shadow: Optional[_ShadowResult] = None,
 ) -> Worksheet:
-    """Create / overwrite the SensitivityAnalysis sheet."""
+    """Create / overwrite the SensitivityAnalysis sheet.
+
+    If ``shadow`` is provided, Low/High Δ columns are written as exact
+    numeric values from the shadow engine and cell comments cite
+    ``method=shadow``. Otherwise the elasticity formula is used.
+    """
     if "SensitivityAnalysis" in wb.sheetnames:
         del wb["SensitivityAnalysis"]
     ws = wb.create_sheet("SensitivityAnalysis")
@@ -319,14 +370,14 @@ def _emit_sheet(
     t.font = styles.font_title
     it = ws.cell(row=2, column=1, value="Analisi di sensibilità")
     it.font = styles.font_label_it
+    # Scenario banner at row 3 (bulge convention — audit_suite.py enforces)
+    from modelforge.builder import layout as _layout
+    _layout.write_scenario_banner(ws, row=3)
     sub = ws.cell(
-        row=3, column=1,
+        row=4, column=1,
         value=(
             f"Tornado on {primary_loc.label}. Base output and driver values "
-            f"are live via named ranges — rebuild or flip scenario to refresh. "
-            f"Δ columns use documented elasticity coefficients per factor; "
-            f"v0.4.2 will replace with full workbook re-eval via per-template "
-            f"shadow engines for exact numerical deltas."
+            f"are live via named ranges — rebuild or flip scenario to refresh."
         ),
     )
     sub.font = styles.font_label_it
@@ -360,7 +411,9 @@ def _emit_sheet(
         c = ws.cell(row=hr, column=ord(col_letter) - ord("A") + 1, value=label)
         styles.style_header(c)
 
-    # ── Data rows — all values are Excel formulas referencing named ranges
+    # ── Data rows
+    # Method label for column header's comment
+    method = "shadow" if shadow is not None else "elasticity"
     r0 = hr + 1
     for i, f in enumerate(applicable, start=1):
         r = r0 + i - 1
@@ -371,42 +424,36 @@ def _emit_sheet(
         # B: factor label
         lbl = ws.cell(row=r, column=2, value=f.label)
         lbl.alignment = styles.Alignment(horizontal="left", vertical="top", wrap_text=True)
-        # C: driver name (informational)
+        # C: driver name
         drv = ws.cell(row=r, column=3, value=f.driver_name)
         drv.font = styles.Font(
             name=styles.FONT_BASE, size=styles.FONT_SIZE_BODY,
             italic=True, color="555555",
         )
-        # D: base = driver_name named range (live)
+        # D: base via named range
         base = ws.cell(row=r, column=4, value=f"={f.driver_name}")
         styles.style_formula(base, number_format="General")
-        # E: low shock (hardcoded input)
+        # E: low shock
         low = ws.cell(row=r, column=5, value=f.low_shock)
         styles.style_input(low, number_format=styles.FMT_PCT)
         low.comment = Comment(
-            f"Fractional shock applied to driver '{f.driver_name}' on the "
-            f"low arm. Example: −0.20 = −20% of base. Edit here to retune "
-            f"this factor's sensitivity sweep.",
+            f"Low-arm fractional shock on '{f.driver_name}'.",
             "ModelForge",
         )
-        # F: high shock (hardcoded input)
+        # F: high shock
         high = ws.cell(row=r, column=6, value=f.high_shock)
         styles.style_input(high, number_format=styles.FMT_PCT)
         high.comment = Comment(
-            f"Fractional shock applied to driver '{f.driver_name}' on the "
-            f"high arm. Example: +0.20 = +20% of base.",
+            f"High-arm fractional shock on '{f.driver_name}'.",
             "ModelForge",
         )
-        # G: elasticity coefficient (hardcoded input)
+        # G: elasticity coefficient — still shown for transparency
         el = ws.cell(row=r, column=7, value=e)
         styles.style_input(el, number_format=styles.FMT_MULTIPLE)
         el.comment = Comment(
-            f"Elasticity of {primary_loc.label} with respect to "
-            f"'{f.driver_name}'. Positive values mean the primary output "
-            f"moves with the driver; negative inversely. Based on bulge-"
-            f"bracket rules of thumb (see modelforge.analytics.sensitivity"
-            f"._ELASTICITY_REGISTRY for the full table). v0.4.2 replaces "
-            f"this heuristic with exact workbook recomputation.",
+            f"Elasticity of {primary_loc.label} w.r.t. '{f.driver_name}'. "
+            f"Kept as a reference even when method=shadow (gives a quick "
+            f"cross-check against the shadow-computed delta).",
             "ModelForge",
         )
         # H: low value = base × (1 + low_shock)
@@ -415,14 +462,40 @@ def _emit_sheet(
         # I: high value
         hv = ws.cell(row=r, column=9, value=f"=D{r}*(1+F{r})")
         styles.style_formula(hv, number_format="General")
-        # J: low Δ = primary_output × low_shock × elasticity
-        ld = ws.cell(row=r, column=10, value=f"=primary_output*E{r}*G{r}")
-        styles.style_formula(ld, number_format=styles.FMT_PCT_2DP)
-        # K: high Δ
-        hd = ws.cell(row=r, column=11, value=f"=primary_output*F{r}*G{r}")
-        styles.style_formula(hd, number_format=styles.FMT_PCT_2DP)
+
+        # J / K: deltas — shadow (exact numeric) or elasticity (formula)
+        if shadow is not None and i - 1 < len(shadow.low_deltas):
+            ld = ws.cell(row=r, column=10, value=shadow.low_deltas[i - 1])
+            styles.style_input(ld, number_format=styles.FMT_PCT_2DP)
+            ld.comment = Comment(
+                f"Exact Δ from shadow engine: primary_output shocked by "
+                f"'{f.driver_name}' * (1+{f.low_shock:+.1%}). "
+                f"Method=shadow (full Python recompute, not elasticity).",
+                "ModelForge",
+            )
+            hd = ws.cell(row=r, column=11, value=shadow.high_deltas[i - 1])
+            styles.style_input(hd, number_format=styles.FMT_PCT_2DP)
+            hd.comment = Comment(
+                f"Exact Δ from shadow engine: primary_output shocked by "
+                f"'{f.driver_name}' * (1+{f.high_shock:+.1%}). "
+                f"Method=shadow.",
+                "ModelForge",
+            )
+        else:
+            ld = ws.cell(row=r, column=10, value=f"=primary_output*E{r}*G{r}")
+            styles.style_formula(ld, number_format=styles.FMT_PCT_2DP)
+            hd = ws.cell(row=r, column=11, value=f"=primary_output*F{r}*G{r}")
+            styles.style_formula(hd, number_format=styles.FMT_PCT_2DP)
 
     r_end = r0 + len(applicable) - 1
+
+    # Method badge next to headers
+    badge = ws.cell(row=hr - 1, column=10,
+                    value=f"Method: {method}")
+    badge.font = styles.Font(
+        name=styles.FONT_BASE, size=styles.FONT_SIZE_BODY,
+        bold=True, color="006100" if method == "shadow" else "7F6000",
+    )
 
     # ── Tornado chart
     if applicable:
@@ -546,8 +619,11 @@ def append_sensitivity_sheet(
         wb.save(xlsx_path)
         return None
 
-    # 3. Emit sheet + chart
-    _emit_sheet(wb, primary_loc, applicable)
+    # 3. Try shadow engine for exact numeric deltas; fall back to elasticity
+    shadow = _compute_shadow_deltas(spec, applicable)
+
+    # 4. Emit sheet + chart
+    _emit_sheet(wb, primary_loc, applicable, shadow=shadow)
     wb.save(xlsx_path)
 
     return xlsx_path

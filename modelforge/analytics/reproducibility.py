@@ -97,16 +97,16 @@ def _emit_sheet(
 
     ws.cell(row=1, column=1, value="Reproducibility").font = styles.font_title
     ws.cell(row=2, column=1, value="Riproducibilità").font = styles.font_label_it
+    from modelforge.builder import layout as _layout
+    _layout.write_scenario_banner(ws, row=3)
     ws.cell(
-        row=3, column=1,
+        row=4, column=1,
         value=(
             "Every workbook emitted by `modelforge build` carries this "
             "metadata. The spec SHA-256 is deterministic: two workbooks "
             "built from identical spec bytes will match. Use "
             "`modelforge verify <xlsx> --spec <yaml>` to confirm a workbook "
-            "was built from a given spec. Rating agencies and credit "
-            "committees should retain both the workbook and the spec file "
-            "cited here."
+            "was built from a given spec."
         ),
     ).font = styles.font_label_it
 

@@ -65,6 +65,7 @@ class MCResult:
     distribution: Distribution
     samples: np.ndarray  # shape (n_runs,) — simulated output deltas as fractional
     factor_contributions: dict[str, np.ndarray]  # per-factor delta draws
+    method: str = "elasticity"  # "shadow" or "elasticity"
 
     @property
     def mean(self) -> float:
@@ -101,28 +102,88 @@ def _draw_shocks(
 def run_monte_carlo(
     factors: list[SensitivityFactor],
     config: MCConfig,
+    spec=None,
 ) -> MCResult:
-    """Simulate output deltas using per-factor elasticities.
+    """Simulate output deltas, using a shadow engine when available.
 
-    Output delta per draw = sum_i (elasticity_i * shock_i). This is a
-    linear MC in the neighborhood of the base. Fractional — multiply by
-    ``primary_output`` in the sheet to express as absolute delta.
+    If ``spec`` is provided and a shadow engine exists for its
+    model_type, each draw re-evaluates the primary output exactly
+    (applying ALL factor shocks simultaneously for a given draw). This
+    is the gold-standard path — no linearity assumption, correlations
+    captured implicitly via the full recompute.
+
+    Otherwise falls back to the linear elasticity approximation:
+    ``output_delta = Σ_i elasticity_i × shock_i``.
     """
+    from modelforge.shadow import compute_primary_output, has_shadow_engine
     rng = np.random.default_rng(config.seed)
-    total = np.zeros(config.n_runs, dtype=float)
+
+    use_shadow = (
+        spec is not None
+        and has_shadow_engine(getattr(spec, "model_type", ""))
+    )
+
+    # Pre-draw shocks per factor (shape n_runs × n_factors)
     contributions: dict[str, np.ndarray] = {}
+    shocks_by_factor: dict[str, np.ndarray] = {}
     for f in factors:
-        e = _elasticity_for(f.driver_name)
         shocks = _draw_shocks(rng, f.low_shock, f.high_shock,
                               config.n_runs, config.distribution)
-        contrib = e * shocks
-        contributions[f.driver_name] = contrib
-        total += contrib
+        shocks_by_factor[f.driver_name] = shocks
+
+    if use_shadow:
+        all_assums = {a.name: a for a in spec.all_assumptions()}
+        base = compute_primary_output(spec, {})
+        if base is None or abs(base) < 1e-12:
+            # Degenerate — fall through to elasticity path
+            use_shadow = False
+
+    if use_shadow:
+        total = np.zeros(config.n_runs, dtype=float)
+        for k in range(config.n_runs):
+            overrides = {}
+            for f in factors:
+                if f.driver_name not in all_assums:
+                    continue
+                bv = all_assums[f.driver_name].base
+                overrides[f.driver_name] = bv * (1 + shocks_by_factor[f.driver_name][k])
+            shocked = compute_primary_output(spec, overrides)
+            total[k] = (shocked - base) / base if shocked is not None else 0.0
+        # Per-factor contribution (isolated single-factor shock) —
+        # useful for "which factor drives most of the variance" tooltip
+        for f in factors:
+            if f.driver_name not in all_assums:
+                contributions[f.driver_name] = np.zeros(config.n_runs)
+                continue
+            bv = all_assums[f.driver_name].base
+            per_factor = np.zeros(config.n_runs)
+            # Sample 50 draws for per-factor attribution (keep MC fast)
+            sample = min(50, config.n_runs)
+            for k in range(sample):
+                shocked = compute_primary_output(
+                    spec,
+                    {f.driver_name: bv * (1 + shocks_by_factor[f.driver_name][k])},
+                )
+                per_factor[k] = (shocked - base) / base if shocked is not None else 0.0
+            # Extrapolate mean contribution to full length
+            if sample > 0:
+                per_factor[sample:] = per_factor[:sample].mean()
+            contributions[f.driver_name] = per_factor
+    else:
+        # Elasticity fallback
+        total = np.zeros(config.n_runs, dtype=float)
+        for f in factors:
+            e = _elasticity_for(f.driver_name)
+            contrib = e * shocks_by_factor[f.driver_name]
+            contributions[f.driver_name] = contrib
+            total += contrib
+
     return MCResult(
         n_runs=config.n_runs,
         distribution=config.distribution,
         samples=total,
         factor_contributions=contributions,
+        method="shadow" if use_shadow else "elasticity",
     )
 
 
@@ -150,16 +211,18 @@ def _emit_sheet(
     # ── Title block
     ws.cell(row=1, column=1, value="Monte Carlo").font = styles.font_title
     ws.cell(row=2, column=1, value="Simulazione Monte Carlo").font = styles.font_label_it
+    from modelforge.builder import layout as _layout
+    _layout.write_scenario_banner(ws, row=3)
+    method_tag = ("exact shadow-engine recompute per draw"
+                  if result.method == "shadow"
+                  else "linearized per-factor elasticity")
     ws.cell(
-        row=3, column=1,
+        row=4, column=1,
         value=(
             f"{result.n_runs:,}-run {result.distribution} simulation on "
-            f"{primary_loc.label}. Factors drawn independently; per-factor "
-            f"elasticities define the linear response. Output deltas are "
-            f"fractional — apply to base 'primary_output' named range to "
-            f"express as absolute. v0.4.2 will replace elasticity heuristic "
-            f"with exact workbook recompute per draw (and add correlation "
-            f"structure)."
+            f"{primary_loc.label} (method: {method_tag}). Output deltas "
+            f"are fractional — apply to the base `primary_output` named "
+            f"range to express as absolute."
         ),
     ).font = styles.font_label_it
 
@@ -277,7 +340,8 @@ def append_monte_carlo_sheet(
     if config is None:
         config = MCConfig()
 
-    result = run_monte_carlo(applicable, config)
+    # Pass spec so MC uses the shadow engine when available
+    result = run_monte_carlo(applicable, config, spec=spec)
     _emit_sheet(wb, primary_loc, applicable, result)
     wb.save(xlsx_path)
     return xlsx_path
