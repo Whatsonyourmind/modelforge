@@ -319,6 +319,41 @@ def verify_cmd(xlsx_path: Path, spec_path: Path | None) -> None:
     sys.exit(1)
 
 
+@main.command("diff")
+@click.argument("v1_xlsx", type=click.Path(exists=True, path_type=Path))
+@click.argument("v2_xlsx", type=click.Path(exists=True, path_type=Path))
+@click.option("--format", "fmt", type=click.Choice(["md", "html", "both"]),
+              default="md", show_default=True)
+@click.option("-o", "--output", "out_path", type=click.Path(path_type=Path),
+              default=None, help="Output file (md, html, or stem for 'both').")
+def diff_cmd(v1_xlsx: Path, v2_xlsx: Path, fmt: str, out_path: Path | None) -> None:
+    """Git-style structured diff between two built workbooks.
+
+    Diff dimensions: assumptions (A-id keyed), sources (S-id),
+    formulas, structural (sheets/named ranges), reproducibility
+    metadata. Clean diff exits 0; any change exits 0 still (not a
+    failure condition — diff is informational).
+    """
+    from modelforge.diff import compute_diff, render_markdown, render_html
+    res = compute_diff(v1_xlsx, v2_xlsx)
+    md = render_markdown(res)
+    hh = render_html(res)
+
+    if out_path is None:
+        # Print markdown to stdout
+        console.print(md)
+        return
+
+    if fmt == "md" or fmt == "both":
+        md_path = out_path if fmt == "md" else out_path.with_suffix(".md")
+        md_path.write_text(md, encoding="utf-8")
+        console.print(f"[green]Markdown:[/green] {md_path}")
+    if fmt == "html" or fmt == "both":
+        html_path = out_path if fmt == "html" else out_path.with_suffix(".html")
+        html_path.write_text(hh, encoding="utf-8")
+        console.print(f"[green]HTML:[/green] {html_path}")
+
+
 @main.command("backtest")
 @click.argument("predicted_csv", type=click.Path(exists=True, path_type=Path))
 @click.argument("realized_csv", type=click.Path(exists=True, path_type=Path))
