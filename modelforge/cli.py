@@ -319,6 +319,23 @@ def verify_cmd(xlsx_path: Path, spec_path: Path | None) -> None:
     sys.exit(1)
 
 
+@main.command("dossier")
+@click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
+@click.option("-o", "--output", "output_pdf", type=click.Path(path_type=Path),
+              default=None, help="Output PDF path. Defaults to <xlsx>.dossier.pdf.")
+def dossier_cmd(xlsx_path: Path, output_pdf: Path | None) -> None:
+    """Generate a regulator-grade audit dossier PDF for a built workbook.
+
+    Includes: cover + metadata, executive summary, assumptions register,
+    source registry, formula inventory, lineage graph summary, QC
+    sign-off with signature block, bilingual glossary.
+    """
+    from modelforge.dossier import generate_dossier
+
+    pdf_path = generate_dossier(xlsx_path, output_pdf)
+    console.print(f"[green]Dossier:[/green] {pdf_path}")
+
+
 @main.command("stats")
 @click.argument("graph_db", type=click.Path(exists=True, path_type=Path))
 def stats_cmd(graph_db: Path) -> None:
