@@ -319,6 +319,55 @@ def verify_cmd(xlsx_path: Path, spec_path: Path | None) -> None:
     sys.exit(1)
 
 
+@main.command("chat")
+@click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--backend", type=click.Choice(["api", "dry"]), default="api",
+              help="`api` uses Anthropic SDK (requires ANTHROPIC_API_KEY); "
+                   "`dry` prints the prompt without calling.")
+@click.option("--model", default="claude-opus-4-7", show_default=True)
+@click.option("--export", "export_path", type=click.Path(path_type=Path),
+              default=None, help="Write conversation to markdown on exit.")
+def chat_cmd(xlsx_path: Path, backend: str, model: str,
+             export_path: Path | None) -> None:
+    """Lineage Q&A REPL against a built workbook.
+
+    Answers cite Assumption IDs (A-###) and Source IDs (S-###) and can
+    walk the linkage graph to explain any cell's provenance. Type
+    'exit' or 'quit' to leave; 'history' to print all turns so far.
+    """
+    from modelforge.chat import ChatSession
+    console.print(f"[bold]ModelForge chat[/bold]  {xlsx_path.name}  "
+                  f"[dim]({backend} backend · {model})[/dim]")
+    console.print("[dim]Type your question, or 'exit' / 'quit' to leave. "
+                  "'history' prints the conversation so far.[/dim]\n")
+    session = ChatSession(xlsx_path=xlsx_path, model=model,
+                          backend=backend)  # type: ignore[arg-type]
+    try:
+        while True:
+            try:
+                q = input("You › ").strip()
+            except (EOFError, KeyboardInterrupt):
+                console.print()
+                break
+            if not q:
+                continue
+            if q.lower() in ("exit", "quit"):
+                break
+            if q.lower() == "history":
+                console.print(session.to_markdown())
+                continue
+            try:
+                reply = session.ask(q)
+            except RuntimeError as e:
+                console.print(f"[red]{e}[/red]")
+                continue
+            console.print(f"[green]ModelForge ›[/green] {reply}\n")
+    finally:
+        if export_path is not None:
+            export_path.write_text(session.to_markdown(), encoding="utf-8")
+            console.print(f"[green]Conversation exported to[/green] {export_path}")
+
+
 @main.command("dossier")
 @click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
 @click.option("-o", "--output", "output_pdf", type=click.Path(path_type=Path),
