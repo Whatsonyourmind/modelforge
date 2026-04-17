@@ -1,0 +1,33 @@
+{
+  "counterparty": "counterparty",
+  "inputs": {
+    "equity_value": 500.0,
+    "equity_volatility": 0.3,
+    "debt_face_value": 200.0,
+    "risk_free_rate": 0.039,
+    "horizon_years": 1.0,
+    "lgd": 0.45,
+    "eir": 0.05,
+    "maturity": 5,
+    "days_past_due": 0
+  },
+  "merton": {
+    "asset_value": 692.3501418292733,
+    "asset_volatility": 0.21665338235315695,
+    "distance_to_default": 5.8033024396205555,
+    "pd": 3.2510676928332316e-09,
+    "converged": true,
+    "iterations": 1
+  },
+  "kmv_pd": 0.00014917439009486114,
+  "ecl": {
+    "stage": "stage_1",
+    "ecl_12_month_eur_m": 0.01278637629384524,
+    "ecl_lifetime_eur_m": 0.058109739510426764,
+    "ecl_eur_m": 0.01278637629384524,
+    "implied_rate": 6.39318814692262e-05,
+    "notes": [
+      "Stage 1: performing; 12-month ECL reported"
+    ]
+  }
+}
