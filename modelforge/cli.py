@@ -402,7 +402,7 @@ def drift_cmd(path: Path, portfolio: bool, threshold_bps: float,
     rep = check_drift(path, threshold_bps=threshold_bps,
                       threshold_rel=threshold_rel)
 
-    tbl = Table(title=f"Drift report — {xlsx_path.name} "
+    tbl = Table(title=f"Drift report — {path.name} "
                        f"({rep.checked_drivers} drivers checked, "
                        f"{rep.n_flagged} flagged)")
     tbl.add_column("Driver", style="bold")
