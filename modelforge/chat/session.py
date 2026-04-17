@@ -41,6 +41,10 @@ class ChatSession:
     history: list[ChatTurn] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        # Coerce string inputs → Path so .name and friends work downstream
+        self.xlsx_path = Path(self.xlsx_path)
+        if self.graph_db is not None:
+            self.graph_db = Path(self.graph_db)
         if not self.system_prompt:
             self.system_prompt = build_system_prompt(self.xlsx_path, self.graph_db)
 
