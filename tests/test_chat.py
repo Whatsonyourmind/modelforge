@@ -80,3 +80,12 @@ def test_summary_mentions_sources_and_assumptions(built_unitranche):
     # Unitranche CDMO spec has A- and S- IDs
     assert "A-" in s
     assert "S-" in s
+
+
+def test_chat_session_accepts_string_xlsx_path(built_unitranche):
+    """Regression: ChatSession constructed with a string path must
+    still expose .name in to_markdown() (previously AttributeError)."""
+    s = ChatSession(xlsx_path=str(built_unitranche), backend="dry")
+    s.ask("question")
+    md = s.to_markdown()
+    assert built_unitranche.name in md
