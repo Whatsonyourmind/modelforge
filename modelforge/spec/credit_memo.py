@@ -17,6 +17,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from modelforge.spec.base import Assumption, Label
+from modelforge.spec.risk_block import RiskAnalysisSpec
 from modelforge.spec.unitranche import (
     Covenant, DebtStructure, ExitAssumptions, Fees, OperatingAssumptions,
     ProjectionHorizon,
@@ -63,6 +64,9 @@ class CreditMemoSpec(BaseModel):
     credit_strengths: list[str] = Field(default_factory=list)
     credit_weaknesses: list[str] = Field(default_factory=list)
     mitigating_factors: list[str] = Field(default_factory=list)
+
+    # Optional: triggers a RiskAnalysis sheet (Merton + KMV + IFRS 9 ECL)
+    risk_analysis: RiskAnalysisSpec | None = None
 
     historical_revenue_eur_m: list[float]
     historical_ebitda_eur_m: list[float]

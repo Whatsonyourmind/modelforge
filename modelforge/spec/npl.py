@@ -11,6 +11,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from modelforge.spec.base import Assumption, Label, ModelMeta, Source, Target
+from modelforge.spec.risk_block import RiskAnalysisSpec
 
 
 class NPLHorizon(BaseModel):
@@ -58,6 +59,9 @@ class NPLSpec(BaseModel):
     servicing: ServicingFees
     capital: CapitalStructure
     effective_tax_rate: Assumption
+
+    # Optional probabilistic-credit block (triggers RiskAnalysis sheet).
+    risk_analysis: RiskAnalysisSpec | None = None
 
     historical_revenue_eur_m: list[float] = Field(default_factory=list)
     historical_ebitda_eur_m: list[float] = Field(default_factory=list)
