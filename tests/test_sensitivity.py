@@ -133,19 +133,43 @@ def test_tornado_chart_is_native(built_workbook):
     assert chart.type == "bar"
 
 
-def test_factor_values_are_formulas(built_workbook):
-    """Low/high values and Δ columns must be formulas (live), not static."""
+def test_factor_values_are_live(built_workbook):
+    """Base/low-value/high-value columns must be formulas (live off
+    named ranges). Low/High Δ columns may be either:
+    * Excel formulas (elasticity fallback, method=elasticity)
+    * Hardcoded numeric values (shadow engine, method=shadow — these
+      come from exact Python recompute and have cell comments
+      documenting the method).
+    """
+    from modelforge.shadow import has_shadow_engine
     model_type, xlsx_path, _ = built_workbook
     wb = load_workbook(xlsx_path)
     ws = wb["SensitivityAnalysis"]
     header_row = 9
-    # Check first data row
-    for col in (4, 8, 9, 10, 11):  # Base, Low value, High value, Low Δ, High Δ
+
+    # Base (col 4), Low value (col 8), High value (col 9): always formulas
+    for col in (4, 8, 9):
         v = ws.cell(row=header_row + 1, column=col).value
         assert isinstance(v, str) and v.startswith("="), (
             f"{model_type} SensitivityAnalysis row 10 col {col} is not a "
             f"formula (got {v!r})"
         )
+
+    # Low Δ (col 10), High Δ (col 11): formula OR numeric depending on
+    # whether a shadow engine exists for this template
+    uses_shadow = has_shadow_engine(model_type)
+    for col in (10, 11):
+        v = ws.cell(row=header_row + 1, column=col).value
+        if uses_shadow:
+            assert isinstance(v, (int, float)), (
+                f"{model_type} has shadow engine; col {col} should be an "
+                f"exact numeric delta (got {v!r})"
+            )
+        else:
+            assert isinstance(v, str) and v.startswith("="), (
+                f"{model_type} has no shadow engine; col {col} should be "
+                f"an elasticity formula (got {v!r})"
+            )
 
 
 def test_qc_still_passes(built_workbook):

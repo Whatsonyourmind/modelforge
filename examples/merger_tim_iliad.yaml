@@ -49,6 +49,8 @@ acquirer_name: TIM S.p.A. (illustrative)
 acquirer:
   revenue_eur_m: 15800.0
   ebitda_eur_m: 6300.0
+  da_eur_m: 3800.0               # telecom heavy D&A; FY public disclosures
+  interest_expense_eur_m: 1200.0 # standalone interest on existing stack
   net_income_eur_m: 400.0
   shares_outstanding_m: 21200.0
   share_price_eur: 0.24
@@ -57,6 +59,8 @@ acquirer:
 target_financials:
   revenue_eur_m: 1000.0
   ebitda_eur_m: 250.0
+  da_eur_m: 100.0                # smaller network, lower D&A
+  interest_expense_eur_m: 30.0
   net_income_eur_m: 60.0
   shares_outstanding_m: 200.0
   share_price_eur: 25.0

@@ -18,10 +18,18 @@ class MergerHorizon(BaseModel):
 
 
 class PartyFinancials(BaseModel):
-    """Standalone snapshot — revenue / EBITDA / net income / shares / price."""
+    """Standalone snapshot — revenue / EBITDA / D&A / interest / tax / NI / shares / price.
+
+    Pro-forma math walks EBITDA → EBIT → Pre-tax → Net income through the
+    real D&A + interest + tax lines rather than collapsing them into a
+    single multiplier (which inflates accretion on high-D&A industries
+    like telecoms, utilities, industrials).
+    """
 
     revenue_eur_m: float
     ebitda_eur_m: float
+    da_eur_m: float = 0.0           # depreciation + amortization (positive number)
+    interest_expense_eur_m: float = 0.0  # standalone interest (positive number)
     net_income_eur_m: float
     shares_outstanding_m: float
     share_price_eur: float
