@@ -1,0 +1,23 @@
+# Exclude from Docker build context
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.git/
+.gitignore
+.github/
+tests/
+docs/
+site/
+output/
+.venv/
+.env
+*.xlsx
+*.graph.db
+*.pdf
+*.dossier.pdf
+node_modules/
+.vscode/
+.idea/
