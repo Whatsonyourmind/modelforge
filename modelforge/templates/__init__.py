@@ -55,9 +55,13 @@ def build_model(
     if with_sensitivity:
         try:
             from modelforge.analytics.sensitivity import append_sensitivity_sheet
+            from modelforge.analytics.monte_carlo import append_monte_carlo_sheet
             append_sensitivity_sheet(xlsx_path, spec)
+            # MC runs after sensitivity so it can reuse the primary_output
+            # named range that sensitivity registers.
+            append_monte_carlo_sheet(xlsx_path, spec)
         except Exception:
-            # Sensitivity is a nice-to-have; never block the build.
+            # Analytics are nice-to-haves; never block the build.
             pass
 
     if with_reproducibility:
