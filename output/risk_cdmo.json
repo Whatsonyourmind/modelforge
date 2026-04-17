@@ -1,0 +1,33 @@
+{
+  "counterparty": "CDMO SpA (illustrative)",
+  "inputs": {
+    "equity_value": 500.0,
+    "equity_volatility": 0.32,
+    "debt_face_value": 400.0,
+    "risk_free_rate": 0.039,
+    "horizon_years": 1.0,
+    "lgd": 0.45,
+    "eir": 0.05,
+    "maturity": 7,
+    "days_past_due": 0
+  },
+  "merton": {
+    "asset_value": 884.7002401863314,
+    "asset_volatility": 0.18085245805436284,
+    "distance_to_default": 4.5143457371907605,
+    "pd": 3.1756266190563487e-06,
+    "converged": true,
+    "iterations": 2
+  },
+  "kmv_pd": 0.0006171098445450817,
+  "ecl": {
+    "stage": "stage_1",
+    "ecl_12_month_eur_m": 0.10579025906487115,
+    "ecl_lifetime_eur_m": 0.6416374599826254,
+    "ecl_eur_m": 0.10579025906487115,
+    "implied_rate": 0.00026447564766217787,
+    "notes": [
+      "Stage 1: performing; 12-month ECL reported"
+    ]
+  }
+}
