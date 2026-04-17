@@ -180,24 +180,68 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
         c.font = styles.font_subheader
     r += 2
 
-    # Pro-forma net income (simplified)
+    # Pro-forma EBITDA → EBIT walk using REAL standalone D&A
+    # (no more EBITDA × 0.9 heuristic — that inflated accretion on
+    # high-D&A industries like telecom, utilities, industrials).
     layout.write_section_header(ws, r, "Pro-forma Net Income",
                                 "Utile netto pro-forma")
     r += 1
-    acq_tax = 1 - (spec.acquirer.net_income_eur_m /
-                   max(spec.acquirer.ebitda_eur_m, 1))
-    layout.write_row_label(ws, r, "Pro-forma EBIT (EBITDA × 0.9)",
+
+    # Combined D&A (acquirer + target) grown at 3% p.a. as a proxy
+    # for aggregate depreciation schedule; positive number here, then
+    # subtracted when walking to EBIT.
+    combined_da = spec.acquirer.da_eur_m + spec.target_financials.da_eur_m
+    layout.write_row_label(ws, r, "(−) Combined D&A",
+                           "(−) A&A combinato", indent=True)
+    out["pf_da"] = r
+    for i in range(p):
+        col = layout.year_col(i)
+        col_idx = ord(col) - ord("A") + 1
+        # Negative (cost) — D&A grown 3% p.a.
+        c = ws.cell(row=r, column=col_idx, value=-combined_da * (1.03 ** i))
+        styles.style_input(c, number_format=styles.FMT_EUR_M)
+        c.comment = Comment(
+            f"Combined acquirer + target D&A = €{combined_da:,.0f}m FY0, "
+            f"grown 3% p.a. as aggregate depreciation proxy. Populate "
+            f"spec.acquirer.da_eur_m + spec.target_financials.da_eur_m "
+            f"from audited financials.",
+            "ModelForge",
+        )
+    r += 1
+
+    layout.write_row_label(ws, r, "Pro-forma EBIT",
                            "EBIT pro-forma", indent=True)
     out["pf_ebit"] = r
     for i in range(p):
         col = layout.year_col(i)
         col_idx = ord(col) - ord("A") + 1
         c = ws.cell(row=r, column=col_idx,
-                    value=f"={col}{out['pf_ebitda']}*0.9")
+                    value=f"={col}{out['pf_ebitda']}+{col}{out['pf_da']}")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
     r += 1
-    layout.write_row_label(ws, r, "Incremental interest expense",
-                           "Interessi incrementali", indent=True)
+
+    # Standalone combined interest (acquirer + target) grown 3% p.a.
+    combined_int = (spec.acquirer.interest_expense_eur_m
+                    + spec.target_financials.interest_expense_eur_m)
+    layout.write_row_label(ws, r, "(−) Standalone interest (combined)",
+                           "(−) Interessi standalone combinati", indent=True)
+    out["pf_standalone_int"] = r
+    for i in range(p):
+        col = layout.year_col(i)
+        col_idx = ord(col) - ord("A") + 1
+        c = ws.cell(row=r, column=col_idx, value=-combined_int * (1.03 ** i))
+        styles.style_input(c, number_format=styles.FMT_EUR_M)
+        c.comment = Comment(
+            f"Standalone interest combined = €{combined_int:,.0f}m. "
+            f"Populated from spec.acquirer.interest_expense_eur_m + "
+            f"spec.target_financials.interest_expense_eur_m.",
+            "ModelForge",
+        )
+    r += 1
+
+    layout.write_row_label(ws, r, "(−) Incremental interest (new debt)",
+                           "(−) Interessi incrementali (nuovo debito)",
+                           indent=True)
     out["pf_int"] = r
     for i in range(p):
         col = layout.year_col(i)
@@ -206,14 +250,27 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
                     value=f"='{deal_sheet}'!$D${deal_refs['incr_int']}")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
     r += 1
-    layout.write_row_label(ws, r, "Pro-forma tax",
-                           "Tasse pro-forma", indent=True)
+
+    layout.write_row_label(ws, r, "Pre-tax income",
+                           "Utile ante imposte", indent=True)
+    out["pf_pretax"] = r
+    for i in range(p):
+        col = layout.year_col(i)
+        col_idx = ord(col) - ord("A") + 1
+        c = ws.cell(row=r, column=col_idx,
+                    value=f"={col}{out['pf_ebit']}+{col}{out['pf_standalone_int']}"
+                          f"+{col}{out['pf_int']}")
+        styles.style_formula(c, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    layout.write_row_label(ws, r, "(−) Pro-forma tax",
+                           "(−) Tasse pro-forma", indent=True)
     out["pf_tax"] = r
     for i in range(p):
         col = layout.year_col(i)
         col_idx = ord(col) - ord("A") + 1
         c = ws.cell(row=r, column=col_idx,
-                    value=f"=-MAX(({col}{out['pf_ebit']}+{col}{out['pf_int']})*effective_tax_rate,0)")
+                    value=f"=-MAX({col}{out['pf_pretax']}*effective_tax_rate,0)")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
     r += 1
     layout.write_row_label(ws, r, "Pro-forma Net Income",
@@ -223,7 +280,7 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
         col = layout.year_col(i)
         col_idx = ord(col) - ord("A") + 1
         c = ws.cell(row=r, column=col_idx,
-                    value=f"={col}{out['pf_ebit']}+{col}{out['pf_int']}+{col}{out['pf_tax']}")
+                    value=f"={col}{out['pf_pretax']}+{col}{out['pf_tax']}")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
         c.font = styles.font_subheader
         c.border = styles.BORDER_TOP_THIN
