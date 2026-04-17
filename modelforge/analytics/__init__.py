@@ -13,6 +13,12 @@ from modelforge.analytics.factors import (
     default_factors_for,
 )
 from modelforge.analytics.sensitivity import append_sensitivity_sheet
+from modelforge.analytics.monte_carlo import (
+    MCConfig,
+    MCResult,
+    append_monte_carlo_sheet,
+    run_monte_carlo,
+)
 from modelforge.analytics.reproducibility import (
     append_reproducibility_block,
     compute_spec_hash,
@@ -24,6 +30,10 @@ __all__ = [
     "SensitivityFactor",
     "default_factors_for",
     "append_sensitivity_sheet",
+    "MCConfig",
+    "MCResult",
+    "run_monte_carlo",
+    "append_monte_carlo_sheet",
     "append_reproducibility_block",
     "compute_spec_hash",
     "read_reproducibility",
