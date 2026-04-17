@@ -319,6 +319,110 @@ def verify_cmd(xlsx_path: Path, spec_path: Path | None) -> None:
     sys.exit(1)
 
 
+@main.command("scan")
+@click.argument("folder", type=click.Path(exists=True, file_okay=False,
+                                           path_type=Path))
+@click.option("--persist", is_flag=True,
+              help="Save the new state as the baseline (default: report-only).")
+@click.option("-o", "--output", "md_path", type=click.Path(path_type=Path),
+              default=None, help="Optional markdown report path.")
+def scan_cmd(folder: Path, persist: bool, md_path: Path | None) -> None:
+    """Diff a data-room folder against a persisted baseline.
+
+    First run with --persist stores a baseline at
+    `.modelforge/baseline.json` inside the folder. Subsequent runs
+    report what's been added, modified, or removed since. Foundation
+    for a v1.0 dataroom-watcher agent that auto-triggers ingest +
+    diff + alerting on change.
+    """
+    from modelforge.watch import scan_folder
+    change, _ = scan_folder(folder, persist=persist)
+
+    tbl = Table(title=f"Data-room scan — {folder} "
+                       f"({len(change.added)} added, "
+                       f"{len(change.modified)} modified, "
+                       f"{len(change.removed)} removed)")
+    tbl.add_column("Change", style="bold")
+    tbl.add_column("Path")
+    tbl.add_column("Size (B)", justify="right")
+    for fp in change.added:
+        tbl.add_row("[green]+ added[/green]", fp.path, f"{fp.size:,}")
+    for old, new in change.modified:
+        tbl.add_row("[yellow]~ modified[/yellow]", new.path,
+                    f"{old.size:,} -> {new.size:,}")
+    for fp in change.removed:
+        tbl.add_row("[red]- removed[/red]", fp.path, f"{fp.size:,}")
+    if change.clean:
+        tbl.add_row("[dim]no changes[/dim]", "", "")
+    console.print(tbl)
+
+    if md_path is not None:
+        md = [f"# Data-room scan — {folder}", "",
+              f"**{change.n_changes} change(s)**", ""]
+        if change.added:
+            md.append("## Added")
+            for fp in change.added:
+                md.append(f"- `{fp.path}` ({fp.size:,} bytes)")
+            md.append("")
+        if change.modified:
+            md.append("## Modified")
+            for old, new in change.modified:
+                md.append(f"- `{new.path}` ({old.size:,} -> {new.size:,} bytes)")
+            md.append("")
+        if change.removed:
+            md.append("## Removed")
+            for fp in change.removed:
+                md.append(f"- `{fp.path}`")
+            md.append("")
+        md_path.write_text("\n".join(md), encoding="utf-8")
+        console.print(f"[green]Markdown:[/green] {md_path}")
+
+    sys.exit(0 if change.clean else 1)
+
+
+@main.command("watch")
+@click.argument("folder", type=click.Path(exists=True, file_okay=False,
+                                           path_type=Path))
+@click.option("--interval", default=60, show_default=True, type=int,
+              help="Polling interval in seconds.")
+@click.option("--no-persist", "no_persist", is_flag=True,
+              help="Do not save the baseline between scans.")
+def watch_cmd(folder: Path, interval: int, no_persist: bool) -> None:
+    """Continuously poll a data-room folder for changes.
+
+    Prints a running summary every `interval` seconds. Ctrl-C to stop.
+    For a one-shot report, use `modelforge scan` instead.
+    """
+    import time
+    from datetime import datetime as _dt
+    from modelforge.watch import scan_folder
+
+    console.print(f"[bold]Watching[/bold] {folder} (interval={interval}s) — "
+                  "Ctrl-C to stop.")
+    persist = not no_persist
+    try:
+        while True:
+            change, _ = scan_folder(folder, persist=persist)
+            stamp = _dt.now().strftime("%H:%M:%S")
+            if change.clean:
+                console.print(f"[dim]{stamp}[/dim]  no changes")
+            else:
+                console.print(
+                    f"[dim]{stamp}[/dim]  [green]+{len(change.added)}[/green] "
+                    f"[yellow]~{len(change.modified)}[/yellow] "
+                    f"[red]-{len(change.removed)}[/red]"
+                )
+                for fp in change.added:
+                    console.print(f"  [green]+ added[/green] {fp.path}")
+                for old, new in change.modified:
+                    console.print(f"  [yellow]~ modified[/yellow] {new.path}")
+                for fp in change.removed:
+                    console.print(f"  [red]- removed[/red] {fp.path}")
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        console.print("\n[dim]stopped.[/dim]")
+
+
 @main.command("serve")
 @click.option("--host", default="127.0.0.1", show_default=True,
               help="Bind host. Use 0.0.0.0 to expose on the network.")
