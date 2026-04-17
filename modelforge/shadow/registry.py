@@ -14,12 +14,22 @@ def _get_engines() -> dict[str, Callable]:
     from modelforge.shadow.unitranche import unitranche_primary_output
     from modelforge.shadow.project_finance import pf_primary_output
     from modelforge.shadow.merger import merger_primary_output
+    from modelforge.shadow.three_statement import three_statement_primary_output
+    from modelforge.shadow.minibond import minibond_primary_output
+    from modelforge.shadow.real_estate import real_estate_primary_output
+    from modelforge.shadow.npl import npl_primary_output
+    from modelforge.shadow.structured_credit import structured_credit_primary_output
     return {
         "dcf": dcf_primary_output,
         "unitranche": unitranche_primary_output,
         "credit_memo": unitranche_primary_output,  # same primary output
         "project_finance": pf_primary_output,
         "merger": merger_primary_output,
+        "three_statement": three_statement_primary_output,
+        "minibond": minibond_primary_output,
+        "real_estate": real_estate_primary_output,
+        "npl": npl_primary_output,
+        "structured_credit": structured_credit_primary_output,
     }
 
 
