@@ -39,8 +39,158 @@ def _pf_sections():
     ]
 
 
+def _unitranche_sections():
+    from modelforge.spec.unitranche import (
+        DebtStructure, ExitAssumptions, Fees, OperatingAssumptions,
+        UnitrancheSpec,
+    )
+    from modelforge.spec.base import Target
+    # NB: `covenants` is a list[Covenant], not a single sub-model;
+    # section extraction currently handles single sub-models only, so
+    # covenants are populated via post-ingest review (reporter.md flags).
+    return UnitrancheSpec, [
+        ("target", Target),
+        ("operating", OperatingAssumptions),
+        ("debt", DebtStructure),
+        ("fees", Fees),
+        ("exit", ExitAssumptions),
+    ]
+
+
+def _credit_memo_sections():
+    from modelforge.spec.credit_memo import (
+        CreditMemoSpec, CreditStress, RatingShadow,
+    )
+    from modelforge.spec.unitranche import (
+        DebtStructure, ExitAssumptions, Fees, OperatingAssumptions,
+    )
+    from modelforge.spec.base import Target
+    return CreditMemoSpec, [
+        ("target", Target),
+        ("operating", OperatingAssumptions),
+        ("debt", DebtStructure),
+        ("fees", Fees),
+        ("exit", ExitAssumptions),
+        ("stress", CreditStress),
+        ("rating", RatingShadow),
+    ]
+
+
+def _minibond_sections():
+    from modelforge.spec.minibond import (
+        BondStructure, InvestorAdjustments, IssuerOperating, MinibondSpec,
+    )
+    from modelforge.spec.base import Target
+    return MinibondSpec, [
+        ("target", Target),
+        ("operating", IssuerOperating),
+        ("bond", BondStructure),
+        ("investor_adjustments", InvestorAdjustments),
+    ]
+
+
+def _real_estate_sections():
+    from modelforge.spec.real_estate import (
+        EquityWaterfall, ExitAssumptions, FinancingAssumptions,
+        PropertyAssumptions, RealEstateSpec,
+    )
+    from modelforge.spec.base import Target
+    return RealEstateSpec, [
+        ("target", Target),
+        ("property", PropertyAssumptions),
+        ("financing", FinancingAssumptions),
+        ("exit", ExitAssumptions),
+        ("waterfall", EquityWaterfall),
+    ]
+
+
+def _npl_sections():
+    from modelforge.spec.npl import (
+        CapitalStructure, NPLSpec, PortfolioAssumptions, ServicingFees,
+    )
+    from modelforge.spec.base import Target
+    return NPLSpec, [
+        ("target", Target),
+        ("portfolio", PortfolioAssumptions),
+        ("servicing", ServicingFees),
+        ("capital", CapitalStructure),
+    ]
+
+
+def _structured_credit_sections():
+    from modelforge.spec.structured_credit import (
+        CollateralPool, StructuredCreditSpec,
+    )
+    from modelforge.spec.base import Target
+    # `tranches: list[SCTranche]` — not a single sub-model; handled
+    # post-ingest similarly to unitranche covenants.
+    return StructuredCreditSpec, [
+        ("target", Target),
+        ("collateral", CollateralPool),
+    ]
+
+
+def _three_statement_sections():
+    from modelforge.spec.three_statement import (
+        BSAssumptions, OpeningBalanceSheet, PLAssumptions, ThreeStatementSpec,
+    )
+    from modelforge.spec.base import Target
+    return ThreeStatementSpec, [
+        ("target", Target),
+        ("pl", PLAssumptions),
+        ("bs", BSAssumptions),
+        ("opening_bs", OpeningBalanceSheet),
+    ]
+
+
+def _dcf_sections():
+    from modelforge.spec.dcf import DCFSpec, FCFInputs, TerminalValue, WACCInputs
+    from modelforge.spec.base import Target
+    return DCFSpec, [
+        ("target", Target),
+        ("wacc", WACCInputs),
+        ("fcf", FCFInputs),
+        ("terminal", TerminalValue),
+    ]
+
+
+def _merger_sections():
+    from modelforge.spec.merger import (
+        DealStructure, MergerSpec, PartyFinancials, Synergies,
+    )
+    from modelforge.spec.base import Target
+    return MergerSpec, [
+        ("target", Target),
+        ("acquirer", PartyFinancials),
+        ("target_financials", PartyFinancials),
+        ("deal", DealStructure),
+        ("synergies", Synergies),
+    ]
+
+
+def _fairness_sections():
+    # Fairness uses a simpler structure — lists of CompItem + ValuationRange
+    # rather than nested sub-models. Section extraction on fairness is
+    # best handled by free-form LLM table extraction; we register it so
+    # ingest() at least accepts the template name and runs the non-
+    # extraction phases (discovery + classification + source assignment).
+    from modelforge.spec.fairness import FairnessSpec
+    from modelforge.spec.base import Target
+    return FairnessSpec, [("target", Target)]
+
+
 TEMPLATE_SECTIONS = {
     "project_finance": _pf_sections,
+    "unitranche": _unitranche_sections,
+    "credit_memo": _credit_memo_sections,
+    "minibond": _minibond_sections,
+    "real_estate": _real_estate_sections,
+    "npl": _npl_sections,
+    "structured_credit": _structured_credit_sections,
+    "three_statement": _three_statement_sections,
+    "dcf": _dcf_sections,
+    "merger": _merger_sections,
+    "fairness": _fairness_sections,
 }
 
 
@@ -116,8 +266,21 @@ def _default_meta(template: str, dataroom_dir: Path) -> dict:
 
 
 def _default_horizon(template: str) -> dict:
+    """Reasonable default horizons per template; can be overridden post-ingest."""
     if template == "project_finance":
         return {"construction_years": 2, "operating_years": 20}
+    if template in ("unitranche", "credit_memo", "minibond",
+                    "three_statement", "dcf"):
+        return {"historical_years": 3, "projection_years": 5}
+    if template == "real_estate":
+        return {"hold_years": 5}
+    if template == "npl":
+        return {"collection_years": 10}
+    if template == "structured_credit":
+        return {"weighted_average_life": 5}
+    if template == "merger":
+        return {"projection_years": 5}
+    # fairness has no horizon field
     return {}
 
 
