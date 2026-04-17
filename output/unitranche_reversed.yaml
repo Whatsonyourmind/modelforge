@@ -1,0 +1,346 @@
+model_type: unitranche
+meta:
+  project_code: REVERSED-UNITRANCHE_CDMO
+  deliverable:
+    en: Reverse-engineered spec (TO COMPLETE)
+    it: Spec ricostruita (DA COMPLETARE)
+  analyst: (analyst name)
+  version: v0.1-reversed
+  status: draft
+  valuation_date: '2026-04-17'
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+  - version: v0.1-reversed
+    date: '2026-04-17'
+    analyst: (analyst)
+    note: Reverse-engineered from unitranche_cdmo.xlsx
+target:
+  name: (target name)
+  sector:
+    en: (sector)
+    it: (settore)
+  country: IT
+  currency: EUR
+  revenue_last_fy_eur_m: 0.0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 0.0
+  ebitda_source_id: S-001
+  last_fy_end: '2025-12-31'
+sources:
+- id: S-001
+  doc: unitranche_cdmo.xlsx
+  publisher: (unknown)
+  date: '2026-04-17'
+  verified: false
+  note: Original source of reverse-engineered inputs
+_reverse_engineering_notes:
+  source_workbook: unitranche_cdmo.xlsx
+  detected_template: unitranche
+  template_confidence: 1.0
+  inputs_extracted: 56
+  hint: Inputs below are auto-extracted; rename/regroup as needed per template sub-model
+    (operating / debt / covenants / etc). Delete _reverse_engineering_notes before
+    `modelforge build`.
+_extracted_assumptions:
+- id: A-001
+  name: a_001
+  label:
+    en: A-001
+    it: A-001
+  unit: pct
+  base: 0.03
+  rationale: (auto-extracted from Assumptions!F6; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-002
+  name: a_002
+  label:
+    en: A-002
+    it: A-002
+  unit: pct
+  base: 0.02
+  rationale: (auto-extracted from Assumptions!F7; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-003
+  name: a_003
+  label:
+    en: A-003
+    it: A-003
+  unit: pct
+  base: 0.02
+  rationale: (auto-extracted from Assumptions!F8; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-004
+  name: a_004
+  label:
+    en: A-004
+    it: A-004
+  unit: pct
+  base: 0.01
+  rationale: (auto-extracted from Assumptions!F9; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-005
+  name: a_005
+  label:
+    en: A-005
+    it: A-005
+  unit: pct
+  base: 0.01
+  rationale: (auto-extracted from Assumptions!F10; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-006
+  name: a_006
+  label:
+    en: A-006
+    it: A-006
+  unit: pct
+  base: 0.01
+  rationale: (auto-extracted from Assumptions!F11; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-007
+  name: a_007
+  label:
+    en: A-007
+    it: A-007
+  unit: pct
+  base: 0.01
+  rationale: (auto-extracted from Assumptions!F12; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-008
+  name: a_011
+  label:
+    en: A-011
+    it: A-011
+  unit: pct
+  base: 0.18
+  rationale: (auto-extracted from Assumptions!F13; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-009
+  name: a_012
+  label:
+    en: A-012
+    it: A-012
+  unit: pct
+  base: 0.19
+  rationale: (auto-extracted from Assumptions!F14; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-010
+  name: a_013
+  label:
+    en: A-013
+    it: A-013
+  unit: pct
+  base: 0.19
+  rationale: (auto-extracted from Assumptions!F15; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-011
+  name: a_014
+  label:
+    en: A-014
+    it: A-014
+  unit: pct
+  base: 0.19
+  rationale: (auto-extracted from Assumptions!F16; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-012
+  name: a_015
+  label:
+    en: A-015
+    it: A-015
+  unit: pct
+  base: 0.19
+  rationale: (auto-extracted from Assumptions!F17; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-013
+  name: a_016
+  label:
+    en: A-016
+    it: A-016
+  unit: pct
+  base: 0.18
+  rationale: (auto-extracted from Assumptions!F18; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-014
+  name: a_017
+  label:
+    en: A-017
+    it: A-017
+  unit: pct
+  base: 0.18
+  rationale: (auto-extracted from Assumptions!F19; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-015
+  name: a_020
+  label:
+    en: A-020
+    it: A-020
+  unit: pct
+  base: 0.06
+  rationale: (auto-extracted from Assumptions!F20; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-016
+  name: a_021
+  label:
+    en: A-021
+    it: A-021
+  unit: pct
+  base: 0.045
+  rationale: (auto-extracted from Assumptions!F21; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-017
+  name: a_022
+  label:
+    en: A-022
+    it: A-022
+  unit: pct
+  base: 0.02
+  rationale: (auto-extracted from Assumptions!F22; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-018
+  name: a_023
+  label:
+    en: A-023
+    it: A-023
+  unit: pct
+  base: 0.18
+  rationale: (auto-extracted from Assumptions!F23; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-019
+  name: a_024
+  label:
+    en: A-024
+    it: A-024
+  unit: pct
+  base: 0.28
+  rationale: (auto-extracted from Assumptions!F24; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-020
+  name: a_031
+  label:
+    en: A-031
+    it: A-031
+  unit: eur_m
+  base: 38.0
+  rationale: (auto-extracted from Assumptions!F25; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-021
+  name: a_032
+  label:
+    en: A-032
+    it: A-032
+  unit: eur_m
+  base: 675.0
+  rationale: (auto-extracted from Assumptions!F26; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-022
+  name: a_033
+  label:
+    en: A-033
+    it: A-033
+  unit: pct
+  base: 0.0
+  rationale: (auto-extracted from Assumptions!F27; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-023
+  name: a_034
+  label:
+    en: A-034
+    it: A-034
+  unit: pct
+  base: 0.025
+  rationale: (auto-extracted from Assumptions!F28; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-024
+  name: a_035
+  label:
+    en: A-035
+    it: A-035
+  unit: pct
+  base: 0.0
+  rationale: (auto-extracted from Assumptions!F29; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-025
+  name: a_036
+  label:
+    en: A-036
+    it: A-036
+  unit: pct
+  base: 0.0
+  rationale: (auto-extracted from Assumptions!F30; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-026
+  name: a_030
+  label:
+    en: A-030
+    it: A-030
+  unit: pct
+  base: 0.036
+  rationale: (auto-extracted from Assumptions!F31; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-027
+  name: a_080
+  label:
+    en: A-080
+    it: A-080
+  unit: pct
+  base: 0.75
+  rationale: (auto-extracted from Assumptions!F32; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-028
+  name: a_081
+  label:
+    en: A-081
+    it: A-081
+  unit: eur_m
+  base: 3.0
+  rationale: (auto-extracted from Assumptions!F33; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-029
+  name: a_040
+  label:
+    en: A-040
+    it: A-040
+  unit: eur_m
+  base: 5.25
+  rationale: (auto-extracted from Assumptions!F34; fill in rationale from original
+    analyst notes)
+  confidence: M
+- id: A-030
+  name: a_041
+  label:
+    en: A-041
+    it: A-041
+  unit: eur_m
+  base: 5.0
+  rationale: (auto-extracted from Assumptions!F35; fill in rationale from original
+    analyst notes)
+  confidence: M

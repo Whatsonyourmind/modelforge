@@ -319,6 +319,43 @@ def verify_cmd(xlsx_path: Path, spec_path: Path | None) -> None:
     sys.exit(1)
 
 
+@main.command("reverse")
+@click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
+@click.option("-o", "--report", "report_path", type=click.Path(path_type=Path),
+              default=None, help="Output REVERSE_REPORT.md path.")
+@click.option("--spec-out", "spec_path", type=click.Path(path_type=Path),
+              default=None, help="Output partial spec YAML path.")
+def reverse_cmd(xlsx_path: Path, report_path: Path | None,
+                spec_path: Path | None) -> None:
+    """Reverse-engineer a legacy Excel model into a ModelForge spec skeleton.
+
+    Classifies sheets, extracts inputs, clusters formulas, suggests the
+    closest ModelForge template type. Produces a markdown report and
+    optional partial YAML spec.
+    """
+    from modelforge.reverse import (
+        analyze_workbook, render_markdown, render_spec_skeleton,
+    )
+    rep = analyze_workbook(xlsx_path)
+
+    md = render_markdown(rep)
+    if report_path is None:
+        report_path = xlsx_path.with_name(xlsx_path.stem + ".REVERSE_REPORT.md")
+    report_path.write_text(md, encoding="utf-8")
+    console.print(f"[green]Report:[/green] {report_path}")
+    console.print(f"[bold]Detected template:[/bold] `{rep.detected_template}` "
+                  f"(confidence {rep.template_confidence:.0%})")
+    console.print(f"[bold]Inputs extracted:[/bold] {rep.n_inputs}")
+
+    if spec_path is not None:
+        spec_yaml = render_spec_skeleton(rep)
+        spec_path.write_text(spec_yaml, encoding="utf-8")
+        console.print(f"[green]Spec skeleton:[/green] {spec_path}")
+    else:
+        console.print("[dim]Pass --spec-out <path.yaml> to also write a partial "
+                      "YAML spec skeleton.[/dim]")
+
+
 @main.group("feeds")
 def feeds_group() -> None:
     """Market data feeds — EURIBOR / ECB rates, Damodaran ERPs."""
