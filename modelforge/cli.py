@@ -319,6 +319,47 @@ def verify_cmd(xlsx_path: Path, spec_path: Path | None) -> None:
     sys.exit(1)
 
 
+@main.command("backtest")
+@click.argument("predicted_csv", type=click.Path(exists=True, path_type=Path))
+@click.argument("realized_csv", type=click.Path(exists=True, path_type=Path))
+@click.option("--n-groups", default=10, show_default=True, type=int,
+              help="Number of PD deciles for the H-L grouping.")
+def backtest_cmd(predicted_csv: Path, realized_csv: Path,
+                 n_groups: int) -> None:
+    """Hosmer-Lemeshow χ² backtest on a bundled PD curve.
+
+    Expected CSV format (no header):
+        predicted_csv : one PD per line (decimal, e.g. 0.023)
+        realized_csv  : one default flag per line (0 or 1)
+
+    Both files must have identical row counts. Exit 0 if calibration
+    passes (p > 0.05), 1 otherwise.
+    """
+    from modelforge.risk import hosmer_lemeshow
+    preds = [float(l.strip()) for l in predicted_csv.read_text().splitlines()
+             if l.strip()]
+    reals = [int(l.strip()) for l in realized_csv.read_text().splitlines()
+             if l.strip()]
+    if len(preds) != len(reals):
+        console.print(f"[red]Length mismatch: {len(preds)} vs {len(reals)}[/red]")
+        sys.exit(2)
+    chi2, p = hosmer_lemeshow(preds, reals, n_groups=n_groups)
+
+    tbl = Table(title=f"Hosmer-Lemeshow backtest ({len(preds)} exposures, "
+                       f"{n_groups} groups)")
+    tbl.add_column("Statistic", style="bold")
+    tbl.add_column("Value")
+    tbl.add_row("chi2", f"{chi2:.3f}")
+    tbl.add_row("p-value", f"{p:.4f}")
+    tbl.add_row("Predicted total defaults", f"{sum(preds):.2f}")
+    tbl.add_row("Realised defaults", f"{sum(reals)}")
+    tbl.add_row("Calibration",
+                "[green]PASS[/green] (p > 0.05)" if p > 0.05
+                else "[red]FAIL[/red] (p <= 0.05)")
+    console.print(tbl)
+    sys.exit(0 if p > 0.05 else 1)
+
+
 @main.command("chat")
 @click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
 @click.option("--backend", type=click.Choice(["api", "dry"]), default="api",
