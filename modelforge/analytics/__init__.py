@@ -13,9 +13,19 @@ from modelforge.analytics.factors import (
     default_factors_for,
 )
 from modelforge.analytics.sensitivity import append_sensitivity_sheet
+from modelforge.analytics.reproducibility import (
+    append_reproducibility_block,
+    compute_spec_hash,
+    read_reproducibility,
+    verify_spec_hash,
+)
 
 __all__ = [
     "SensitivityFactor",
     "default_factors_for",
     "append_sensitivity_sheet",
+    "append_reproducibility_block",
+    "compute_spec_hash",
+    "read_reproducibility",
+    "verify_spec_hash",
 ]
