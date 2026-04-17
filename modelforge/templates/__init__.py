@@ -16,7 +16,7 @@ from typing import Callable
 
 from modelforge.templates import (
     unitranche, minibond, credit_memo, project_finance, real_estate, npl,
-    structured_credit, three_statement,
+    structured_credit, three_statement, dcf, merger, fairness,
 )
 
 REGISTRY: dict[str, Callable] = {
@@ -28,6 +28,9 @@ REGISTRY: dict[str, Callable] = {
     "npl": npl.build,
     "structured_credit": structured_credit.build,
     "three_statement": three_statement.build,
+    "dcf": dcf.build,
+    "merger": merger.build,
+    "fairness": fairness.build,
 }
 
 
