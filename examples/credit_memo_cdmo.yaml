@@ -153,3 +153,16 @@ historical_revenue_eur_m: [35.0, 38.2, 42.0]
 historical_ebitda_eur_m:  [7.0, 8.2, 9.2]
 historical_net_debt_eur_m: 4.5
 historical_net_debt_source_id: S-001
+
+# Optional probabilistic-credit block — triggers RiskAnalysis sheet
+risk_analysis:
+  equity_market:
+    equity_value_eur_m: 55.0           # implied equity after leverage
+    equity_volatility: 0.40            # mid-cap pharma CDMO volatility
+    debt_face_value_eur_m: 38.0        # senior unitranche face
+    risk_free_rate: 0.039              # 10Y BTP Apr 2026
+    horizon_years: 1.0
+  loss_given_default: 0.40             # senior secured
+  effective_interest_rate: 0.095       # blended lender EIR
+  maturity_years: 7
+  days_past_due: 0

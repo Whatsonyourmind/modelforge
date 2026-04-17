@@ -22,6 +22,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from modelforge.spec.risk_block import RiskAnalysisSpec
 from modelforge.spec.base import (
     Assumption,
     Label,
@@ -230,6 +231,9 @@ class UnitrancheSpec(BaseModel):
     covenants: list[Covenant]
     fees: Fees
     exit: ExitAssumptions
+
+    # Optional probabilistic-credit block (triggers RiskAnalysis sheet).
+    risk_analysis: RiskAnalysisSpec | None = None
 
     # Last FY historical numbers (from sources, not assumptions).
     # These anchor the projections.
