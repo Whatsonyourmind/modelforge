@@ -319,6 +319,48 @@ def verify_cmd(xlsx_path: Path, spec_path: Path | None) -> None:
     sys.exit(1)
 
 
+@main.group("feeds")
+def feeds_group() -> None:
+    """Market data feeds — EURIBOR / ECB rates, Damodaran ERPs."""
+
+
+@feeds_group.command("list")
+def feeds_list_cmd() -> None:
+    """Print current bundled/cached feed values."""
+    from modelforge.feeds import ECBFeed, DamodaranFeed
+    ecb = ECBFeed.load()
+    tbl = Table(title=f"ECB rates (as of {ecb.as_of})")
+    tbl.add_column("Metric", style="bold")
+    tbl.add_column("Value")
+    for k, v in ecb.as_rows():
+        tbl.add_row(k, f"{v:.4%}")
+    console.print(tbl)
+
+    dam = DamodaranFeed.load()
+    tbl2 = Table(title=f"Damodaran country risk (as of {dam.snapshot.data.get('as_of', '?')})")
+    tbl2.add_column("ISO", style="bold")
+    tbl2.add_column("CRP")
+    tbl2.add_column("Total ERP")
+    tbl2.add_column("Rating")
+    for iso, crp, erp, rating in dam.as_rows():
+        tbl2.add_row(iso, f"{crp:.4%}", f"{erp:.4%}", rating)
+    console.print(tbl2)
+
+
+@feeds_group.command("refresh")
+@click.option("--timeout", default=10.0, type=float,
+              help="Network timeout per request (seconds).")
+def feeds_refresh_cmd(timeout: float) -> None:
+    """Pull the latest ECB observations from the SDW live API."""
+    from modelforge.feeds import ECBFeed, DamodaranFeed
+    console.print("[bold]Refreshing ECB feed from SDW...[/bold]")
+    ecb = ECBFeed.load().refresh(timeout=timeout)
+    console.print(f"[green]ECB refreshed[/green]  as_of={ecb.as_of}")
+    # Damodaran is annual — refresh() is a no-op that keeps bundled data
+    DamodaranFeed.load()
+    console.print("[dim]Damodaran snapshot bundled (annual cadence; manual update per January release).[/dim]")
+
+
 @main.command("diff")
 @click.argument("v1_xlsx", type=click.Path(exists=True, path_type=Path))
 @click.argument("v2_xlsx", type=click.Path(exists=True, path_type=Path))
