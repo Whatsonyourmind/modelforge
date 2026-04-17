@@ -319,6 +319,34 @@ def verify_cmd(xlsx_path: Path, spec_path: Path | None) -> None:
     sys.exit(1)
 
 
+@main.command("serve")
+@click.option("--host", default="127.0.0.1", show_default=True,
+              help="Bind host. Use 0.0.0.0 to expose on the network.")
+@click.option("--port", default=8000, show_default=True, type=int)
+@click.option("--session-dir", "session_dir", type=click.Path(path_type=Path),
+              default=None,
+              help="Persist uploaded workbooks in this directory.")
+def serve_cmd(host: str, port: int, session_dir: Path | None) -> None:
+    """Launch the ModelForge web thin layer (FastAPI + uvicorn).
+
+    Exposes HTTP endpoints: upload xlsx, view metadata, download
+    dossier PDF, drift check vs live feeds, diff between two uploaded
+    workbooks, one-shot risk analysis. In-memory + disk-backed
+    workbook registry keyed by content hash.
+    """
+    try:
+        import uvicorn
+    except ImportError:
+        console.print("[red]uvicorn not installed. Run "
+                      "`pip install 'modelforge[web]'`.[/red]")
+        sys.exit(2)
+    from modelforge.web import create_app
+    app = create_app(session_dir=session_dir)
+    console.print(f"[bold]ModelForge web[/bold] — http://{host}:{port}/")
+    console.print("[dim]Ctrl-C to stop.[/dim]")
+    uvicorn.run(app, host=host, port=port, log_level="info")
+
+
 @main.command("drift")
 @click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
 @click.option("--threshold-bps", default=50.0, show_default=True, type=float,
