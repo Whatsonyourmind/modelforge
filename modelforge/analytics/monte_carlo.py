@@ -63,9 +63,10 @@ class MCConfig:
 class MCResult:
     n_runs: int
     distribution: Distribution
-    samples: np.ndarray  # shape (n_runs,) — simulated output deltas as fractional
-    factor_contributions: dict[str, np.ndarray]  # per-factor delta draws
-    method: str = "elasticity"  # "shadow" or "elasticity"
+    samples: np.ndarray   # shape (n_runs,) — fractional OR absolute per delta_mode
+    factor_contributions: dict[str, np.ndarray]
+    method: str = "elasticity"          # "shadow" or "elasticity"
+    delta_mode: str = "fractional"      # "fractional" or "absolute"
 
     @property
     def mean(self) -> float:
@@ -138,6 +139,12 @@ def run_monte_carlo(
             # Degenerate — fall through to elasticity path
             use_shadow = False
 
+    # For deals where the base primary output is near zero (e.g. PF
+    # equity IRR hovering around 0%), fractional deltas (shocked/base
+    # - 1) blow up. Switch to absolute deltas when |base| < threshold.
+    _NEAR_ZERO = 0.01
+    use_absolute = use_shadow and abs(base) < _NEAR_ZERO
+
     if use_shadow:
         total = np.zeros(config.n_runs, dtype=float)
         for k in range(config.n_runs):
@@ -148,7 +155,12 @@ def run_monte_carlo(
                 bv = all_assums[f.driver_name].base
                 overrides[f.driver_name] = bv * (1 + shocks_by_factor[f.driver_name][k])
             shocked = compute_primary_output(spec, overrides)
-            total[k] = (shocked - base) / base if shocked is not None else 0.0
+            if shocked is None:
+                total[k] = 0.0
+            elif use_absolute:
+                total[k] = shocked - base
+            else:
+                total[k] = (shocked - base) / base
         # Per-factor contribution (isolated single-factor shock) —
         # useful for "which factor drives most of the variance" tooltip
         for f in factors:
@@ -184,6 +196,7 @@ def run_monte_carlo(
         samples=total,
         factor_contributions=contributions,
         method="shadow" if use_shadow else "elasticity",
+        delta_mode="absolute" if use_absolute else "fractional",
     )
 
 
@@ -216,13 +229,15 @@ def _emit_sheet(
     method_tag = ("exact shadow-engine recompute per draw"
                   if result.method == "shadow"
                   else "linearized per-factor elasticity")
+    delta_tag = ("absolute (base output is near zero — fractional Δ "
+                 "would blow up)"
+                 if result.delta_mode == "absolute"
+                 else "fractional (× base = absolute)")
     ws.cell(
         row=4, column=1,
         value=(
             f"{result.n_runs:,}-run {result.distribution} simulation on "
-            f"{primary_loc.label} (method: {method_tag}). Output deltas "
-            f"are fractional — apply to the base `primary_output` named "
-            f"range to express as absolute."
+            f"{primary_loc.label}. Method: {method_tag}. Δ mode: {delta_tag}."
         ),
     ).font = styles.font_label_it
 
@@ -258,17 +273,22 @@ def _emit_sheet(
     for i, (label, frac) in enumerate(rows):
         r = stats_row + 1 + i
         ws.cell(row=r, column=1, value=label).font = styles.font_subheader
-        # Col B — fractional delta (hardcoded, numeric)
+        # Col B — delta (fractional or absolute per result.delta_mode)
         fc = ws.cell(row=r, column=2, value=frac)
         styles.style_input(fc, number_format=styles.FMT_PCT_2DP)
         fc.comment = Comment(
             f"Computed from {result.n_runs:,} {result.distribution} draws "
             f"across {len(factors)} factors. Seed={20260417}. "
-            f"Rebuild to regenerate.",
+            f"Method={result.method}. Δ mode={result.delta_mode}.",
             "ModelForge",
         )
-        # Col C — absolute (formula on base * (1 + frac))
-        ac = ws.cell(row=r, column=3, value=f"=primary_output*(1+B{r})")
+        # Col C — absolute output. Formula differs by delta_mode:
+        #   fractional: absolute = primary_output * (1 + Δ)
+        #   absolute:   absolute = primary_output + Δ
+        if result.delta_mode == "absolute":
+            ac = ws.cell(row=r, column=3, value=f"=primary_output+B{r}")
+        else:
+            ac = ws.cell(row=r, column=3, value=f"=primary_output*(1+B{r})")
         styles.style_formula(ac, number_format=styles.FMT_PCT_2DP)
 
     # ── Histogram bins
