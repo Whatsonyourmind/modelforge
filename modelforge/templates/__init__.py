@@ -31,11 +31,19 @@ REGISTRY: dict[str, Callable] = {
 }
 
 
-def build_model(spec, out_path, graph_db_path=None, with_sensitivity: bool = True):
+def build_model(
+    spec,
+    out_path,
+    graph_db_path=None,
+    with_sensitivity: bool = True,
+    with_reproducibility: bool = True,
+    spec_source_bytes: bytes | None = None,
+    spec_source_path: Path | str | None = None,
+):
     """Dispatch to the right template builder based on spec.model_type.
 
-    After the core template build, applies the sensitivity tornado
-    post-processor unless ``with_sensitivity`` is False.
+    After the core template build, applies the sensitivity tornado and
+    reproducibility post-processors (each can be disabled).
     """
     mt = spec.model_type
     if mt not in REGISTRY:
@@ -50,8 +58,19 @@ def build_model(spec, out_path, graph_db_path=None, with_sensitivity: bool = Tru
             append_sensitivity_sheet(xlsx_path, spec)
         except Exception:
             # Sensitivity is a nice-to-have; never block the build.
-            # Upstream CLI will still surface issues via QC if the
-            # sheet is malformed.
+            pass
+
+    if with_reproducibility:
+        try:
+            from modelforge.analytics.reproducibility import (
+                append_reproducibility_block,
+            )
+            append_reproducibility_block(
+                xlsx_path, spec,
+                spec_source_bytes=spec_source_bytes,
+                spec_source_path=spec_source_path,
+            )
+        except Exception:
             pass
 
     return Path(xlsx_path), Path(graph_path)

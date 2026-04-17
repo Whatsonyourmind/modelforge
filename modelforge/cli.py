@@ -73,8 +73,8 @@ def _load_spec_class(model_type: str):
               help="Output .xlsx path. Defaults to output/<spec_stem>.xlsx.")
 def build_cmd(spec_path: Path, out_path: Path | None) -> None:
     """Build an Excel workbook from a YAML spec."""
-    with spec_path.open() as f:
-        raw = yaml.safe_load(f)
+    spec_bytes = spec_path.read_bytes()
+    raw = yaml.safe_load(spec_bytes)
     model_type = raw.get("model_type", "unitranche")
 
     try:
@@ -88,7 +88,11 @@ def build_cmd(spec_path: Path, out_path: Path | None) -> None:
     if out_path is None:
         out_path = Path("output") / f"{spec_path.stem}.xlsx"
 
-    xlsx, graph = build_model(spec, out_path)
+    xlsx, graph = build_model(
+        spec, out_path,
+        spec_source_bytes=spec_bytes,
+        spec_source_path=spec_path,
+    )
     console.print(f"[green]Built:[/green] {xlsx}  [dim]({model_type})[/dim]")
     console.print(f"[green]Graph:[/green] {graph}")
 
@@ -257,6 +261,52 @@ def ingest_cmd(
     if not dry_run and result.spec_valid:
         console.print(f"\nNext: [cyan]modelforge build {result.yaml_path}[/cyan]")
     sys.exit(0 if result.spec_valid or dry_run else 1)
+
+
+@main.command("verify")
+@click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--spec", "spec_path", type=click.Path(exists=True, path_type=Path),
+              default=None, help="YAML spec to recompute hash from.")
+def verify_cmd(xlsx_path: Path, spec_path: Path | None) -> None:
+    """Read Reproducibility metadata and (optionally) verify spec hash.
+
+    Without --spec, prints the stored metadata (hash, version, build
+    timestamp). With --spec, recomputes the SHA-256 from the given YAML
+    bytes and compares to the stored hash; exits 0 on match, 1 on
+    mismatch.
+    """
+    from modelforge.analytics.reproducibility import (
+        read_reproducibility,
+        verify_spec_hash,
+    )
+
+    meta = read_reproducibility(xlsx_path)
+    if not meta:
+        console.print(f"[red]No Reproducibility metadata in {xlsx_path.name}. "
+                      f"Rebuild with modelforge build.[/red]")
+        sys.exit(2)
+
+    tbl = Table(title=f"Reproducibility — {xlsx_path.name}")
+    tbl.add_column("Field", style="bold")
+    tbl.add_column("Value", overflow="fold")
+    for k, v in meta.items():
+        tbl.add_row(k, v)
+    console.print(tbl)
+
+    if spec_path is None:
+        sys.exit(0)
+
+    spec_bytes = spec_path.read_bytes()
+    match, stored, recomputed = verify_spec_hash(xlsx_path, spec_bytes)
+    if match:
+        console.print(f"\n[green]PASS[/green] spec hash matches: {stored}")
+        sys.exit(0)
+    console.print(
+        f"\n[red]FAIL[/red] spec hash mismatch.\n"
+        f"  stored:     {stored}\n"
+        f"  recomputed: {recomputed}"
+    )
+    sys.exit(1)
 
 
 @main.command("stats")
