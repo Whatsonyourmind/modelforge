@@ -115,6 +115,8 @@ def build(
                     styles.style_xref(c, number_format=nf)
         r += 1
 
+        # v0.6: gate breach check on |interest| > 0 so drawdown and
+        # post-maturity years with zero interest don't false-flag ICR.
         breach_row = r
         layout.write_row_label(ws, r, f"{cov.name.en} — breach",
                                f"{cov.name.it} — violazione", indent=True)
@@ -127,9 +129,11 @@ def build(
                 thr_ref = f"${col}${threshold_row}"
                 direction = "max" if cov.kind == "leverage" else "min"
                 if direction == "max":
-                    formula = f"=IF({actual_ref}>{thr_ref},1,0)"
+                    core = f"{actual_ref}>{thr_ref}"
                 else:
-                    formula = f"=IF({actual_ref}<{thr_ref},1,0)"
+                    core = f"{actual_ref}<{thr_ref}"
+                int_ref = f"'{debt_sheet_name}'!{col}{interest_row}"
+                formula = f"=IF(AND({core},{int_ref}<-0.01),1,0)"
                 c = ws.cell(row=r, column=col_idx, value=formula)
                 styles.style_formula(c, number_format=styles.FMT_INTEGER)
                 c.alignment = styles.align_center

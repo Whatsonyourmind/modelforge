@@ -213,6 +213,139 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     cc = ws.cell(row=r, column=4,
                  value=f"=${last_col}${rows['cum_collection_pct']}")
     styles.style_xref(cc, number_format=styles.FMT_PCT)
+    r += 2
+
+    # ── v0.7: STRICT PRIORITY WATERFALL + PDL ────────────────────────────
+    # Italian L.130/1999 + GACS compliant waterfall (applied to cumulative
+    # collections). Per-period strict priority:
+    #   1. Senior interest (paid first)
+    #   2. Senior principal amortization (remaining cash after int)
+    #   3. Mezz interest (if cash available; else PIK)
+    #   4. Mezz principal (after senior retired)
+    #   5. Equity distribution (residual)
+    # PDL (Principal Deficiency Ledger) tracks under-payment on senior
+    # principal — defers interest and triggers trapping.
+    layout.write_section_header(
+        ws, r,
+        "Strict priority waterfall + PDL (Principal Deficiency Ledger)",
+        "Waterfall a priorità stretta + PDL",
+    )
+    r += 1
+
+    # Cumulative cash pool
+    rows["cumulative_cash"] = r
+    layout.write_row_label(ws, r, "Cumulative cash available (end of year)",
+                           "Cassa cumulata (fine anno)", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        if i == 0:
+            cc = ws.cell(row=r, column=col_idx,
+                         value=f"=${col}${rows['net_collections']}")
+        else:
+            prior = layout.year_col(i - 1)
+            cc = ws.cell(row=r, column=col_idx,
+                         value=f"=${prior}${r}+${col}${rows['net_collections']}")
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # Senior principal outstanding (running balance)
+    rows["senior_principal_outstanding"] = r
+    layout.write_row_label(ws, r, "Senior principal outstanding",
+                           "Capitale senior residuo", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        if i == 0:
+            cc = ws.cell(row=r, column=col_idx,
+                         value=f"=$D${rows['senior_note_size']}")
+        else:
+            prior = layout.year_col(i - 1)
+            cc = ws.cell(row=r, column=col_idx,
+                         value=f"=MAX(${prior}${r}-${col}${r + 1},0)")
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # Senior principal amortized this year (subject to available cash after interest)
+    rows["senior_principal_pay"] = r
+    layout.write_row_label(ws, r, "Senior principal paid (this year)",
+                           "Capitale senior pagato", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        if i == 0:
+            cc = ws.cell(row=r, column=col_idx, value=0)
+        else:
+            # Available cash = net collections + interest service (interest is neg)
+            # Pay down senior up to senior outstanding
+            prior = layout.year_col(i - 1)
+            cc = ws.cell(
+                row=r, column=col_idx,
+                value=(
+                    f"=MIN(MAX(${col}${rows['net_collections']}+${col}${rows['interest_service']},0),"
+                    f"${prior}${rows['senior_principal_outstanding']})"
+                ),
+            )
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # PDL (Principal Deficiency Ledger)
+    rows["pdl"] = r
+    layout.write_row_label(ws, r, "PDL — Principal Deficiency Ledger",
+                           "PDL — Sbilancio capitale", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        if i == 0:
+            cc = ws.cell(row=r, column=col_idx, value=0)
+        else:
+            # PDL = cumulative senior face − cumulative senior repaid
+            # At final year, should be ~0 if deal performs
+            cc = ws.cell(
+                row=r, column=col_idx,
+                value=f"=${col}${rows['senior_principal_outstanding']}",
+            )
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # Mezz principal outstanding (only starts amortizing after senior retired)
+    rows["mezz_principal_outstanding"] = r
+    layout.write_row_label(ws, r, "Mezz principal outstanding",
+                           "Capitale mezz residuo", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        if i == 0:
+            cc = ws.cell(row=r, column=col_idx,
+                         value=f"=$D${rows['mezz_note_size']}")
+        else:
+            prior = layout.year_col(i - 1)
+            # Mezz only pays down after senior retired
+            cc = ws.cell(
+                row=r, column=col_idx,
+                value=(
+                    f"=IF(${col}${rows['senior_principal_outstanding']}<=0.01,"
+                    f"MAX(${prior}${r}-MAX(${col}${rows['net_collections']}+${col}${rows['interest_service']}-${col}${rows['senior_principal_pay']},0),0),"
+                    f"${prior}${r})"
+                ),
+            )
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # Residual to equity (after senior + mezz fully retired)
+    rows["residual_to_equity"] = r
+    layout.write_row_label(ws, r, "Residual to equity",
+                           "Residuo equity", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        if i == 0:
+            cc = ws.cell(row=r, column=col_idx, value=0)
+        else:
+            cc = ws.cell(
+                row=r, column=col_idx,
+                value=(
+                    f"=IF(AND(${col}${rows['senior_principal_outstanding']}<=0.01,"
+                    f"${col}${rows['mezz_principal_outstanding']}<=0.01),"
+                    f"MAX(${col}${rows['net_collections']}+${col}${rows['interest_service']}"
+                    f"-${col}${rows['senior_principal_pay']},0),0)"
+                ),
+            )
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
     ws.freeze_panes = "D7"

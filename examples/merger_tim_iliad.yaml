@@ -152,3 +152,106 @@ synergies:
     best: 150.0
     rationale: Network migration, redundancies, rebranding
     confidence: M
+
+# v0.7: Purchase Price Allocation (bulge-bracket standard for any
+# accretion/dilution analysis). Adds goodwill + identifiable intangibles
+# + DTL on asset write-ups per ASC 805 / IFRS 3.
+ppa:
+  target_bv_equity_eur_m:
+    id: A-201
+    name: target_bv_equity_eur_m
+    label: {en: Target BV equity, it: PN target}
+    unit: eur_m
+    base: 2500.0
+    worst: 2500.0
+    best: 2500.0
+    rationale: Iliad Italia book value of equity at close (illustrative)
+    confidence: M
+    source_id: S-001
+  asset_writeup_ppe_eur_m:
+    id: A-202
+    name: asset_writeup_ppe_eur_m
+    label: {en: PP&E step-up, it: Rivalutazione PP&E}
+    unit: eur_m
+    base: 400.0
+    worst: 300.0
+    best: 500.0
+    rationale: Network assets fair-value step-up (mobile spectrum, tower concessions)
+    confidence: M
+    source_id: S-001
+  intangibles_customer_list_eur_m:
+    id: A-203
+    name: intangibles_customer_list_eur_m
+    label: {en: Customer-list intangible, it: Intangibile lista clienti}
+    unit: eur_m
+    base: 800.0
+    worst: 600.0
+    best: 900.0
+    rationale: Iliad subscriber base fair-value; typical 1-2× annual ARPU × retention
+    confidence: M
+    source_id: S-001
+  intangibles_technology_eur_m:
+    id: A-204
+    name: intangibles_technology_eur_m
+    label: {en: Technology intangible, it: Intangibile tecnologia}
+    unit: eur_m
+    base: 150.0
+    worst: 100.0
+    best: 200.0
+    rationale: Network software, billing systems, proprietary tech
+    confidence: M
+    source_id: S-001
+  intangibles_trade_name_eur_m:
+    id: A-205
+    name: intangibles_trade_name_eur_m
+    label: {en: Trade-name intangible, it: Intangibile marchio}
+    unit: eur_m
+    base: 200.0
+    worst: 150.0
+    best: 250.0
+    rationale: Iliad brand equity in Italian market
+    confidence: M
+    source_id: S-001
+  customer_list_useful_life_years: 10
+  technology_useful_life_years: 7
+  trade_name_useful_life_years: 15
+  dtl_rate_pct:
+    id: A-206
+    name: dtl_rate_pct
+    label: {en: DTL rate on step-ups, it: Aliquota DTL su rivalutazioni}
+    unit: pct
+    base: 0.275
+    worst: 0.28
+    best: 0.27
+    rationale: Italian combined effective tax rate on non-deductible step-ups
+    confidence: H
+
+break_fees:
+  target_reverse_termination_pct:
+    id: A-301
+    name: target_reverse_termination_pct
+    label: {en: Target break fee %, it: Break fee target %}
+    unit: pct
+    base: 0.03
+    worst: 0.04
+    best: 0.015
+    rationale: 3% of equity value — typical European telecom take-private
+    confidence: M
+  acquirer_walk_fee_pct:
+    id: A-302
+    name: acquirer_walk_fee_pct
+    label: {en: Acquirer walk fee %, it: Walk-away fee acquirer %}
+    unit: pct
+    base: 0.02
+    worst: 0.025
+    best: 0.01
+    rationale: Symmetric reverse break fee; Iliad fund-led deal would demand ~2%
+    confidence: M
+
+regulatory:
+  expected_close_months: 9
+  regulatory_jurisdictions:
+    - EU Merger Regulation (Phase I + II)
+    - AGCOM (Italian telecom regulator)
+    - CMA UK (if revenue threshold met)
+    - Antitrust Italy (AGCM)

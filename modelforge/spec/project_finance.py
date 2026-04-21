@@ -58,13 +58,26 @@ class ConstructionPhase(BaseModel):
 
 
 class OperatingPhase(BaseModel):
-    """Operating phase revenue & cost drivers."""
+    """Operating phase revenue & cost drivers.
+
+    v0.7 additions:
+      - panel_degradation_pct_annual (optional): for solar PF; typical 0.5% p.a.
+      - p90_revenue_haircut_pct (optional): downside (P90) vs base (P50)
+      - om_reserve_months (optional): O&M reserve size in months of opex
+      - major_maintenance_reserve_eur_m (optional): MMR sinking fund target
+    """
 
     availability_payment_eur_m_yr1: Assumption  # or equivalent year-1 revenue
     revenue_indexation_pct: Assumption  # annual escalation (CPI-linked)
     opex_pct_revenue: Assumption
     opex_indexation_pct: Assumption
     maintenance_reserve_pct_revenue: Assumption
+
+    # v0.7 additions (bulge-tier PF standards)
+    panel_degradation_pct_annual: Optional[Assumption] = None
+    p90_revenue_haircut_pct: Optional[Assumption] = None
+    om_reserve_months: int = 0
+    major_maintenance_reserve_eur_m: Optional[Assumption] = None
 
 
 class PFDebt(BaseModel):
@@ -84,6 +97,11 @@ class PFDebt(BaseModel):
     target_dscr_base: Optional[Assumption] = None
     target_dscr_downside: Optional[Assumption] = None
     dsra_months: int = Field(default=6, ge=0, le=12)
+
+    # v0.7 additions (bulge-tier PF standards)
+    make_whole_spread_bps: Optional[Assumption] = None  # T+50 typical for early redemption
+    equity_cure_cap_count: int = 0  # max number of cures over loan life (0 = disabled)
+    equity_cure_max_uplift_pct: Optional[Assumption] = None  # 20% EBITDA typical
 
 
 class DSCRCovenant(BaseModel):
@@ -167,4 +185,14 @@ class ProjectFinanceSpec(BaseModel):
         out.append(self.covenant.lock_up_threshold)
         out.append(self.equity.target_irr)
         out.append(self.equity.effective_tax_rate)
+        # v0.7 additions
+        for opt in (
+            self.operating.panel_degradation_pct_annual,
+            self.operating.p90_revenue_haircut_pct,
+            self.operating.major_maintenance_reserve_eur_m,
+            self.debt.make_whole_spread_bps,
+            self.debt.equity_cure_max_uplift_pct,
+        ):
+            if opt is not None:
+                out.append(opt)
         return out

@@ -132,11 +132,18 @@ def build(
         r += 1
 
         # Breach flag
+        #
+        # v0.6: covenants only apply when there is meaningful debt
+        # activity. Gate on |interest| > 0 so neither the drawdown year
+        # (BOP debt = 0 → zero interest → ICR = 0 → falsely below
+        # threshold) nor post-maturity years (debt fully repaid → zero
+        # interest) trigger artefactual breach flags.
         breach_row = r
         layout.write_row_label(ws, r,
                                f"{cov.name.en} — breach",
                                f"{cov.name.it} — violazione", indent=True)
         ws.cell(row=r, column=3, value="").font = styles.font_label_it
+        total_interest_row = debt_refs.get("total_interest_row") if debt_refs else None
         for i in range(n_years):
             col = layout.year_col(i)
             col_idx = ord(col) - ord("A") + 1
@@ -146,9 +153,17 @@ def build(
                 actual_ref = f"${col}${actual_row}"
                 threshold_ref = f"${col}${threshold_row}"
                 if direction == "max":
-                    formula = f"=IF({actual_ref}>{threshold_ref},1,0)"
+                    core = f"{actual_ref}>{threshold_ref}"
                 else:
-                    formula = f"=IF({actual_ref}<{threshold_ref},1,0)"
+                    core = f"{actual_ref}<{threshold_ref}"
+                if total_interest_row:
+                    # |interest| > 0 proxy: interest is negative by sign
+                    # convention, so check it's strictly < 0 (allowing
+                    # 1c tolerance for floating-point).
+                    int_ref = f"'{debt_sheet_name}'!{col}{total_interest_row}"
+                    formula = f"=IF(AND({core},{int_ref}<-0.01),1,0)"
+                else:
+                    formula = f"=IF({core},1,0)"
                 c = ws.cell(row=r, column=col_idx, value=formula)
                 styles.style_formula(c, number_format=styles.FMT_INTEGER)
                 c.alignment = styles.align_center
