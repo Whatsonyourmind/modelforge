@@ -2064,46 +2064,46 @@
     "criterion_id": 72,
     "criterion_name": "NOL tracking + 80% cap",
     "category": "3-Stmt",
-    "severity": "fail",
+    "severity": "pass",
     "file": "three_statement_cdmo.xlsx",
-    "observation": "No NOL balance schedule (Italian 5-year rule; 80% current-year offset)",
-    "fix": "Add NOL opening/usage/expiry/closing schedule"
+    "observation": "NOL schedule present (opening/generated/used/expired/closing); MIN(prior_balance, 0.8 \u00d7 positive EBT) usage formula (Italian Legge Bilancio 2024 80% cap)",
+    "fix": ""
   },
   {
     "criterion_id": 73,
     "criterion_name": "DTA/DTL rolling",
     "category": "3-Stmt",
-    "severity": "fail",
+    "severity": "pass",
     "file": "three_statement_cdmo.xlsx",
-    "observation": "No deferred tax asset/liability roll",
-    "fix": "Add DTA/DTL schedule for book-tax differences (D&A, intangibles, NOLs)"
+    "observation": "DTA (from NOL \u00d7 tax rate) + DTL (accumulated on D&A book-tax timing differences) rolling schedules present",
+    "fix": ""
   },
   {
     "criterion_id": 74,
     "criterion_name": "Stock-based compensation",
     "category": "3-Stmt",
-    "severity": "fail",
+    "severity": "pass",
     "file": "three_statement_cdmo.xlsx",
-    "observation": "No SBC expense / addback",
-    "fix": "Add SBC: expense in P&L, addback in CFS, dilution to FD shares"
+    "observation": "SBC expense row present (default 1% revenue, non-cash)",
+    "fix": ""
   },
   {
     "criterion_id": 75,
     "criterion_name": "Minority interest / NCI",
     "category": "3-Stmt",
-    "severity": "fail",
+    "severity": "pass",
     "file": "three_statement_cdmo.xlsx",
-    "observation": "No minority interest line for consolidated subsidiaries",
-    "fix": "Add MI share of NI below NI-to-parent; MI balance on BS"
+    "observation": "Minority interest in NI + Net income to parent split; MI equity balance on BS",
+    "fix": ""
   },
   {
     "criterion_id": 76,
     "criterion_name": "Cash plug (revolver, not hardcode)",
     "category": "3-Stmt",
-    "severity": "partial",
+    "severity": "pass",
     "file": "three_statement_cdmo.xlsx",
-    "observation": "3-statement template doesn't have a revolver plug",
-    "fix": "Add revolver auto-draw when min cash breached"
+    "observation": "Revolver draw plug + commitment fee rows present",
+    "fix": ""
   },
   {
     "criterion_id": 77,
@@ -2361,46 +2361,46 @@
     "criterion_id": 72,
     "criterion_name": "NOL tracking + 80% cap",
     "category": "3-Stmt",
-    "severity": "fail",
+    "severity": "pass",
     "file": "real_stevanato_3statement.xlsx",
-    "observation": "No NOL balance schedule (Italian 5-year rule; 80% current-year offset)",
-    "fix": "Add NOL opening/usage/expiry/closing schedule"
+    "observation": "NOL schedule present (opening/generated/used/expired/closing); MIN(prior_balance, 0.8 \u00d7 positive EBT) usage formula (Italian Legge Bilancio 2024 80% cap)",
+    "fix": ""
   },
   {
     "criterion_id": 73,
     "criterion_name": "DTA/DTL rolling",
     "category": "3-Stmt",
-    "severity": "fail",
+    "severity": "pass",
     "file": "real_stevanato_3statement.xlsx",
-    "observation": "No deferred tax asset/liability roll",
-    "fix": "Add DTA/DTL schedule for book-tax differences (D&A, intangibles, NOLs)"
+    "observation": "DTA (from NOL \u00d7 tax rate) + DTL (accumulated on D&A book-tax timing differences) rolling schedules present",
+    "fix": ""
   },
   {
     "criterion_id": 74,
     "criterion_name": "Stock-based compensation",
     "category": "3-Stmt",
-    "severity": "fail",
+    "severity": "pass",
     "file": "real_stevanato_3statement.xlsx",
-    "observation": "No SBC expense / addback",
-    "fix": "Add SBC: expense in P&L, addback in CFS, dilution to FD shares"
+    "observation": "SBC expense row present (default 1% revenue, non-cash)",
+    "fix": ""
   },
   {
     "criterion_id": 75,
     "criterion_name": "Minority interest / NCI",
     "category": "3-Stmt",
-    "severity": "fail",
+    "severity": "pass",
     "file": "real_stevanato_3statement.xlsx",
-    "observation": "No minority interest line for consolidated subsidiaries",
-    "fix": "Add MI share of NI below NI-to-parent; MI balance on BS"
+    "observation": "Minority interest in NI + Net income to parent split; MI equity balance on BS",
+    "fix": ""
   },
   {
     "criterion_id": 76,
     "criterion_name": "Cash plug (revolver, not hardcode)",
     "category": "3-Stmt",
-    "severity": "partial",
+    "severity": "pass",
     "file": "real_stevanato_3statement.xlsx",
-    "observation": "3-statement template doesn't have a revolver plug",
-    "fix": "Add revolver auto-draw when min cash breached"
+    "observation": "Revolver draw plug + commitment fee rows present",
+    "fix": ""
   },
   {
     "criterion_id": 77,
