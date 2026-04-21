@@ -157,16 +157,28 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
                                  "IFRS 9 modello a tre stadi")
     r += 1
 
+    # v0.8 US-260: Canonical ECL formula for auditor reference
+    ws.cell(row=r, column=1,
+            value="ECL formula (canonical): ECL = PD × LGD × EAD × DF").font = styles.font_subheader
+    ws.cell(row=r, column=2,
+            value="Formula ECL: PD × LGD × EAD × Fattore sconto").font = styles.font_label_it
+    r += 1
+    ws.cell(row=r, column=1,
+            value="  where PD = probability of default, LGD = loss given "
+                  "default, EAD = exposure at default, DF = discount factor"
+            ).font = styles.font_label_it
+    r += 2
+
     stages = [
         ("Stage 1 (12-month ECL — no SICR)",
          "Stadio 1 (ECL 12m — no SICR)",
-         "PD_12m × LGD × EAD × DF"),
+         "12m PD × LGD × EAD × DF"),
         ("Stage 2 (Lifetime ECL — SICR triggered)",
          "Stadio 2 (ECL lifetime — SICR)",
-         "PD_lifetime × LGD × EAD × DF | 30+DPD backstop"),
+         "Lifetime PD × LGD × EAD × DF | 30+DPD backstop"),
         ("Stage 3 (Lifetime ECL — credit-impaired)",
          "Stadio 3 (ECL lifetime — impaired)",
-         "PD=1 × LGD × EAD × DF | interest on NET"),
+         "PD 100% × LGD × EAD × DF | interest on NET"),
     ]
     for en, it, f in stages:
         ws.cell(row=r, column=1, value=en).font = styles.font_label_en
