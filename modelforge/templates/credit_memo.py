@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from modelforge.builder.base_workbook import build_base_workbook
+from modelforge.builder.sheets import compliance as compliance_sheet
 from modelforge.builder.sheets import (
     covenants as covenants_sheet,
     credit_opinion,
@@ -53,6 +54,9 @@ def build(spec, out_path: Path | str, graph_db_path=None):
             debt_sheet="DebtSchedule",
             covenants_sheet="Covenants",
         )
+        compliance_ws = wb.create_sheet("ComplianceCheck")
+        compliance_sheet.build(compliance_ws, spec)
+
         return {}
 
     return build_base_workbook(spec, out_path, core_sheets, graph_db_path)[:2]

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from modelforge.builder.base_workbook import build_base_workbook
-from modelforge.builder.sheets import generic_qc, re_dcf, re_financing
+from modelforge.builder.sheets import compliance as compliance_sheet, generic_qc, re_dcf, re_financing
 
 
 def build(spec, out_path: Path | str, graph_db_path=None):
@@ -33,6 +33,9 @@ def build(spec, out_path: Path | str, graph_db_path=None):
         ]
         qc_ws = wb.create_sheet("QC")
         generic_qc.build(qc_ws, checks)
+        compliance_ws = wb.create_sheet("ComplianceCheck")
+        compliance_sheet.build(compliance_ws, spec)
+
         return {}
 
     return build_base_workbook(spec, out_path, core_sheets, graph_db_path)[:2]

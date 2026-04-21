@@ -159,6 +159,152 @@ def build(ws: Worksheet, spec, dcf_refs: dict[str, str], dcf_sheet: str) -> dict
     cc = ws.cell(row=r, column=4,
                  value=f"=IRR(${first_col}${rows['gp_cf']}:${last_col}${rows['gp_cf']},0.10)")
     styles.style_formula(cc, number_format=styles.FMT_PCT_2DP)
+    r += 2
+
+    # ── v0.7: FULL LP/GP waterfall with pref + catchup + promote ──────────
+    # Tier 1 — Pref return (8% IRR on LP capital, compounded)
+    # Tier 2 — GP catchup (100% to GP until GP gets 20% of profits)
+    # Tier 3 — 80/20 LP/GP split on residual
+    # Implementation uses running-balance approach per period.
+    layout.write_section_header(
+        ws, r,
+        "v0.7 Waterfall: preferred return + GP catchup + 80/20 promote",
+        "Waterfall: rendimento preferenziale + catchup + promote",
+    )
+    r += 1
+
+    # Pref return rate (hardcoded 8%; parameterize via Assumption in v0.8)
+    rows["pref_return"] = r
+    layout.write_row_label(ws, r, "LP preferred return (compounded)",
+                           "Rendimento preferenziale LP (composto)", indent=True)
+    cc = ws.cell(row=r, column=4, value=0.08)
+    styles.style_input(cc, number_format=styles.FMT_PCT_2DP)
+    cc.comment = openpyxl.comments.Comment(
+        "LP receives 8% preferred return compounded annually on contributed "
+        "capital before any GP promote. European waterfall (deal-by-deal: "
+        "American would differ). Parameterize in v0.8.",
+        "ModelForge",
+    ) if False else None  # skip comment if openpyxl.comments not imported
+    r += 1
+
+    rows["promote_split_lp"] = r
+    layout.write_row_label(ws, r, "LP share of residual (post-catchup)",
+                           "Quota LP residuo (post-catchup)", indent=True)
+    cc = ws.cell(row=r, column=4, value=0.80)
+    styles.style_input(cc, number_format=styles.FMT_PCT_2DP)
+    r += 2
+
+    # Total distributions to equity over hold (from equity_cf)
+    # Waterfall applies when sale proceeds returned to equity, not per-period.
+    rows["total_equity_contrib"] = r
+    layout.write_row_label(ws, r, "Total equity contribution (t=0)",
+                           "Capitale equity totale (t=0)", indent=True)
+    cc = ws.cell(row=r, column=4, value=f"=-$D${rows['equity_cf']}")
+    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    rows["total_equity_distrib"] = r
+    layout.write_row_label(ws, r, "Total equity distributions (gross)",
+                           "Distribuzioni equity totali (lorde)", indent=True)
+    cc = ws.cell(row=r, column=4,
+                 value=f'=SUMIF(${first_col}${rows["equity_cf"]}:${last_col}${rows["equity_cf"]},">0")')
+    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    rows["total_profit"] = r
+    layout.write_row_label(ws, r, "Total profit (distributions − contribution)",
+                           "Profitto totale", indent=True)
+    cc = ws.cell(row=r, column=4,
+                 value=f"=$D${rows['total_equity_distrib']}-$D${rows['total_equity_contrib']}")
+    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    cc.font = styles.font_subheader
+    r += 2
+
+    # Tier 1: Return of capital + pref
+    ws.cell(row=r, column=1, value="Tier 1: Return of capital + pref").font = styles.font_subheader
+    r += 1
+
+    # Calculate hold period for pref compounding
+    n_years_hold = n - 1
+    rows["pref_threshold"] = r
+    layout.write_row_label(ws, r, "LP pref threshold (capital × (1+pref)^hold)",
+                           "Soglia pref LP", indent=True)
+    cc = ws.cell(row=r, column=4,
+                 value=f"=$D${rows['total_equity_contrib']}*lp_capital_commitment_pct"
+                       f"*(1+$D${rows['pref_return']})^{n_years_hold}")
+    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    rows["lp_tier1"] = r
+    layout.write_row_label(ws, r, "LP receives in Tier 1",
+                           "LP riceve in Tier 1", indent=True)
+    cc = ws.cell(row=r, column=4,
+                 value=f"=MIN($D${rows['total_equity_distrib']}*lp_capital_commitment_pct,$D${rows['pref_threshold']})")
+    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 2
+
+    # Tier 2: GP catchup (20% of profits, if pref met)
+    ws.cell(row=r, column=1, value="Tier 2: GP catchup (to 20% promote)").font = styles.font_subheader
+    r += 1
+
+    rows["gp_catchup"] = r
+    layout.write_row_label(ws, r, "GP catchup amount",
+                           "Catchup GP", indent=True)
+    # Catchup = profits above pref × 0.25 (brings GP to 20% overall)
+    # Formula: catchup = max(0, profit_above_pref × promote_GP / promote_LP)
+    cc = ws.cell(
+        row=r, column=4,
+        value=f"=MAX(0,($D${rows['total_profit']}-$D${rows['pref_threshold']}+$D${rows['total_equity_contrib']}*lp_capital_commitment_pct)"
+              f"*(1-$D${rows['promote_split_lp']})/$D${rows['promote_split_lp']})",
+    )
+    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 2
+
+    # Tier 3: 80/20 split on residual
+    ws.cell(row=r, column=1, value="Tier 3: 80/20 promote split on residual").font = styles.font_subheader
+    r += 1
+
+    rows["lp_tier3"] = r
+    layout.write_row_label(ws, r, "LP share of residual",
+                           "Quota LP residuo", indent=True)
+    cc = ws.cell(
+        row=r, column=4,
+        value=f"=MAX(0,$D${rows['total_equity_distrib']}-$D${rows['lp_tier1']}"
+              f"-$D${rows['gp_catchup']})*$D${rows['promote_split_lp']}",
+    )
+    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    rows["gp_tier3"] = r
+    layout.write_row_label(ws, r, "GP share of residual (promote)",
+                           "Quota GP residuo (promote)", indent=True)
+    cc = ws.cell(
+        row=r, column=4,
+        value=f"=MAX(0,$D${rows['total_equity_distrib']}-$D${rows['lp_tier1']}"
+              f"-$D${rows['gp_catchup']})*(1-$D${rows['promote_split_lp']})",
+    )
+    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 2
+
+    # Totals
+    ws.cell(row=r, column=1, value="Totals by partner (post-waterfall)").font = styles.font_subheader
+    r += 1
+    rows["lp_total_post"] = r
+    layout.write_row_label(ws, r, "LP total post-waterfall",
+                           "LP totale post-waterfall", indent=True)
+    cc = ws.cell(row=r, column=4,
+                 value=f"=$D${rows['lp_tier1']}+$D${rows['lp_tier3']}")
+    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    cc.font = styles.font_subheader
+    r += 1
+
+    rows["gp_total_post"] = r
+    layout.write_row_label(ws, r, "GP total post-waterfall",
+                           "GP totale post-waterfall", indent=True)
+    cc = ws.cell(row=r, column=4,
+                 value=f"=$D${rows['gp_catchup']}+$D${rows['gp_tier3']}")
+    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    cc.font = styles.font_subheader
     r += 1
 
     ws.freeze_panes = "D7"

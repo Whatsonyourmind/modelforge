@@ -6,6 +6,7 @@ from pathlib import Path
 
 from modelforge.builder import styles
 from modelforge.builder.base_workbook import build_base_workbook
+from modelforge.builder.sheets import compliance as compliance_sheet
 from modelforge.builder.sheets import merger_proforma
 
 
@@ -36,6 +37,9 @@ def build(spec, out_path: Path | str, graph_db_path=None):
                    value=f"=IF('DealStructure'!D{deal_refs['new_shares']}>=0,1,0)")
         qc_ws.freeze_panes = "B5"
         qc_ws.print_title_rows = "1:3"
+
+        compliance_ws = wb.create_sheet("ComplianceCheck")
+        compliance_sheet.build(compliance_ws, spec)
 
         return {}
 

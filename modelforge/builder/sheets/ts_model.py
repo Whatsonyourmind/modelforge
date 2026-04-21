@@ -221,14 +221,23 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
+    # v0.7: Debt roll-forward (US-075 from v0.6 PRD)
+    # BOP debt + draws − scheduled repayments = EOP. Opening balance
+    # from spec; draws/repayments default to zero unless spec provides
+    # debt_annual_repayment_eur_m which applies linearly from year 1.
     rows["debt"] = r
     layout.write_row_label(ws, r, "Debt", "Debito finanziario", indent=True)
     cc = ws.cell(row=r, column=4, value=spec.opening_bs.debt_eur_m)
     styles.style_input(cc, number_format=styles.FMT_EUR_M)
-    # For simplicity: hold debt flat at historical level
+    annual_repay = getattr(spec.opening_bs, 'debt_annual_repayment_eur_m', 0.0) or 0.0
     for i in range(1, n):
-        col_idx = ord(layout.year_col(i)) - ord("A") + 1
-        cc = ws.cell(row=r, column=col_idx, value=spec.opening_bs.debt_eur_m)
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        prior = layout.year_col(i - 1)
+        # Roll-forward: prior balance minus scheduled repayment (not below 0)
+        cc = ws.cell(
+            row=r, column=col_idx,
+            value=f"=MAX(${prior}${r}-{annual_repay},0)",
+        )
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 

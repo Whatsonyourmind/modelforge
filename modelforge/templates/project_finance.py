@@ -6,7 +6,7 @@ from pathlib import Path
 
 from modelforge.builder.base_workbook import build_base_workbook
 from modelforge.builder.pf_solver import precompute_cfads_base, solve_dscr_target_debt
-from modelforge.builder.sheets import generic_qc, pf_cashflow, pf_debt, pf_returns
+from modelforge.builder.sheets import compliance as compliance_sheet, generic_qc, pf_cashflow, pf_debt, pf_returns
 
 
 def _apply_dscr_target_sizing(spec) -> float | None:
@@ -93,6 +93,9 @@ def build(spec, out_path: Path | str, graph_db_path=None):
         ]
         qc_ws = wb.create_sheet("QC")
         generic_qc.build(qc_ws, checks)
+        compliance_ws = wb.create_sheet("ComplianceCheck")
+        compliance_sheet.build(compliance_ws, spec)
+
         return {}
 
     return build_base_workbook(spec, out_path, core_sheets, graph_db_path)[:2]

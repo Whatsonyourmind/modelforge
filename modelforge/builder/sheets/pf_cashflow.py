@@ -110,21 +110,71 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         cc.font = styles.font_subheader
     r += 1
 
-    # Tax (simplified on EBITDA; full PF models add D&A shield — omitted for brevity)
+    # v0.6: Full tax walk with D&A and interest shields.
+    # D&A straight-line over the operating period, starting at COD.
+    rows["da"] = r
+    layout.write_row_label(ws, r, "D&A (straight-line)", "A&A (lineare)", indent=True)
+    capex_total = spec.construction.total_capex_eur_m.name
+    for i in range(c):
+        col_idx = ord(layout.year_col(i)) - ord("A") + 1
+        ws.cell(row=r, column=col_idx, value=0)
+    for i in range(c, n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx, value=f"=-{capex_total}/{o}")
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    rows["ebit"] = r
+    layout.write_row_label(ws, r, "EBIT", "EBIT", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"=${col}${rows['ebitda']}+${col}${rows['da']}")
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # Interest expense — placeholder; pf_debt will patch to cross-sheet ref.
+    rows["interest"] = r
+    layout.write_row_label(ws, r, "Interest expense (ref)",
+                           "Oneri finanziari (rif.)", indent=True)
+    for i in range(n):
+        col_idx = ord(layout.year_col(i)) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx, value=0)
+        styles.style_xref(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # Taxable income = EBIT + Interest (Interest is negative)
+    rows["taxable"] = r
+    layout.write_row_label(ws, r, "Taxable income", "Imponibile", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"=${col}${rows['ebit']}+${col}${rows['interest']}")
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # Tax — only positive taxable income is taxed (no NOL carry-forward yet)
     rows["tax"] = r
-    layout.write_row_label(ws, r, "Taxes (on EBITDA proxy)", "Imposte (proxy su EBITDA)", indent=True)
+    layout.write_row_label(ws, r, "Taxes (on EBIT − Interest)",
+                           "Imposte (su EBIT − Oneri)", indent=True)
     for i in range(c):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
         ws.cell(row=r, column=col_idx, value=0)
     for i in range(c, n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,
-                     value=f"=-MAX(${col}${rows['ebitda']},0)*effective_tax_rate")
+                     value=f"=-MAX(${col}${rows['taxable']},0)*effective_tax_rate")
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
+    # CFADS = EBITDA − cash taxes (simplified: no ΔWC, no maint capex for
+    # a merchant solar SPV where both are negligible — documented at
+    # the row label). Per Breaking Into Wall Street / Edward Bodmer
+    # convention, the full formula is
+    #   CFADS = EBITDA − cash taxes − ΔWC − maintenance capex
     rows["cads"] = r  # Cash Available for Debt Service
-    layout.write_row_label(ws, r, "CADS (Cash Available for Debt Service)", "CADS")
+    layout.write_row_label(ws, r, "CFADS (= EBITDA − cash taxes)",
+                           "CFADS (= EBITDA − imposte in cassa)")
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,

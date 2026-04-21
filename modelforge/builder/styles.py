@@ -40,15 +40,20 @@ COLOR_PROJECTED = "FFFFFF"   # White — projected
 # Number formats (bulge-tier)
 # ─────────────────────────────────────────────────────────────────────────────
 
-FMT_EUR_M = '_-* #,##0.0_-;[Red]-* #,##0.0_-;_-* "-"?_-;_-@_-'   # 1 dp, negatives red
-FMT_EUR_K = '_-* #,##0_-;[Red]-* #,##0_-;_-* "-"?_-;_-@_-'       # 0 dp
-FMT_EUR_ACTUAL = '_-* #,##0_-;[Red]-* #,##0_-;_-* "-"?_-;_-@_-'
-FMT_PCT = "0.0%;[Red]-0.0%;0.0%"
-FMT_PCT_2DP = "0.00%;[Red]-0.00%;0.00%"
-FMT_MULTIPLE = "0.00\"x\";[Red]-0.00\"x\";\"-\""
+# v0.7: bulge-tier accounting formats with PARENTHESIS negatives
+# (Goldman/MS/JPM standard: negatives are shown as (1,234) not -1,234,
+# rendered in red for emphasis). Zeros shown as "-" per accounting
+# convention. Previous patterns used leading-minus with red — correct
+# for code but not bracket-style per TTS/Macabacus.
+FMT_EUR_M = '_(* #,##0.0_);[Red]_(* (#,##0.0);_(* "-"??_);_(@_)'      # 1 dp
+FMT_EUR_K = '_(* #,##0_);[Red]_(* (#,##0);_(* "-"??_);_(@_)'          # 0 dp
+FMT_EUR_ACTUAL = '_(* #,##0_);[Red]_(* (#,##0);_(* "-"??_);_(@_)'
+FMT_PCT = "0.0%;[Red](0.0%);0.0%"
+FMT_PCT_2DP = "0.00%;[Red](0.00%);0.00%"
+FMT_MULTIPLE = "0.00\"x\";[Red](0.00\"x\");\"-\""
 FMT_YEARS = "0.0\" y\""
-FMT_INTEGER = "#,##0;[Red]-#,##0;-"
-FMT_BPS = "#,##0\" bps\";[Red]-#,##0\" bps\""
+FMT_INTEGER = "#,##0;[Red](#,##0);-"
+FMT_BPS = "#,##0\" bps\";[Red](#,##0\" bps\")"
 FMT_DATE = "dd-mmm-yyyy"
 FMT_YEAR = "yyyy"
 

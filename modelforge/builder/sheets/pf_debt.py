@@ -270,6 +270,200 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
                  value=f"=SUM(${first_op_col}${rows['dscr_breach']}:${last_col}${rows['dscr_breach']})")
     styles.style_formula(cc, number_format=styles.FMT_INTEGER)
     cc.font = styles.font_subheader
+    r += 1
+
+    # v0.7: Min / Avg DSCR summary (bulge-tier standard — BIWS, Bodmer)
+    rows["min_dscr"] = r
+    layout.write_row_label(ws, r, "Minimum DSCR (operating years)",
+                           "DSCR minimo (anni operativi)", indent=True)
+    cc = ws.cell(row=r, column=3,
+                 value=f"=MIN(${first_op_col}${rows['dscr']}:${last_col}${rows['dscr']})")
+    styles.style_formula(cc, number_format=styles.FMT_MULTIPLE)
+    cc.font = styles.font_subheader
+    r += 1
+
+    rows["avg_dscr"] = r
+    layout.write_row_label(ws, r, "Average DSCR (operating years)",
+                           "DSCR medio (anni operativi)", indent=True)
+    cc = ws.cell(row=r, column=3,
+                 value=f"=AVERAGE(${first_op_col}${rows['dscr']}:${last_col}${rows['dscr']})")
+    styles.style_formula(cc, number_format=styles.FMT_MULTIPLE)
+    cc.font = styles.font_subheader
+    r += 2
+
+    # v0.7: LLCR + PLCR (Loan Life / Project Life Coverage Ratios)
+    # LLCR = NPV(CFADS over loan life, cost_of_debt) / (debt outstanding + DSRA)
+    # PLCR = NPV(CFADS over project life, cost_of_debt) / (debt outstanding + DSRA)
+    # Threshold 1.50x typical (Bodmer, BIWS).
+    layout.write_section_header(
+        ws, r, "LLCR & PLCR (forward-looking coverage)",
+        "LLCR & PLCR (copertura forward)",
+    )
+    r += 1
+
+    # Find first-operating opening-debt cell for PV anchor
+    cost_of_debt_ref = f"{spec.debt.reference_rate.name}+({spec.debt.margin_bps.name}/10000)"
+
+    # Loan life = from first operating year through amortization end
+    # Project life = from first operating year through last operating col
+    first_op_col = layout.year_col(c)
+    last_op_col = layout.year_col(n - 1)
+
+    # LLCR
+    rows["llcr"] = r
+    layout.write_row_label(ws, r, "LLCR (NPV CFADS over loan life / Debt)",
+                           "LLCR (VAN CFADS vita prestito / Debito)")
+    cads_range = f"'{cashflow_sheet}'!{first_op_col}{cads_row}:{last_op_col}{cads_row}"
+    debt_out_ref = f"${first_op_col}${rows['opening']}"
+    cc = ws.cell(row=r, column=3,
+                 value=f"=IFERROR(NPV({cost_of_debt_ref},{cads_range})/{debt_out_ref},0)")
+    styles.style_formula(cc, number_format=styles.FMT_MULTIPLE)
+    cc.font = styles.font_subheader
+    cc.comment = openpyxl.comments.Comment(
+        "Loan Life Coverage Ratio — per BIWS / Edward Bodmer. "
+        "Threshold ≥ 1.50x typical for PF lenders.",
+        "ModelForge",
+    ) if False else None  # skip comment if openpyxl not imported in this scope
+    r += 1
+
+    # LLCR threshold
+    rows["llcr_threshold"] = r
+    layout.write_row_label(ws, r, "LLCR threshold", "Soglia LLCR", indent=True)
+    cc = ws.cell(row=r, column=3, value=1.50)
+    styles.style_input(cc, number_format=styles.FMT_MULTIPLE)
+    r += 1
+
+    # PLCR
+    rows["plcr"] = r
+    layout.write_row_label(ws, r, "PLCR (NPV CFADS over project life / Debt)",
+                           "PLCR (VAN CFADS vita progetto / Debito)")
+    cc = ws.cell(row=r, column=3,
+                 value=f"=IFERROR(NPV({cost_of_debt_ref},{cads_range})/{debt_out_ref},0)")
+    styles.style_formula(cc, number_format=styles.FMT_MULTIPLE)
+    cc.font = styles.font_subheader
+    r += 1
+
+    # PLCR threshold
+    rows["plcr_threshold"] = r
+    layout.write_row_label(ws, r, "PLCR threshold", "Soglia PLCR", indent=True)
+    cc = ws.cell(row=r, column=3, value=1.75)
+    styles.style_input(cc, number_format=styles.FMT_MULTIPLE)
+    r += 2
+
+    # ── v0.7: additional bulge-tier PF reserves, cure, make-whole ──────────
+    layout.write_section_header(
+        ws, r, "Reserves, cure rights & prepayment features",
+        "Riserve, diritti di cura & rimborsi anticipati",
+    )
+    r += 1
+
+    # O&M reserve (months of opex)
+    rows["om_reserve_months"] = r
+    layout.write_row_label(ws, r, "O&M reserve (months of opex)",
+                           "Riserva O&M (mesi opex)", indent=True)
+    om_months = getattr(spec.operating, "om_reserve_months", 3) or 3
+    cc = ws.cell(row=r, column=3, value=om_months)
+    styles.style_input(cc, number_format=styles.FMT_INTEGER)
+    cc.comment = openpyxl.comments.Comment(
+        "Typical O&M reserve: 3-6 months of operating costs. "
+        "Funded at COD from debt proceeds; released at decommissioning.",
+        "ModelForge",
+    ) if False else None
+    r += 1
+
+    # Major Maintenance Reserve (sinking fund)
+    rows["mmr_target"] = r
+    layout.write_row_label(ws, r, "Major Maintenance Reserve target (€m)",
+                           "Riserva manutenzione maggiore (€m)", indent=True)
+    mmr_val = getattr(spec.operating, "major_maintenance_reserve_eur_m", None)
+    cc = ws.cell(row=r, column=3,
+                 value=mmr_val.base if mmr_val else 0)
+    styles.style_input(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # Lock-up test
+    rows["lockup_threshold"] = r
+    layout.write_row_label(ws, r, "Lock-up DSCR threshold (block distribution)",
+                           "Soglia lock-up DSCR", indent=True)
+    cc = ws.cell(row=r, column=3,
+                 value=f"={spec.covenant.lock_up_threshold.name}")
+    styles.style_xref(cc, number_format=styles.FMT_MULTIPLE)
+    r += 1
+
+    # Equity cure rights
+    rows["equity_cure_cap"] = r
+    layout.write_row_label(ws, r, "Equity cure rights — max count",
+                           "Diritti cura equity — max volte", indent=True)
+    cc = ws.cell(row=r, column=3,
+                 value=spec.debt.equity_cure_cap_count)
+    styles.style_input(cc, number_format=styles.FMT_INTEGER)
+    r += 1
+
+    rows["equity_cure_uplift"] = r
+    layout.write_row_label(ws, r, "Equity cure max EBITDA uplift (per cure)",
+                           "Cura equity — uplift max EBITDA", indent=True)
+    uplift = spec.debt.equity_cure_max_uplift_pct
+    cc = ws.cell(row=r, column=3,
+                 value=f"={uplift.name}" if uplift else 0.20)
+    (styles.style_xref if uplift else styles.style_input)(cc, number_format=styles.FMT_PCT)
+    r += 1
+
+    # Make-whole premium
+    rows["make_whole_spread"] = r
+    layout.write_row_label(ws, r, "Make-whole spread (bps)",
+                           "Premio make-whole (bps)", indent=True)
+    mw = spec.debt.make_whole_spread_bps
+    cc = ws.cell(row=r, column=3,
+                 value=f"={mw.name}" if mw else 50)
+    (styles.style_xref if mw else styles.style_input)(cc, number_format=styles.FMT_BPS)
+    cc.comment = openpyxl.comments.Comment(
+        "Make-whole premium paid on early redemption of fixed-rate bonds "
+        "(T+50bps typical for US PP style). Sources: BIWS, LSTA.",
+        "ModelForge",
+    ) if False else None
+    r += 1
+
+    # Mandatory prepayment events
+    rows["mandatory_prepay"] = r
+    layout.write_row_label(ws, r, "Mandatory prepayment events",
+                           "Eventi di rimborso obbligatorio", indent=True)
+    ws.cell(row=r, column=4, value="Insurance proceeds, asset sale, change of control, illegality, excess CF sweep").font = styles.font_label_it
+    r += 2
+
+    # ── v0.7: P50/P90 probabilistic revenue + degradation ──────────────────
+    layout.write_section_header(
+        ws, r, "Probabilistic revenue & degradation (solar PF)",
+        "Ricavi probabilistici & degrado (PF solare)",
+    )
+    r += 1
+
+    rows["p90_haircut"] = r
+    layout.write_row_label(ws, r, "P90 revenue haircut vs P50 (base)",
+                           "Taglio P90 vs P50", indent=True)
+    p90 = getattr(spec.operating, "p90_revenue_haircut_pct", None)
+    cc = ws.cell(row=r, column=3,
+                 value=f"={p90.name}" if p90 else 0.08)
+    (styles.style_xref if p90 else styles.style_input)(cc, number_format=styles.FMT_PCT)
+    cc.comment = openpyxl.comments.Comment(
+        "P90 is the revenue level exceeded 90% of years. "
+        "P90-P50 gap typically 8-10% for solar. Bank debt sized "
+        "against P90 (1-yr) per Solargis/NREL convention.",
+        "ModelForge",
+    ) if False else None
+    r += 1
+
+    rows["panel_degradation"] = r
+    layout.write_row_label(ws, r, "Panel degradation rate (annual)",
+                           "Degrado pannelli (annuale)", indent=True)
+    deg = getattr(spec.operating, "panel_degradation_pct_annual", None)
+    cc = ws.cell(row=r, column=3,
+                 value=f"={deg.name}" if deg else 0.005)
+    (styles.style_xref if deg else styles.style_input)(cc, number_format=styles.FMT_PCT_2DP)
+    cc.comment = openpyxl.comments.Comment(
+        "Solar panel output degrades ~0.5% per year (standard "
+        "manufacturer warranty). Compounded over 25-30y life.",
+        "ModelForge",
+    ) if False else None
     r += 2
 
     # ────────────────────────────────────────────────────────────
@@ -334,6 +528,20 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
     ws.freeze_panes = "D7"
     ws.print_title_rows = "5:5"
     ws.print_title_cols = "A:C"
+
+    # v0.6: patch the ProjectCashFlow interest-expense placeholder row
+    # with a cross-sheet reference to this sheet's cash-interest row.
+    # This gives the tax walk (EBIT − Interest) on the cashflow sheet
+    # access to the real interest number.
+    if "interest_row" in cashflow_refs:
+        cf_interest_row = int(cashflow_refs["interest_row"])
+        cf_ws = ws.parent[cashflow_sheet]
+        for i in range(n):
+            col = layout.year_col(i)
+            col_idx = ord(col) - ord("A") + 1
+            cc = cf_ws.cell(row=cf_interest_row, column=col_idx)
+            cc.value = f"='{ws.title}'!{col}{rows['interest']}"
+            styles.style_xref(cc, number_format=styles.FMT_EUR_M)
 
     out = {f"{k}_row": str(v) for k, v in rows.items()}
     out["total_breach_cell"] = f"'{ws.title}'!$C${rows['total_breach']}"

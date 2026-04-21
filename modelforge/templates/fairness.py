@@ -6,6 +6,7 @@ from pathlib import Path
 
 from modelforge.builder import styles
 from modelforge.builder.base_workbook import build_base_workbook
+from modelforge.builder.sheets import compliance as compliance_sheet
 from modelforge.builder.sheets import fairness_football
 
 
@@ -32,6 +33,9 @@ def build(spec, out_path: Path | str, graph_db_path=None):
         qc_ws.cell(row=6, column=3, value=1 if spec.valuation_ranges else 0)
         qc_ws.freeze_panes = "B5"
         qc_ws.print_title_rows = "1:3"
+
+        compliance_ws = wb.create_sheet("ComplianceCheck")
+        compliance_sheet.build(compliance_ws, spec)
 
         return {}
 
