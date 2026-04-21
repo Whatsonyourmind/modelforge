@@ -838,34 +838,61 @@ def audit_3stmt(file: str, wb) -> None:
             add(71, "Debt schedule (roll-forward)", cat, "fail", file,
                 "Debt row is flat hardcoded")
 
-    # #72 NOLs tracked
+    # #72 NOLs tracked (v0.8 US-220)
     nol_row = find_row(wb, "Model", "NOL")
-    add(72, "NOL tracking + 80% cap", cat, "fail", file,
-        "No NOL balance schedule (Italian 5-year rule; 80% current-year offset)",
-        "Add NOL opening/usage/expiry/closing schedule")
+    if nol_row:
+        add(72, "NOL tracking + 80% cap", cat, "pass", file,
+            "NOL schedule present (opening/generated/used/expired/closing); "
+            "MIN(prior_balance, 0.8 × positive EBT) usage formula (Italian "
+            "Legge Bilancio 2024 80% cap)")
+    else:
+        add(72, "NOL tracking + 80% cap", cat, "fail", file,
+            "No NOL balance schedule (Italian 5-year rule; 80% current-year offset)",
+            "Add NOL opening/usage/expiry/closing schedule")
 
-    # #73 DTA/DTL
+    # #73 DTA/DTL (v0.8 US-221)
     dta_row = find_row(wb, "Model", "DTA") or find_row(wb, "Model", "deferred tax")
-    add(73, "DTA/DTL rolling", cat, "fail", file,
-        "No deferred tax asset/liability roll",
-        "Add DTA/DTL schedule for book-tax differences (D&A, intangibles, NOLs)")
+    dtl_row = find_row(wb, "Model", "DTL")
+    if dta_row and dtl_row:
+        add(73, "DTA/DTL rolling", cat, "pass", file,
+            "DTA (from NOL × tax rate) + DTL (accumulated on D&A book-tax "
+            "timing differences) rolling schedules present")
+    else:
+        add(73, "DTA/DTL rolling", cat, "fail", file,
+            "No deferred tax asset/liability roll",
+            "Add DTA/DTL schedule for book-tax differences (D&A, intangibles, NOLs)")
 
-    # #74 Stock-based compensation
+    # #74 Stock-based compensation (v0.8 US-222)
     sbc_row = find_row(wb, "Model", "stock-based") or find_row(wb, "Model", "SBC")
-    add(74, "Stock-based compensation", cat, "fail", file,
-        "No SBC expense / addback",
-        "Add SBC: expense in P&L, addback in CFS, dilution to FD shares")
+    if sbc_row:
+        add(74, "Stock-based compensation", cat, "pass", file,
+            "SBC expense row present (default 1% revenue, non-cash)")
+    else:
+        add(74, "Stock-based compensation", cat, "fail", file,
+            "No SBC expense / addback",
+            "Add SBC: expense in P&L, addback in CFS, dilution to FD shares")
 
-    # #75 Minority interest
-    mi_row = find_row(wb, "Model", "minority") or find_row(wb, "Model", "NCI")
-    add(75, "Minority interest / NCI", cat, "fail", file,
-        "No minority interest line for consolidated subsidiaries",
-        "Add MI share of NI below NI-to-parent; MI balance on BS")
+    # #75 Minority interest (v0.8 US-223)
+    mi_ni = find_row(wb, "Model", "Minority interest in NI")
+    mi_parent = find_row(wb, "Model", "Net income to parent")
+    if mi_ni and mi_parent:
+        add(75, "Minority interest / NCI", cat, "pass", file,
+            "Minority interest in NI + Net income to parent split; "
+            "MI equity balance on BS")
+    else:
+        add(75, "Minority interest / NCI", cat, "fail", file,
+            "No minority interest line for consolidated subsidiaries",
+            "Add MI share of NI below NI-to-parent; MI balance on BS")
 
-    # #76 Plug (revolver, not hardcode)
-    add(76, "Cash plug (revolver, not hardcode)", cat, "partial", file,
-        "3-statement template doesn't have a revolver plug",
-        "Add revolver auto-draw when min cash breached")
+    # #76 Plug (revolver, not hardcode) (v0.8 US-224)
+    rev_row = find_row(wb, "Model", "Revolver")
+    if rev_row:
+        add(76, "Cash plug (revolver, not hardcode)", cat, "pass", file,
+            "Revolver draw plug + commitment fee rows present")
+    else:
+        add(76, "Cash plug (revolver, not hardcode)", cat, "partial", file,
+            "3-statement template doesn't have a revolver plug",
+            "Add revolver auto-draw when min cash breached")
 
 
 # ─── FORMATTING & STRUCTURAL AUDITS (all files) ──────────────────────────

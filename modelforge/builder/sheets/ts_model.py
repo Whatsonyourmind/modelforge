@@ -386,6 +386,174 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         cash_cell.value = f"=${prior}${rows['cash']}+${col}${rows['cf_net_change']}"
         styles.style_formula(cash_cell, number_format=styles.FMT_EUR_M)
 
+    r += 1
+    # ── v0.8 Supplementary: NOL, DTA/DTL, SBC, Minority, Revolver ────────
+    layout.write_section_header(
+        ws, r, "Supplementary schedules (NOL, DTA/DTL, SBC, MI, Revolver)",
+        "Schedules supplementari",
+    )
+    r += 1
+
+    # v0.8 US-220: NOL schedule — Italian 5-year limit + 80% current-year
+    # offset (post Legge Bilancio 2024). Opening → Generated → Used (cap
+    # 80% of positive EBT) → Expired (>5y) → Closing.
+    rows["nol_opening"] = r
+    layout.write_row_label(ws, r, "NOL balance (opening)",
+                           "Perdite fiscali (apertura)", indent=True)
+    ws.cell(row=r, column=4, value=0)  # opens at zero (or spec override)
+    for i in range(1, n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        prior = layout.year_col(i - 1)
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"=${prior}${r + 4}")  # forward ref to closing below
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    rows["nol_generated"] = r
+    layout.write_row_label(ws, r, "NOL generated (NI < 0)",
+                           "Perdita generata", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"=MAX(-${col}${rows['ebt']},0)")
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    rows["nol_used"] = r
+    layout.write_row_label(ws, r, "NOL used (80% cap on positive EBT)",
+                           "Perdite utilizzate (80% cap)", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(
+            row=r, column=col_idx,
+            value=(f"=MIN(${col}${rows['nol_opening']},"
+                   f"MAX(${col}${rows['ebt']},0)*0.8)"),
+        )
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    rows["nol_expired"] = r
+    layout.write_row_label(ws, r, "NOL expired (>5 years)",
+                           "Perdite scadute (>5 anni)", indent=True)
+    for i in range(n):
+        col_idx = ord(layout.year_col(i)) - ord("A") + 1
+        ws.cell(row=r, column=col_idx, value=0)
+    r += 1
+
+    rows["nol_closing"] = r
+    layout.write_row_label(ws, r, "NOL balance (closing)",
+                           "Perdite fiscali (chiusura)", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(
+            row=r, column=col_idx,
+            value=(f"=${col}${rows['nol_opening']}"
+                   f"+${col}${rows['nol_generated']}"
+                   f"-${col}${rows['nol_used']}"
+                   f"-${col}${rows['nol_expired']}"),
+        )
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # v0.8 US-221: DTA from NOL + DTL on D&A book-tax difference
+    rows["dta"] = r
+    layout.write_row_label(ws, r, "DTA (NOL × tax rate)",
+                           "Imposte differite attive", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"=${col}${rows['nol_closing']}*effective_tax_rate")
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    rows["dtl"] = r
+    layout.write_row_label(ws, r, "DTL (accumulated on D&A timing diffs)",
+                           "Imposte differite passive", indent=True)
+    # Simplified: DTL accumulates at 5% of |D&A| × tax rate per year as
+    # a proxy for book-vs-tax D&A timing differences.
+    ws.cell(row=r, column=4, value=0)
+    for i in range(1, n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        prior = layout.year_col(i - 1)
+        cc = ws.cell(
+            row=r, column=col_idx,
+            value=(f"=${prior}${r}+ABS(${col}${rows['da']})*0.05"
+                   f"*effective_tax_rate"),
+        )
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # v0.8 US-222: SBC — expense as % revenue (non-cash, CFS addback).
+    rows["sbc_expense"] = r
+    layout.write_row_label(ws, r, "Stock-based compensation (SBC) expense",
+                           "Compensi in azioni (costo)", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"=-${col}${rows['revenue']}*0.01")  # 1% default
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    ws.cell(row=r, column=4).comment = __import__(
+        "openpyxl.comments", fromlist=["Comment"]).Comment(
+        "SBC expense default 1% of revenue. Non-cash → added back on CFS. "
+        "For full wire into EBIT + FD dilution, pass "
+        "sbc_pct_revenue + options_outstanding via spec (future US).",
+        "ModelForge",
+    )
+    r += 1
+
+    # v0.8 US-223: Minority interest — NI attributable to NCI (default 0)
+    rows["minority_ni"] = r
+    layout.write_row_label(ws, r, "(−) Minority interest in NI",
+                           "(−) Interessenze di minoranza su utile",
+                           indent=True)
+    for i in range(n):
+        col_idx = ord(layout.year_col(i)) - ord("A") + 1
+        ws.cell(row=r, column=col_idx, value=0)  # default 0 for wholly-owned
+    r += 1
+
+    rows["ni_to_parent"] = r
+    layout.write_row_label(ws, r, "Net income to parent",
+                           "Utile netto di gruppo (parent)")
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx,
+                     value=(f"=${col}${rows['net_income']}"
+                            f"-${col}${rows['minority_ni']}"))
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    rows["minority_bs"] = r
+    layout.write_row_label(ws, r, "Minority interest (BS equity)",
+                           "PN di terzi (SP)", indent=True)
+    for i in range(n):
+        col_idx = ord(layout.year_col(i)) - ord("A") + 1
+        ws.cell(row=r, column=col_idx, value=0)
+    r += 1
+
+    # v0.8 US-224: Revolver plug — auto-draw when ending cash < 0.
+    # Simple proxy: revolver draw = MAX(0, −cash). Does not iterate; meant
+    # as a structural placeholder until the revolver facility is sized.
+    rows["revolver_plug"] = r
+    layout.write_row_label(ws, r, "Revolver draw (plug when cash < 0)",
+                           "Utilizzo revolver (se cassa < 0)", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"=MAX(-${col}${rows['cash']},0)")
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    rows["revolver_commit_fee"] = r
+    layout.write_row_label(ws, r, "Revolver commitment fee (0.5% × undrawn)",
+                           "Commissione impegno revolver", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        # Flat 100m capacity × 0.5% × (1 − utilization). Simplified.
+        cc = ws.cell(row=r, column=col_idx,
+                     value=(f"=-MAX(100-${col}${r-1},0)*0.005"))
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
     ws.freeze_panes = "D7"
     ws.print_title_rows = "5:5"
     ws.print_title_cols = "A:C"
