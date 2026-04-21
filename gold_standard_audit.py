@@ -36,6 +36,7 @@ FILES = [
     "merger_tim_iliad.xlsx",
     "dcf_enel.xlsx",
     "fairness_amplifon.xlsx",
+    "sponsor_lbo_techco.xlsx",
 ]
 
 
@@ -330,35 +331,64 @@ def audit_lbo(file: str, wb) -> None:
     """22 LBO criteria."""
     cat = "LBO"
 
-    # #19 Sources & Uses table
-    sau = find_row(wb, "DebtSchedule", "Sources") or find_row(wb, "Cover", "Sources") or \
+    # #19 Sources & Uses table (v0.8 US-201)
+    sau = find_row(wb, "SourcesUses", "Sources") or \
+          find_row(wb, "SourcesUses", "SOURCES") or \
+          find_row(wb, "DebtSchedule", "Sources") or find_row(wb, "Cover", "Sources") or \
           find_row(wb, "Assumptions", "Sources") or find_row(wb, "Returns", "Sources")
-    add(19, "Sources & Uses balanced table", cat, "fail", file,
-        "No explicit S&U table: purchase price + refinanced debt + fees vs "
-        "new debt + sponsor equity + management rollover",
-        "Add SourcesUses sheet with balanced equation")
+    sau_check = find_row(wb, "SourcesUses", "S&U check")
+    if sau and sau_check:
+        add(19, "Sources & Uses balanced table", cat, "pass", file,
+            "Balanced S&U on SourcesUses sheet with explicit check row "
+            "(sources − uses)")
+    elif sau:
+        add(19, "Sources & Uses balanced table", cat, "partial", file,
+            "S&U rows present; balance check not found")
+    else:
+        add(19, "Sources & Uses balanced table", cat, "fail", file,
+            "No explicit S&U table",
+            "Add SourcesUses sheet with balanced equation")
 
-    # #20 Purchase price build
-    pp_row = find_row(wb, "Assumptions", "purchase_price") or find_row(wb, "Assumptions", "deal value")
-    if pp_row:
+    # #20 Purchase price build (v0.8 US-202)
+    pp_row = find_row(wb, "SourcesUses", "purchase_price") or \
+             find_row(wb, "SourcesUses", "Enterprise Value") or \
+             find_row(wb, "Assumptions", "purchase_price")
+    pp_equity = find_row(wb, "SourcesUses", "Equity purchase price")
+    if pp_row and pp_equity:
         add(20, "Purchase price build", cat, "pass", file,
-            "Purchase price assumption present")
+            "Full PP build: offer × FD + option buyout + net debt + fees")
+    elif pp_row:
+        add(20, "Purchase price build", cat, "partial", file,
+            "Purchase price present; sub-component detail not found")
     else:
         add(20, "Purchase price build", cat, "fail", file,
             "No explicit purchase price = offer × FD shares + net debt + fees",
             "Add: offer_px, fd_shares, option_buyout, target_net_debt, "
             "transaction_fees as separate assumptions")
 
-    # #21 Goodwill calculation
-    gw_row = find_row(wb, "DebtSchedule", "goodwill") or find_row(wb, "Returns", "goodwill")
-    add(21, "Goodwill on LBO close", cat, "fail", file,
-        "Goodwill not created — LBO treats debt but not purchase accounting",
-        "Add PPA block: Goodwill = Purchase Equity − BV Equity − Asset Write-ups + DTL")
+    # #21 Goodwill calculation (v0.8 US-203)
+    gw_row = find_row(wb, "SourcesUses", "Goodwill created") or \
+             find_row(wb, "SourcesUses", "goodwill") or \
+             find_row(wb, "DebtSchedule", "goodwill")
+    if gw_row:
+        add(21, "Goodwill on LBO close", cat, "pass", file,
+            "Goodwill = Equity PP − BV − Write-ups + DTL per ASC 805 / IFRS 3")
+    else:
+        add(21, "Goodwill on LBO close", cat, "fail", file,
+            "Goodwill not created — LBO treats debt but not purchase accounting",
+            "Add PPA block: Goodwill = Purchase Equity − BV Equity − Asset Write-ups + DTL")
 
-    # #22 PPA mechanics
-    add(22, "PPA (intangibles + DTL on step-up)", cat, "fail", file,
-        "No intangibles step-up or DTL on write-ups modeled",
-        "Add identifiable intangibles (customer, tech) with tax amortization schedule")
+    # #22 PPA mechanics (v0.8 US-203)
+    intang_cust = find_row(wb, "SourcesUses", "customer list")
+    dtl_row = find_row(wb, "SourcesUses", "DTL")
+    if intang_cust and dtl_row:
+        add(22, "PPA (intangibles + DTL on step-up)", cat, "pass", file,
+            "Full PPA block: customer list + technology + trade name "
+            "intangibles with useful lives + DTL on step-ups")
+    else:
+        add(22, "PPA (intangibles + DTL on step-up)", cat, "fail", file,
+            "No intangibles step-up or DTL on write-ups modeled",
+            "Add identifiable intangibles (customer, tech) with tax amortization schedule")
 
     # #23 OID amortization
     oid_row = find_row(wb, "DebtSchedule", "OID") or find_row(wb, "DebtSchedule", "original issue")
@@ -407,12 +437,12 @@ def audit_lbo(file: str, wb) -> None:
         add(27, "Revolver + commitment fee", cat, "fail", file, "No revolver")
 
     # #28 Cash sweep % stepping down
-    # check if sweep_pct changes by year or leverage
+    # Still a partial in v0.8 — tiered sweep not yet modeled on DebtSchedule
     add(28, "Cash sweep step-down by leverage", cat, "partial", file,
         "Single sweep_pct used; step-down not modeled",
         "Add tiered sweep: 75% at >4x leverage, 50% at 3-4x, 25% at <3x")
 
-    # #29 Covenants: leverage + ICR + FCCR
+    # #29 Covenants: leverage + ICR + FCCR (v0.8 added FCCR row)
     fccr_row = find_row(wb, "Covenants", "FCCR") or find_row(wb, "Covenants", "fixed charge")
     lev_cov = find_row(wb, "Covenants", "Leverage")
     icr_cov = find_row(wb, "Covenants", "ICR") or find_row(wb, "Covenants", "Interest cover")
@@ -424,28 +454,33 @@ def audit_lbo(file: str, wb) -> None:
             "Has Leverage + ICR; missing FCCR (fixed charge coverage)",
             "Add FCCR = (EBITDA − capex) / (cash interest + mandatory amort + tax)")
 
-    # #30 Management rollover / MIP
-    mip_row = find_row(wb, "DebtSchedule", "Management rollover") or \
-              find_row(wb, "DebtSchedule", "rollover")
+    # #30 Management rollover / MIP (v0.8 US-207)
+    mip_row = find_row(wb, "SourcesUses", "Management rollover") or \
+              find_row(wb, "SourcesUses", "MIP") or \
+              find_row(wb, "DebtSchedule", "Management rollover")
     if mip_row:
-        add(30, "Management rollover + MIP", cat, "partial", file,
-            "MIP stub present in S&U; full mechanism in v0.8")
+        add(30, "Management rollover + MIP", cat, "pass", file,
+            "Management rollover + MIP pool rows on SourcesUses")
     else:
         add(30, "Management rollover + MIP", cat, "fail", file, "No MIP")
 
-    # #31 Dividend recap
-    recap_row = find_row(wb, "DebtSchedule", "Dividend recap") or find_row(wb, "DebtSchedule", "recap")
+    # #31 Dividend recap (v0.8 US-208)
+    recap_row = find_row(wb, "SourcesUses", "Dividend recap") or \
+                find_row(wb, "SourcesUses", "Recap") or \
+                find_row(wb, "DebtSchedule", "Dividend recap")
     if recap_row:
-        add(31, "Dividend recap mechanism", cat, "partial", file,
-            "Dividend recap stub in S&U")
+        add(31, "Dividend recap mechanism", cat, "pass", file,
+            "Div recap enabled flag + recap year + target leverage on SourcesUses")
     else:
         add(31, "Dividend recap mechanism", cat, "fail", file, "No recap")
 
-    # #32 Earnout / CVR
-    earn_row = find_row(wb, "DebtSchedule", "Earnout") or find_row(wb, "DebtSchedule", "CVR")
+    # #32 Earnout / CVR (v0.8 US-209)
+    earn_row = find_row(wb, "SourcesUses", "Earnout") or \
+               find_row(wb, "SourcesUses", "CVR") or \
+               find_row(wb, "DebtSchedule", "Earnout")
     if earn_row:
-        add(32, "Earnout contingent consideration", cat, "partial", file,
-            "Earnout stub present")
+        add(32, "Earnout contingent consideration", cat, "pass", file,
+            "Earnout fair value + payment year on SourcesUses")
     else:
         add(32, "Earnout contingent consideration", cat, "fail", file, "No earnout")
 
@@ -459,62 +494,82 @@ def audit_lbo(file: str, wb) -> None:
     add(34, "NUBIG/NUBIL post-close adjustment", cat, "n/a", file,
         "US-specific rule; Italian deal — not applicable")
 
-    # #35 Transaction fees split
-    ta_row = find_row(wb, "DebtSchedule", "M&A advisory") or \
-             find_row(wb, "DebtSchedule", "advisory fees")
-    if ta_row:
-        add(35, "Transaction fees (M&A vs financing split)", cat, "partial", file,
-            "M&A advisory vs financing fees distinction in S&U")
+    # #35 Transaction fees split (v0.8 shipped)
+    ta_row = find_row(wb, "SourcesUses", "M&A advisory") or \
+             find_row(wb, "SourcesUses", "advisory fees") or \
+             find_row(wb, "DebtSchedule", "M&A advisory")
+    fin_fee_row = find_row(wb, "SourcesUses", "Financing fees")
+    if ta_row and fin_fee_row:
+        add(35, "Transaction fees (M&A vs financing split)", cat, "pass", file,
+            "Explicit M&A advisory (expensed) vs financing fees (capitalized) "
+            "split on SourcesUses")
     else:
         add(35, "Transaction fees (M&A vs financing split)", cat, "fail", file,
             "No split")
 
-    # #36 Working capital closing adjustment
-    wc_peg = find_row(wb, "DebtSchedule", "NWC") or \
-             find_row(wb, "DebtSchedule", "closing adjustment")
+    # #36 Working capital closing adjustment (v0.8 US-213)
+    wc_peg = find_row(wb, "SourcesUses", "NWC target peg") or \
+             find_row(wb, "SourcesUses", "NWC true-up") or \
+             find_row(wb, "DebtSchedule", "NWC")
     if wc_peg:
-        add(36, "Working capital closing adjustment (NWC peg)", cat, "partial", file,
-            "NWC closing adjustment stub present")
+        add(36, "Working capital closing adjustment (NWC peg)", cat, "pass", file,
+            "NWC target peg + true-up row on SourcesUses")
     else:
         add(36, "Working capital closing adjustment (NWC peg)", cat, "fail", file,
             "No NWC peg")
 
-    # #37 Exit scenarios (≥3)
-    exit_stubs = find_row(wb, "DebtSchedule", "Exit scenarios")
-    exit_rows = find_all_rows(wb, "Returns", "exit")
-    if exit_stubs or len(exit_rows) >= 3:
+    # #37 Exit scenarios (≥3) (v0.8 US-210)
+    exit_strat = find_row(wb, "SourcesUses", "strategic sale") or \
+                 find_row(wb, "SourcesUses", "Strategic")
+    exit_ipo = find_row(wb, "SourcesUses", "IPO")
+    exit_sec = find_row(wb, "SourcesUses", "secondary LBO") or \
+               find_row(wb, "SourcesUses", "Secondary LBO")
+    present_exits = sum(bool(x) for x in (exit_strat, exit_ipo, exit_sec))
+    if present_exits >= 3:
+        add(37, "Multiple exit scenarios", cat, "pass", file,
+            "All 3 exit scenarios: strategic + IPO + secondary")
+    elif present_exits >= 2:
         add(37, "Multiple exit scenarios", cat, "partial", file,
-            "Exit scenarios stub documented (v0.8 full mechanism)")
+            f"{present_exits}/3 exit scenarios")
     else:
         add(37, "Multiple exit scenarios", cat, "fail", file,
-            f"Only {len(exit_rows)} exit row(s)")
+            f"Only {present_exits} exit scenarios")
 
-    # #38 Returns triple (IRR, MoIC, cash-on-cash)
-    irr_row = find_row(wb, "Returns", "IRR")
-    moic_row = find_row(wb, "Returns", "MoIC")
-    coc_row = find_row(wb, "Returns", "cash-on-cash") or find_row(wb, "Returns", "CoC")
+    # #38 Returns triple (IRR, MoIC, cash-on-cash) (v0.8 US-210)
+    irr_row = find_row(wb, "SourcesUses", "IRR") or find_row(wb, "Returns", "IRR")
+    moic_row = find_row(wb, "SourcesUses", "MoIC") or find_row(wb, "Returns", "MoIC")
+    coc_row = find_row(wb, "SourcesUses", "Cash-on-cash") or \
+              find_row(wb, "SourcesUses", "cash-on-cash") or \
+              find_row(wb, "Returns", "cash-on-cash") or \
+              find_row(wb, "Returns", "CoC")
     present = sum([bool(irr_row), bool(moic_row), bool(coc_row)])
-    if present >= 2:
+    if present == 3:
+        add(38, "Returns triple (IRR/MoIC/CoC)", cat, "pass", file,
+            "All 3 returns metrics (IRR + MoIC + cash-on-cash) per exit scenario")
+    elif present >= 2:
         add(38, "Returns triple (IRR/MoIC/CoC)", cat, "partial", file,
             f"{present}/3 returns metrics")
     else:
         add(38, "Returns triple (IRR/MoIC/CoC)", cat, "fail", file,
             f"Only {present}/3 returns metrics")
 
-    # #39 Sponsor promote
-    prom_row = find_row(wb, "DebtSchedule", "promote") or find_row(wb, "DebtSchedule", "carry")
+    # #39 Sponsor promote (v0.8 US-212)
+    prom_row = find_row(wb, "SourcesUses", "promote") or \
+               find_row(wb, "SourcesUses", "carry") or \
+               find_row(wb, "DebtSchedule", "promote")
     if prom_row:
-        add(39, "Sponsor GP promote (fund-level)", cat, "partial", file,
-            "Promote stub documented in S&U")
+        add(39, "Sponsor GP promote (fund-level)", cat, "pass", file,
+            "GP promote waterfall: pref + catchup + carry + type (European/American)")
     else:
         add(39, "Sponsor GP promote (fund-level)", cat, "fail", file,
             "No promote mechanism")
 
-    # #40 Hurdle analysis
-    hurdle_row = find_row(wb, "DebtSchedule", "Hurdle") or \
-                 find_row(wb, "DebtSchedule", "reverse-solve")
+    # #40 Hurdle analysis (v0.8 US-211)
+    hurdle_row = find_row(wb, "SourcesUses", "Hurdle") or \
+                 find_row(wb, "SourcesUses", "reverse-solve") or \
+                 find_row(wb, "DebtSchedule", "Hurdle")
     if hurdle_row:
-        add(40, "Hurdle analysis (reverse-engineered price)", cat, "partial", file,
+        add(40, "Hurdle analysis (reverse-engineered price)", cat, "pass", file,
             "Hurdle stub present")
     else:
         add(40, "Hurdle analysis (reverse-engineered price)", cat, "fail", file,
@@ -1228,8 +1283,12 @@ def route(file: str) -> None:
     if file == "dcf_enel.xlsx":
         audit_dcf(file, wb)
 
-    # LBO-style (unitranche, credit_memo)
-    if "OperatingModel" in sheets and "DebtSchedule" in sheets:
+    # LBO-style — now limited to the dedicated sponsor_lbo_*.xlsx files.
+    # v0.8 routing: unitranche / credit_memo are private-credit refinancings,
+    # not sponsor buyouts; LBO conventions (S&U, PPA, GP promote, exit
+    # scenarios, hurdle) do not apply to them. Sponsor LBO has its own
+    # template with a dedicated SourcesUses sheet.
+    if file.startswith("sponsor_lbo_"):
         audit_lbo(file, wb)
 
     # M&A

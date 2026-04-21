@@ -191,6 +191,8 @@ TEMPLATE_SECTIONS = {
     "dcf": _dcf_sections,
     "merger": _merger_sections,
     "fairness": _fairness_sections,
+    # v0.8: sponsor_lbo reuses unitranche's section layout (same spec shape)
+    "sponsor_lbo": _unitranche_sections,
 }
 
 
