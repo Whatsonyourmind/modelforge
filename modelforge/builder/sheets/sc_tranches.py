@@ -181,6 +181,44 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
             "coupon": coupon_row, "principal": princ_row, "cf": inv_cf_row, "irr": irr_row,
         })
 
+    # v0.8 US-260/261: Principal Deficiency Ledger (PDL) + strict priority
+    # waterfall summary block. Audit criterion #101 requires PDL row on
+    # Tranches (or CollectionWaterfall) sheet.
+    r += 1
+    layout.write_section_header(
+        ws, r, "Principal Deficiency Ledger (PDL) & priority waterfall",
+        "Registro deficit principale (PDL) e waterfall",
+    )
+    r += 1
+    layout.write_row_label(ws, r,
+                           "PDL (cumulative losses allocated to tranches)",
+                           "PDL (perdite cumulative allocate alle tranche)",
+                           indent=True)
+    # Sum cumulative tranche losses across all tranches
+    if tranche_rows:
+        loss_terms = [f"'Tranches'!D{tr['loss']}" for tr in tranche_rows]
+        formula = "=" + "+".join(loss_terms) if loss_terms else "=0"
+    else:
+        formula = "=0"
+    cc = ws.cell(row=r, column=4, value=formula)
+    styles.style_formula(cc, number_format=styles.FMT_PCT_2DP)
+    r += 1
+    layout.write_row_label(ws, r,
+                           "Priority of payments (strict senior→mezz→equity)",
+                           "Ordine pagamenti (senior→mezz→equity)",
+                           indent=True)
+    ws.cell(row=r, column=4,
+            value="Interest: Senior → Mezz → Equity | Principal: same order"
+            ).font = styles.font_label_it
+    r += 1
+    layout.write_row_label(ws, r,
+                           "Trigger events (acceleration / reversion)",
+                           "Eventi trigger (accelerazione / reversione)",
+                           indent=True)
+    ws.cell(row=r, column=4,
+            value="PDL > 50% equity NV, servicer default, subordination breach"
+            ).font = styles.font_label_it
+
     ws.freeze_panes = "D7"
     ws.print_title_rows = "5:5"
     ws.print_title_cols = "A:C"
