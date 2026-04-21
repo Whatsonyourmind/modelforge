@@ -314,6 +314,9 @@ DEFAULT_FACTORS_BY_TYPE: dict[str, list[SensitivityFactor]] = {
     "dcf": _DCF,
     "merger": _MERGER,
     "fairness": _FAIRNESS,
+    # v0.8: sponsor_lbo shares unitranche-style operating drivers plus
+    # debt structure; default factor list mirrors unitranche credit.
+    "sponsor_lbo": _UNITRANCHE_CREDIT,
 }
 
 
