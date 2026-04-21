@@ -2973,10 +2973,10 @@
     "criterion_id": 47,
     "criterion_name": "Cross-over (breakeven synergy)",
     "category": "M&A",
-    "severity": "fail",
+    "severity": "pass",
     "file": "merger_tim_iliad.xlsx",
-    "observation": "No cross-over analysis (minimum synergy that makes deal EPS-neutral Y1)",
-    "fix": "Add reverse-solve: min synergy such that pro-forma EPS \u2265 standalone EPS in Y1"
+    "observation": "Reverse-solve row: additional pre-tax synergy to reach EPS-neutral",
+    "fix": ""
   },
   {
     "criterion_id": 48,
@@ -3009,19 +3009,19 @@
     "criterion_id": 51,
     "criterion_name": "Contribution analysis (rev/EBITDA/NI vs equity ownership)",
     "category": "M&A",
-    "severity": "fail",
+    "severity": "pass",
     "file": "merger_tim_iliad.xlsx",
-    "observation": "No contribution table",
-    "fix": "Add contrib table: acquirer % revenue/EBITDA/NI vs % equity ownership"
+    "observation": "Contribution analysis block: acquirer vs target rev/EBITDA/NI% vs post-deal equity ownership",
+    "fix": ""
   },
   {
     "criterion_id": 52,
     "criterion_name": "Exchange ratio fixed vs floating + collar",
     "category": "M&A",
-    "severity": "fail",
+    "severity": "pass",
     "file": "merger_tim_iliad.xlsx",
-    "observation": "Stock consideration uses implicit fixed exchange at deal price",
-    "fix": "Add exchange_ratio_mode: fixed (with collar bounds) or floating"
+    "observation": "Exchange ratio + collar bounds + walk-away threshold emitted",
+    "fix": ""
   },
   {
     "criterion_id": 77,
@@ -3047,7 +3047,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "merger_tim_iliad.xlsx",
-    "observation": "40 named ranges defined",
+    "observation": "41 named ranges defined",
     "fix": ""
   },
   {
