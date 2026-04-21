@@ -63,6 +63,62 @@ target_ebitda_eur_m:
   confidence: H
   source_id: S-001
 
+target_revenue_eur_m:
+  id: A-002
+  name: target_revenue_eur_m
+  label:
+    en: Target revenue (€m, FY last)
+    it: Ricavi target (€m, FY ultimo)
+  unit: eur_m
+  base: 2300.0
+  worst: 2150.0
+  best: 2450.0
+  rationale: FY25 actual revenue (illustrative)
+  confidence: H
+  source_id: S-001
+
+net_debt_eur_m_assum:
+  id: A-003
+  name: net_debt_eur_m_assum
+  label:
+    en: Target net debt (€m)
+    it: PFN target (€m)
+  unit: eur_m
+  base: 950.0
+  worst: 950.0
+  best: 950.0
+  rationale: FY25 reported net debt (illustrative)
+  confidence: H
+  source_id: S-001
+
+shares_outstanding_m_assum:
+  id: A-004
+  name: shares_outstanding_m_assum
+  label:
+    en: Shares outstanding (m)
+    it: Azioni in circolazione (m)
+  unit: x
+  base: 226.0
+  worst: 226.0
+  best: 226.0
+  rationale: Diluted shares outstanding (illustrative)
+  confidence: H
+  source_id: S-001
+
+current_price_eur_assum:
+  id: A-005
+  name: current_price_eur_assum
+  label:
+    en: Current share price (€)
+    it: Prezzo corrente (€)
+  unit: eur
+  base: 25.00
+  worst: 25.00
+  best: 25.00
+  rationale: Spot as of valuation date (illustrative)
+  confidence: H
+  source_id: S-002
+
 trading_comps:
   - name: Sonova Holding
     ev_ebitda_x: 14.5
@@ -93,24 +149,25 @@ transaction_comps:
 
 valuation_ranges:
   - method: Trading comps (EV/EBITDA median ±1x)
-    ev_low_eur_m: 6890.0
-    ev_high_eur_m: 7950.0
-    note: 13.0x–15.0x median with ±1x
+    derive_from: trading_ebitda
+    spread_x: 1.0
+    note: Median trading EV/EBITDA ±1x, applied to target EBITDA
     source_id: S-002
   - method: Transaction comps (EV/EBITDA median ±1x)
-    ev_low_eur_m: 7420.0
-    ev_high_eur_m: 8480.0
-    note: 14.0x–16.0x range on precedent deals
+    derive_from: transaction_ebitda
+    spread_x: 1.0
+    note: Median precedent EV/EBITDA ±1x, applied to target EBITDA
     source_id: S-002
   - method: DCF (WACC 8.0–9.0%, g 1.5–2.5%)
     ev_low_eur_m: 7200.0
     ev_high_eur_m: 9100.0
-    note: Base case run-rate EBITDA with 5Y forecast
+    note: Base case run-rate EBITDA with 5Y forecast — DCF shadow block pending v0.7
   - method: LBO (5-year, target IRR 20–25%)
     ev_low_eur_m: 6200.0
     ev_high_eur_m: 7400.0
-    note: Sponsor-affordability view
+    note: Sponsor-affordability view — LBO shadow block pending v0.7
   - method: 52-week trading range
-    ev_low_eur_m: 5850.0
-    ev_high_eur_m: 7060.0
-    note: Low €22 — high €29 market observations
+    derive_from: trading_range_52w
+    price_low_eur: 22.0
+    price_high_eur: 29.0
+    note: Shares × 52W price range + net debt

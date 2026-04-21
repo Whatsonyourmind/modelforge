@@ -64,6 +64,10 @@ def build_workbook(
     default = wb.active
     wb.remove(default)
 
+    wb.calculation.iterate = True
+    wb.calculation.iterateCount = 100
+    wb.calculation.iterateDelta = 0.001
+
     # Create all sheets up front in the right order
     sheet_objects = {name: wb.create_sheet(title=name) for name in SHEET_ORDER}
 

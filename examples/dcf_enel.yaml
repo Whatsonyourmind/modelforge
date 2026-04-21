@@ -59,6 +59,120 @@ net_debt_source_id: S-001
 shares_outstanding_m: 10166.0
 valuation_date_price_eur: 6.45
 
+# v0.6: wrap bridge quantities as Assumptions so the Valuation sheet
+# references named ranges with source attribution instead of hardcoded
+# literals. The bare-scalar fields above are retained for backwards
+# compatibility but the builder now prefers these.
+net_debt_assum:
+  id: A-501
+  name: net_debt_assum
+  label: {en: Net debt (€m), it: Posizione finanziaria netta (€m)}
+  unit: eur_m
+  base: 60000.0
+  worst: 60000.0
+  best: 60000.0
+  rationale: FY25 reported net financial debt — Enel IR p.12
+  confidence: H
+  source_id: S-001
+
+shares_outstanding_assum:
+  id: A-502
+  name: shares_outstanding_assum
+  label: {en: Shares outstanding (m), it: Azioni in circolazione (m)}
+  unit: x
+  base: 10166.0
+  worst: 10166.0
+  best: 10166.0
+  rationale: Diluted share count as reported in FY25 filings
+  confidence: H
+  source_id: S-001
+
+current_price_assum:
+  id: A-503
+  name: current_price_assum
+  label: {en: Current share price (€), it: Prezzo corrente (€)}
+  unit: eur
+  base: 6.45
+  worst: 6.45
+  best: 6.45
+  rationale: Closing price on valuation date (15-Apr-2026)
+  confidence: H
+  source_id: S-003
+
+# v0.7: full EV→Equity bridge (Footnotes Analyst standard for fairness
+# opinions). Enel has material minorities (Enel Americas, Endesa stakes),
+# pension deficit, no preferred, and IFRS 16 lease liability from network
+# concessions.
+minority_interest_assum:
+  id: A-504
+  name: minority_interest_assum
+  label: {en: Minority interest (€m), it: Interessenze di minoranza (€m)}
+  unit: eur_m
+  base: 14000.0
+  worst: 14000.0
+  best: 14000.0
+  rationale: "Enel FY25 NCI from Enel Americas (35.5% float) + Endesa minority — from FY25 consolidated BS"
+  confidence: H
+  source_id: S-001
+
+pension_deficit_assum:
+  id: A-505
+  name: pension_deficit_assum
+  label: {en: Pension deficit — unfunded (€m), it: Deficit pensionistico (€m)}
+  unit: eur_m
+  base: 1800.0
+  worst: 2200.0
+  best: 1500.0
+  rationale: Defined-benefit plan unfunded portion per IAS 19 disclosures
+  confidence: M
+  source_id: S-001
+
+preferred_equity_assum:
+  id: A-506
+  name: preferred_equity_assum
+  label: {en: Preferred equity (€m), it: Azioni privilegiate (€m)}
+  unit: eur_m
+  base: 0.0
+  worst: 0.0
+  best: 0.0
+  rationale: Enel has no preferred stock outstanding
+  confidence: H
+  source_id: S-001
+
+cross_holdings_assum:
+  id: A-507
+  name: cross_holdings_assum
+  label: {en: Cross-holdings / investments at FV (€m), it: Partecipazioni (€m)}
+  unit: eur_m
+  base: 2500.0
+  worst: 2000.0
+  best: 3000.0
+  rationale: Associates and JVs accounted for at equity method — mark-to-market adjustment
+  confidence: M
+  source_id: S-001
+
+lease_liability_ifrs16_assum:
+  id: A-508
+  name: lease_liability_ifrs16_assum
+  label: {en: IFRS 16 lease liability (€m), it: Passività leasing IFRS 16 (€m)}
+  unit: eur_m
+  base: 4800.0
+  worst: 4800.0
+  best: 4800.0
+  rationale: IFRS 16 right-of-use lease liability — subtracted from EV because EBITDA is post-IFRS 16 (includes ROU amortization in D&A)
+  confidence: H
+  source_id: S-001
+
+# Mid-year convention (Macabacus default for non-seasonal names).
+mid_year_convention: true
+
+# v0.7: stub-period if valuation date falls mid-fiscal-year.
+# 365 = full year (default). Set to e.g. 230 if valuing in May mid-year.
+stub_period_days: 365
+
+# v0.7: two-stage fade period (0 = no fade, single-stage).
+fade_years: 0
+
 horizon:
   historical_years: 3
   projection_years: 5
@@ -138,6 +252,73 @@ wacc:
     best: 0.26
     rationale: IRES 24% + IRAP 3.9% weighted
     confidence: H
+  # v0.7: Damodaran CRP decomposition (mature + CRP × λ)
+  mature_erp:
+    id: A-007
+    name: mature_erp
+    label: {en: Mature-market ERP, it: ERP mercato maturo}
+    unit: pct
+    base: 0.0423
+    worst: 0.0500
+    best: 0.0400
+    rationale: Damodaran Jan 2026 mature ERP (US-anchored)
+    confidence: H
+    source_id: S-002
+  sovereign_default_spread:
+    id: A-008
+    name: sovereign_default_spread
+    label: {en: Italy sovereign default spread, it: Spread sovrano Italia}
+    unit: pct
+    base: 0.0165
+    worst: 0.0220
+    best: 0.0120
+    rationale: BTP-Bund 10Y spread (Italy default spread proxy)
+    confidence: H
+    source_id: S-003
+  equity_bond_vol_ratio:
+    id: A-009
+    name: equity_bond_vol_ratio
+    label: {en: σ_equity / σ_bond ratio, it: Rapporto σ}
+    unit: x
+    base: 1.50
+    worst: 1.60
+    best: 1.40
+    rationale: Damodaran methodology — equity vol 1.5x bond vol typical for DM
+    confidence: M
+    source_id: S-002
+  lambda_country_exposure:
+    id: A-010
+    name: lambda_country_exposure
+    label: {en: Lambda (country exposure), it: Lambda esposizione paese}
+    unit: x
+    base: 0.65
+    worst: 0.75
+    best: 0.55
+    rationale: Enel ~65% revenue Italy; 35% international (Iberia, LATAM)
+    confidence: M
+    source_id: S-001
+  # v0.7: Hamada comparable-beta analysis — 5 EU utilities
+  comparable_betas:
+    - name: E.ON SE
+      beta_levered: 0.78
+      debt_to_equity: 1.05
+      marginal_tax_rate: 0.30
+    - name: Iberdrola S.A.
+      beta_levered: 0.82
+      debt_to_equity: 0.92
+      marginal_tax_rate: 0.25
+    - name: EDF (Electricite de France)
+      beta_levered: 0.75
+      debt_to_equity: 1.55
+      marginal_tax_rate: 0.26
+    - name: Engie S.A.
+      beta_levered: 0.88
+      debt_to_equity: 0.87
+      marginal_tax_rate: 0.26
+    - name: RWE AG
+      beta_levered: 0.92
+      debt_to_equity: 0.72
+      marginal_tax_rate: 0.30
 
 fcf:
   revenue_growth_by_year:

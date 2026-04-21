@@ -79,8 +79,14 @@ def build(ws: Worksheet, spec, operating_refs: dict[str, str],
     layout.write_row_label(ws, r, L("debt_repayment").en, L("debt_repayment").it, indent=True)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     tenor = spec.bond.tenor_years
-    maturity_year = h + tenor
-    amort_start = h + spec.bond.amortization_start_year  # absolute col
+    # v0.6: corrected off-by-one. Drawdown is at column index h (Year 1 of
+    # the bond). A tenor_years=N bond lives through Year N, which is
+    # column index h + N - 1. Previously `h + tenor` pushed maturity one
+    # column past its intended end, leaving residual principal at the real
+    # maturity. Similarly `amortization_start_year=3` means "start in
+    # Year 3" = column index h + 2, not h + 3.
+    maturity_year = h + tenor - 1
+    amort_start = h + spec.bond.amortization_start_year - 1
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         if spec.bond.amortization == "bullet":

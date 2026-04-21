@@ -106,7 +106,12 @@ def build(
         block["repayment"] = r
         layout.write_row_label(ws, r, L("debt_repayment").en, L("debt_repayment").it, indent=True)
         ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
-        maturity_year = h + tr.tenor_years  # zero-based column index of maturity
+        # v0.6: corrected off-by-one. Drawdown is at column index h (Year 1
+        # of the bond). A tenor_years=N bond lives through Year N, which is
+        # column index h + N - 1. Previously `h + tr.tenor_years` pushed
+        # maturity one column past its intended end, leaving residual
+        # principal at the real maturity.
+        maturity_year = h + tr.tenor_years - 1
         for i in range(n_years):
             col = layout.year_col(i)
             col_idx = ord(col) - ord("A") + 1
@@ -194,15 +199,21 @@ def build(
         r += 1
 
         # Cash interest (negative)
+        #
+        # v0.6 DESIGN NOTE: interest computed on BEGINNING-OF-PERIOD debt,
+        # not average. Average-balance interest creates a circular via
+        #   sweep[t] ← FCF[t] ← tax[t] ← PBT[t] ← interest[t] ← avg[t] ← closing[t] ← sweep[t]
+        # WSP / bulge-bracket convention: use BOP to avoid the circular.
+        # Slight accuracy tradeoff but required when a cash-sweep is in play.
         block["interest"] = r
         layout.write_row_label(ws, r, L("cash_interest").en, L("cash_interest").it)
         ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
         for i in range(n_years):
             col = layout.year_col(i)
             col_idx = ord(col) - ord("A") + 1
-            avg_ref = f"${col}${block['average']}"
+            bop_ref = f"${col}${block['opening']}"  # BOP = opening balance
             rate_ref = f"${col}${block['all_in_rate']}"
-            c = ws.cell(row=r, column=col_idx, value=f"=-{avg_ref}*{rate_ref}")
+            c = ws.cell(row=r, column=col_idx, value=f"=-{bop_ref}*{rate_ref}")
             styles.style_formula(c, number_format=styles.FMT_EUR_M)
             c.font = styles.font_subheader
         r += 1
@@ -228,12 +239,21 @@ def build(
         tranche_blocks.append(block)
 
     # ─── Cash sweep block (if enabled) ─────────────────────────────────────
+    #
+    # DESIGN NOTE (v0.6): sweep uses PRIOR-period leverage to gate the
+    # current-period sweep. This breaks the circular dependency
+    #   closing[t] → amort[t] → sweep[t] → leverage[t] → closing[t]
+    # by making sweep depend on leverage[t-1], which is already computed.
+    # For the first operating year we compare against entry leverage
+    # (drawdown / last-historical EBITDA).
     cash_sweep_row: int | None = None
     if spec.debt.cash_sweep.enabled and spec.debt.cash_sweep.sweep_pct and spec.debt.cash_sweep.trigger_leverage:
         layout.write_section_header(ws, r, "Cash sweep", "Rimborso automatico (cash sweep)")
         r += 1
 
         # Interim leverage = (sum of pre-sweep closing) / EBITDA
+        # Note: this row is informational only; the sweep itself uses the
+        # PRIOR period's value of this row, so the cycle is broken.
         interim_lev_row = r
         layout.write_row_label(
             ws, r, "Interim leverage (pre-sweep)", "Leva pre-sweep", indent=True,
@@ -252,7 +272,7 @@ def build(
             styles.style_formula(c, number_format=styles.FMT_MULTIPLE)
         r += 1
 
-        # Sweep amount
+        # Sweep amount — uses PRIOR period leverage (breaks circular)
         cash_sweep_row = r
         layout.write_row_label(ws, r, "Cash sweep (applied to senior)",
                                "Cash sweep (applicato al senior)", indent=True)
@@ -263,12 +283,22 @@ def build(
         for i in range(n_years):
             col = layout.year_col(i)
             col_idx = ord(col) - ord("A") + 1
-            if i < h:
+            if i <= h:
+                # No sweep in historical years or the drawdown year itself
+                # (i == h is the drawdown year; industry convention is a
+                # grace period — no amortization or sweep in Y1 of the
+                # loan, and using same-period leverage here would re-open
+                # the circular-reference cycle).
                 c = ws.cell(row=r, column=col_idx, value=0)
                 styles.style_formula(c, number_format=styles.FMT_EUR_M)
                 continue
             fcf_ref = f"'{operating_sheet_name}'!{col}{fcf_row}"
-            lev_ref = f"${col}${interim_lev_row}"
+            # PRIOR-period leverage to break the circular reference:
+            #   closing[t] → amort[t] → sweep[t] → leverage[t] → closing[t]
+            # becomes
+            #   closing[t] ← amort[t] ← sweep[t] ← leverage[t-1]  (no cycle).
+            prior_col = layout.year_col(i - 1)
+            lev_ref = f"${prior_col}${interim_lev_row}"
             c = ws.cell(
                 row=r, column=col_idx,
                 value=cash_sweep(fcf_ref, lev_ref, trigger_name, sweep_pct_name),
@@ -288,6 +318,76 @@ def build(
                     senior_repay_cell.value = existing + f"+${col}${cash_sweep_row}"
                 styles.style_formula(senior_repay_cell, number_format=styles.FMT_EUR_M)
         r += 2
+
+    # ─── v0.7: Sources & Uses table (bulge-bracket standard) ──────────────
+    layout.write_section_header(ws, r, "Sources & Uses of Funds",
+                                "Fonti e impieghi")
+    r += 1
+
+    # Uses
+    ws.cell(row=r, column=1, value="USES").font = styles.font_subheader
+    r += 1
+    ws.cell(row=r, column=1, value="Purchase equity (offer × shares)").font = styles.font_label_en
+    ws.cell(row=r, column=4, value="(See DealStructure if available)").font = styles.font_label_it
+    r += 1
+    ws.cell(row=r, column=1, value="Refinance existing debt").font = styles.font_label_en
+    ws.cell(row=r, column=4, value=0).font = styles.font_label_it
+    r += 1
+    ws.cell(row=r, column=1, value="M&A advisory fees (expensed at close)").font = styles.font_label_en
+    ws.cell(row=r, column=4, value=0).font = styles.font_label_it
+    r += 1
+    ws.cell(row=r, column=1, value="Financing fees (capitalized)").font = styles.font_label_en
+    ws.cell(row=r, column=4, value=0).font = styles.font_label_it
+    r += 1
+    ws.cell(row=r, column=1, value="OID discount").font = styles.font_label_en
+    ws.cell(row=r, column=4, value=0).font = styles.font_label_it
+    r += 1
+    ws.cell(row=r, column=1, value="Minimum cash to BS").font = styles.font_label_en
+    ws.cell(row=r, column=4, value=0).font = styles.font_label_it
+    r += 2
+
+    ws.cell(row=r, column=1, value="SOURCES").font = styles.font_subheader
+    r += 1
+    total_debt_row = r
+    parts = [f"${layout.year_col(h)}${b['closing']}" for b in tranche_blocks]
+    ws.cell(row=r, column=1, value="New debt raised (all tranches)").font = styles.font_label_en
+    ws.cell(row=r, column=4, value="=" + "+".join(parts)).number_format = styles.FMT_EUR_M
+    r += 1
+    ws.cell(row=r, column=1, value="Sponsor equity").font = styles.font_label_en
+    ws.cell(row=r, column=4, value="(Balance plug)").font = styles.font_label_it
+    r += 1
+    ws.cell(row=r, column=1, value="Management rollover").font = styles.font_label_en
+    ws.cell(row=r, column=4, value=0).font = styles.font_label_it
+    r += 2
+
+    # Check: Sources must equal Uses — in full sponsor LBO (skip for unitranche lender view)
+    ws.cell(row=r, column=1, value="Check: Sources = Uses").font = styles.font_subheader
+    ws.cell(row=r, column=4, value="(Sponsor equity plugs the balance — full S&U in v0.8 SponsorLBO)").font = styles.font_label_it
+    r += 2
+
+    # ─── Additional bulge-tier rows (stubs for v0.8 full sponsor LBO) ───
+    ws.cell(row=r, column=1, value="— Additional bulge-tier stubs —").font = styles.font_subheader
+    r += 1
+    stubs = [
+        ("Purchase price build", "Offer premium × FD shares + existing net debt + fees"),
+        ("Goodwill created (PPA)", "Equity price − BV equity − write-ups + DTL"),
+        ("OID amortization schedule", "Straight-line over tenor, CFS addback"),
+        ("PIK toggle (payment-in-kind)", "Accrues to principal if cash insufficient"),
+        ("Revolver facility", "Auto-draw when min cash breached; commitment fee on undrawn"),
+        ("Management rollover / MIP", "4-year vest, 8-12% post-close equity"),
+        ("Dividend recap path", "Refinance to target leverage at year 3"),
+        ("Earnout / CVR", "Contingent consideration at FV"),
+        ("NWC closing adjustment", "Target peg + true-up mechanism"),
+        ("Exit scenarios (3)", "Strategic + IPO + secondary LBO"),
+        ("Hurdle (reverse-solve max price)", "At target 20%/25%/30% IRR"),
+        ("Sponsor GP promote (fund-level)", "Pref 8% + catchup + 20% carry"),
+    ]
+    for en, desc in stubs:
+        ws.cell(row=r, column=1, value=f"  • {en}").font = styles.font_label_en
+        ws.cell(row=r, column=4, value=desc).font = styles.font_label_it
+        r += 1
+    ws.cell(row=r, column=1, value="→ Full sponsor-LBO template in v0.8 (SponsorLBOSpec)").font = styles.font_label_it
+    r += 2
 
     # ─── Totals block ──────────────────────────────────────────────────────
     layout.write_section_header(ws, r, "Totals across tranches", "Totali (tutte le tranche)")

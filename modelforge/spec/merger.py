@@ -52,6 +52,49 @@ class Synergies(BaseModel):
     integration_cost_eur_m: Assumption  # one-time, year 1
 
 
+class PPAAllocation(BaseModel):
+    """Purchase Price Allocation (PPA) — bulge-bracket standard block.
+
+    Goodwill = Equity Purchase Price − BV of Target Equity − Asset Write-ups + DTL
+    Identifiable intangibles have useful lives; amortization flows through P&L.
+
+    References: Macabacus PPA Steps I+II, WSP Merger Model.
+    """
+
+    target_bv_equity_eur_m: Assumption       # book value at close
+    asset_writeup_ppe_eur_m: Assumption      # PP&E fair-value step-up
+    intangibles_customer_list_eur_m: Assumption
+    intangibles_technology_eur_m: Assumption
+    intangibles_trade_name_eur_m: Assumption
+    customer_list_useful_life_years: int = 10
+    technology_useful_life_years: int = 7
+    trade_name_useful_life_years: int = 15
+    # DTL on asset step-ups (taxable non-deductible)
+    dtl_rate_pct: Assumption
+
+
+class BreakFees(BaseModel):
+    """Break fees (bulge standard for cross-border deals).
+
+    target_reverse_termination_pct: target pays acquirer if walks away
+    acquirer_walk_fee_pct: acquirer pays target if fails to close
+    """
+
+    target_reverse_termination_pct: Assumption
+    acquirer_walk_fee_pct: Assumption
+
+
+class RegulatoryTimeline(BaseModel):
+    """Regulatory clearance timeline affecting synergy start.
+
+    Expected close months from sign (HSR/CMA/EU Merger Reg): typical 4-12m.
+    Synergies start after close → delay NPV.
+    """
+
+    expected_close_months: int = 6
+    regulatory_jurisdictions: list[str] = Field(default_factory=list)
+
+
 class MergerSpec(BaseModel):
     model_type: Literal["merger"] = "merger"
     meta: ModelMeta
@@ -66,8 +109,13 @@ class MergerSpec(BaseModel):
     deal: DealStructure
     synergies: Synergies
 
+    # v0.7 additions — bulge-tier merger rigor
+    ppa: PPAAllocation | None = None
+    break_fees: BreakFees | None = None
+    regulatory: RegulatoryTimeline | None = None
+
     def all_assumptions(self) -> list[Assumption]:
-        return [
+        out = [
             self.deal.offer_premium_pct,
             self.deal.cash_mix_pct,
             self.deal.financing_rate_pct,
@@ -77,3 +125,18 @@ class MergerSpec(BaseModel):
             self.synergies.synergy_realization_y1_pct,
             self.synergies.integration_cost_eur_m,
         ]
+        if self.ppa:
+            out += [
+                self.ppa.target_bv_equity_eur_m,
+                self.ppa.asset_writeup_ppe_eur_m,
+                self.ppa.intangibles_customer_list_eur_m,
+                self.ppa.intangibles_technology_eur_m,
+                self.ppa.intangibles_trade_name_eur_m,
+                self.ppa.dtl_rate_pct,
+            ]
+        if self.break_fees:
+            out += [
+                self.break_fees.target_reverse_termination_pct,
+                self.break_fees.acquirer_walk_fee_pct,
+            ]
+        return out

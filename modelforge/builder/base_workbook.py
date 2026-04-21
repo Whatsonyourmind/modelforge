@@ -71,6 +71,10 @@ def build_base_workbook(
     wb = Workbook()
     wb.remove(wb.active)
 
+    wb.calculation.iterate = True
+    wb.calculation.iterateCount = 100
+    wb.calculation.iterateDelta = 0.001
+
     # Cover — must be first; sets scenario_index named range
     cover_ws = wb.create_sheet("Cover")
     cover.build(cover_ws, spec, graph)

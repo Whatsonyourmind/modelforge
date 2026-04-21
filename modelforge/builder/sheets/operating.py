@@ -344,18 +344,25 @@ def build(
     r += 1
 
     # FCF to debt
+    #
+    # v0.6: includes cash interest. Previously FCF summed only
+    # EBITDA + tax + capex + ΔNWC, which overstated the base to which
+    # the cash sweep was applied (sweep_pct of FCF). Levered FCF
+    # available for principal paydown must deduct interest paid:
+    #   FCF = EBITDA - tax - capex - ΔNWC - |interest|
+    # Since all cost components are already negative, we just add them.
     rows["fcf"] = r
     layout.write_row_label(ws, r, L("fcf_to_debt").en, L("fcf_to_debt").it)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)
         col_idx = ord(col) - ord("A") + 1
-        # FCF = EBITDA + tax (already negative) + capex_total + nwc
         parts = [
             f"${col}${rows['ebitda']}",
             f"${col}${rows['tax']}",
             f"${col}${rows['capex_total']}",
             f"${col}${rows['nwc']}",
+            f"${col}${rows['interest']}",   # v0.6: post-interest FCF
         ]
         c = ws.cell(row=r, column=col_idx, value=sum_list(parts))
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
