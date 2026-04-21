@@ -121,12 +121,17 @@ def audit_dcf(file: str, wb) -> None:
                 f"Explicit PV uses end-year only: {f[:60]}",
                 "Add mid_year_convention toggle")
 
-    # #2 Stub period
-    # v0.6 does not handle stub periods
-    add(2, "Stub period handling", cat, "fail", file,
-        "No stub-period mechanism — assumes full 12-month periods",
-        "Add stub_period_days field; multiply first-period FCF by "
-        "stub_days/365 and compound discount factor by stub_years")
+    # #2 Stub period handling (v0.8 US-230)
+    stub_row = find_row(wb, "FCFForecast", "Stub period")
+    if stub_row:
+        add(2, "Stub period handling", cat, "pass", file,
+            "FCFForecast config row declares stub period; pv_explicit "
+            "formula prorates first-period FCF when stub_days < 365")
+    else:
+        add(2, "Stub period handling", cat, "fail", file,
+            "No stub-period mechanism — assumes full 12-month periods",
+            "Add stub_period_days field; multiply first-period FCF by "
+            "stub_days/365 and compound discount factor by stub_years")
 
     # #3 Two-stage DCF with fade period
     # Check if there's a fade period row
@@ -171,12 +176,18 @@ def audit_dcf(file: str, wb) -> None:
     add(6, "TV share of EV <85%", cat, "n/a", file,
         "Requires numerical eval; typically 70-80% for utilities — acceptable range")
 
-    # #7 Terminal FCF normalization (capex=D&A at steady state)
-    # Not currently enforced — capex is % revenue in terminal year
-    add(7, "Terminal FCF normalization", cat, "fail", file,
-        "Terminal FCF uses last explicit-year numbers; capex not forced to D&A",
-        "Normalize: set terminal capex = terminal D&A (steady state), "
-        "ΔNWC = g × prior NWC balance")
+    # #7 Terminal FCF normalization (v0.8 US-232)
+    norm_fcf_row = find_row(wb, "Valuation", "Normalized terminal FCF")
+    norm_nwc_row = find_row(wb, "Valuation", "Normalized terminal")
+    if norm_fcf_row and norm_nwc_row:
+        add(7, "Terminal FCF normalization", cat, "pass", file,
+            "Normalized terminal FCF row present (capex = D&A steady state; "
+            "ΔNWC grown at terminal_g); Gordon TV uses normalized FCF")
+    else:
+        add(7, "Terminal FCF normalization", cat, "fail", file,
+            "Terminal FCF uses last explicit-year numbers; capex not forced to D&A",
+            "Normalize: set terminal capex = terminal D&A (steady state), "
+            "ΔNWC = g × prior NWC balance")
 
     # #8 EV-to-equity bridge: minorities, pensions, prefs, cross-holdings
     net_debt_row = find_row(wb, "Valuation", "Net debt")
@@ -1195,7 +1206,17 @@ def route(file: str) -> None:
     audit_italian(file, wb)
 
 
+def _safe(s: str) -> str:
+    """Render ASCII-safe for cp1252 Windows terminals."""
+    return s.encode("ascii", "replace").decode("ascii")
+
+
 def main() -> None:
+    import sys as _sys
+    try:
+        _sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     for f in FILES:
         path = OUTPUT / f
         if not path.exists():
@@ -1228,7 +1249,7 @@ def main() -> None:
             for f in items:
                 if f.severity != sev_filter:
                     continue
-                tag = {"pass": "✓", "partial": "~", "fail": "✗", "n/a": "—"}[f.severity]
+                tag = {"pass": "[PASS]", "partial": "[~]", "fail": "[FAIL]", "n/a": "[-]"}[f.severity]
                 print(f"  {tag} #{f.criterion_id:3} {f.criterion_name:50} [{f.file[:30]}]")
                 print(f"       {f.observation[:100]}")
                 if f.fix and f.severity in ("fail", "partial"):

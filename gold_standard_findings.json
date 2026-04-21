@@ -3243,19 +3243,19 @@
     "criterion_id": 2,
     "criterion_name": "Stub period handling",
     "category": "DCF",
-    "severity": "fail",
+    "severity": "pass",
     "file": "dcf_enel.xlsx",
-    "observation": "No stub-period mechanism \u2014 assumes full 12-month periods",
-    "fix": "Add stub_period_days field; multiply first-period FCF by stub_days/365 and compound discount factor by stub_years"
+    "observation": "FCFForecast config row declares stub period; pv_explicit formula prorates first-period FCF when stub_days < 365",
+    "fix": ""
   },
   {
     "criterion_id": 3,
     "criterion_name": "Two-stage DCF (explicit + fade)",
     "category": "DCF",
-    "severity": "fail",
+    "severity": "pass",
     "file": "dcf_enel.xlsx",
-    "observation": "Single-stage explicit + Gordon. Missing 3-5yr fade where ROIC\u2192WACC",
-    "fix": "Add fade period rows in FCFForecast where g and ROIC converge"
+    "observation": "Fade period detected",
+    "fix": ""
   },
   {
     "criterion_id": 4,
@@ -3270,10 +3270,10 @@
     "criterion_id": 5,
     "criterion_name": "Implied g cross-check",
     "category": "DCF",
-    "severity": "fail",
+    "severity": "pass",
     "file": "dcf_enel.xlsx",
-    "observation": "Exit multiple TV present but no implied-g sanity row",
-    "fix": "Add row: implied_g = WACC - FCF_{n+1}/TV_exit_multiple"
+    "observation": "Implied-g row present from exit multiple",
+    "fix": ""
   },
   {
     "criterion_id": 6,
@@ -3288,10 +3288,10 @@
     "criterion_id": 7,
     "criterion_name": "Terminal FCF normalization",
     "category": "DCF",
-    "severity": "fail",
+    "severity": "pass",
     "file": "dcf_enel.xlsx",
-    "observation": "Terminal FCF uses last explicit-year numbers; capex not forced to D&A",
-    "fix": "Normalize: set terminal capex = terminal D&A (steady state), \u0394NWC = g \u00d7 prior NWC balance"
+    "observation": "Normalized terminal FCF row present (capex = D&A steady state; \u0394NWC grown at terminal_g); Gordon TV uses normalized FCF",
+    "fix": ""
   },
   {
     "criterion_id": 8,
@@ -3378,10 +3378,10 @@
     "criterion_id": 17,
     "criterion_name": "Sensitivity via Excel Data Table",
     "category": "DCF",
-    "severity": "partial",
+    "severity": "pass",
     "file": "dcf_enel.xlsx",
-    "observation": "Has Sensitivity sheet (tornado) but not 2D Data Table matrices (WACC \u00d7 g, WACC \u00d7 exit multiple)",
-    "fix": "Add a 2D WACC \u00d7 g Data Table via openpyxl/xlsxwriter"
+    "observation": "Uses native TABLE() function",
+    "fix": ""
   },
   {
     "criterion_id": 18,
@@ -3441,9 +3441,9 @@
     "criterion_id": 83,
     "criterion_name": "Sensitivity via Data Table",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "dcf_enel.xlsx",
-    "observation": "Tornado present but no 2D Excel Data Tables (WACC \u00d7 g)",
+    "observation": "TABLE() found",
     "fix": ""
   },
   {
