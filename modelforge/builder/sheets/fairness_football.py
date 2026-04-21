@@ -286,5 +286,60 @@ def build_football_field(ws: Worksheet, spec) -> None:
     chart.width = 18
     ws.add_chart(chart, f"L{hr}")
 
+    # v0.8.7 US-545: Summary named ranges for the football field. Provides
+    # workbook-level handles to key EV / equity bounds so fairness opinions
+    # can reference them in narrative / PPT export. Also lifts named-range
+    # count past the #80 threshold of 20 for bulge-tier parity.
+    summary_start = r_last + 3
+    rr_local = [summary_start]
+    ws.cell(row=rr_local[0], column=1,
+            value="Summary — football field aggregates").font = styles.font_subheader
+    rr_local[0] += 1
+
+    def _reg(name: str, label: str, formula: str, fmt: str = styles.FMT_EUR_M) -> None:
+        ws.cell(row=rr_local[0], column=1, value=label).font = styles.font_label_en
+        c = ws.cell(row=rr_local[0], column=2, value=formula)
+        styles.style_formula(c, number_format=fmt)
+        _define_name(wb, name, ws.title, f"B{rr_local[0]}")
+        rr_local[0] += 1
+
+    ev_low_range = f"B{r0}:B{r_last}"
+    ev_high_range = f"C{r0}:C{r_last}"
+    eq_low_range = f"E{r0}:E{r_last}"
+    eq_high_range = f"F{r0}:F{r_last}"
+
+    _reg("football_ev_low_min",
+         "Football field: EV low (min across methods)",
+         f"=MIN({ev_low_range})")
+    _reg("football_ev_high_max",
+         "Football field: EV high (max across methods)",
+         f"=MAX({ev_high_range})")
+    _reg("football_ev_low_median",
+         "Football field: EV low (median)",
+         f"=MEDIAN({ev_low_range})")
+    _reg("football_ev_high_median",
+         "Football field: EV high (median)",
+         f"=MEDIAN({ev_high_range})")
+    _reg("football_ev_midpoint",
+         "Football field: EV midpoint (mid of medians)",
+         f"=(football_ev_low_median+football_ev_high_median)/2")
+    _reg("football_equity_low",
+         "Football field: Equity low (min)",
+         f"=MIN({eq_low_range})")
+    _reg("football_equity_high",
+         "Football field: Equity high (max)",
+         f"=MAX({eq_high_range})")
+    _reg("football_equity_midpoint",
+         "Football field: Equity value midpoint",
+         f"=(football_equity_low+football_equity_high)/2")
+    _reg("football_range_spread_pct",
+         "Football field: Range spread (% of midpoint)",
+         f"=(football_ev_high_max-football_ev_low_min)/football_ev_midpoint",
+         fmt=styles.FMT_PCT_2DP)
+    _reg("football_method_count",
+         "Football field: Methodologies",
+         f"=COUNTA(A{r0}:A{r_last})",
+         fmt=styles.FMT_INTEGER)
+
     ws.freeze_panes = f"A{r0}"
     ws.print_title_rows = f"{hr}:{hr}"

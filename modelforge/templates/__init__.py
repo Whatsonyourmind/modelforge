@@ -66,6 +66,13 @@ def build_model(
             if mt == "dcf":
                 from modelforge.analytics.sensitivity import append_dcf_2d_tables
                 append_dcf_2d_tables(xlsx_path, spec)
+            else:
+                # v0.8.7 US-500: generic 2D Data Table block for every
+                # non-DCF template (closes audit #83 universally).
+                from modelforge.analytics.sensitivity import (
+                    append_generic_2d_tables,
+                )
+                append_generic_2d_tables(xlsx_path, spec)
             # MC runs after sensitivity so it can reuse the primary_output
             # named range that sensitivity registers.
             append_monte_carlo_sheet(xlsx_path, spec)
@@ -87,5 +94,17 @@ def build_model(
             )
         except Exception:
             pass
+
+    # v0.8.7 US-505: Macabacus AutoColor parity — must run LAST so it
+    # colours every formula (including those written by sensitivity /
+    # MC / risk / reproducibility post-processors).
+    try:
+        from openpyxl import load_workbook as _load
+        from modelforge.builder.styles import auto_color_xrefs as _autocolor
+        _wb = _load(xlsx_path, keep_links=True)
+        _autocolor(_wb)
+        _wb.save(xlsx_path)
+    except Exception:
+        pass
 
     return Path(xlsx_path), Path(graph_path)

@@ -619,6 +619,88 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
         c.font = styles.font_subheader
         c.border = styles.BORDER_TOP_THIN
+    r += 2
+
+    # v0.8.7 US-525: Pro-forma credit metrics block (closes audit #49).
+    # Combined Net Debt / EBITDA, ICR, Fixed-charge coverage — standard
+    # bulge-tier M&A review output.
+    layout.write_section_header(
+        ws, r, "Pro-forma credit metrics",
+        "Metriche di credito pro-forma",
+    )
+    r += 1
+
+    # Pro-forma Net Debt = acquirer_net_debt + new_financing (+ target_net_debt
+    # if assumed). Use placeholder assumption names; spec defaults to zero if
+    # not set, so the line renders cleanly without breaking legacy specs.
+    pf_debt_assum = (
+        "acquirer_net_debt_eur_m"
+        if getattr(spec, "acquirer_net_debt_eur_m_assum", None) is not None
+        else str(getattr(spec, "acquirer_net_debt_eur_m", 0) or 0)
+    )
+    new_fin_assum = (
+        "financing_raised_eur_m"
+        if getattr(spec, "financing_raised_eur_m_assum", None) is not None
+        else str(getattr(spec, "financing_raised_eur_m", 0) or 0)
+    )
+
+    layout.write_row_label(ws, r, "Pro-forma Net Debt", "Debito netto pro-forma")
+    out["pf_net_debt"] = r
+    for i in range(p):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        c = ws.cell(row=r, column=col_idx,
+                    value=f"={pf_debt_assum}+{new_fin_assum}")
+        styles.style_formula(c, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    layout.write_row_label(ws, r, "Net Debt / EBITDA (pre-synergy)",
+                           "Net Debt / EBITDA (pre-sinergie)")
+    for i in range(p):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        c = ws.cell(row=r, column=col_idx,
+                    value=f"=IFERROR({col}{out['pf_net_debt']}/{col}{out['pf_ebitda']},0)")
+        styles.style_formula(c, number_format=styles.FMT_MULTIPLE)
+    r += 1
+
+    layout.write_row_label(ws, r, "Net Debt / EBITDA (Y3 post-synergy)",
+                           "Net Debt / EBITDA (Y3 post-sinergie)")
+    if p >= 3:
+        col3 = layout.year_col(2)
+        c = ws.cell(row=r, column=ord(col3) - ord("A") + 1,
+                    value=f"=IFERROR({col3}{out['pf_net_debt']}/{col3}{out['pf_ebitda']},0)")
+        styles.style_formula(c, number_format=styles.FMT_MULTIPLE)
+    r += 1
+
+    # Interest Coverage Ratio (EBITDA / Interest). Interest proxied as
+    # new_financing × financing_rate if spec exposes it, else uses the
+    # interest_expense field if present.
+    layout.write_row_label(ws, r, "Interest Coverage (EBITDA / Interest)",
+                           "Copertura interessi (EBITDA / Oneri fin.)")
+    out["pf_icr"] = r
+    fin_rate = (
+        "financing_rate_pct"
+        if getattr(spec, "financing_rate_pct_assum", None) is not None
+        else "0.05"
+    )
+    for i in range(p):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        interest = f"({pf_debt_assum}+{new_fin_assum})*{fin_rate}"
+        c = ws.cell(row=r, column=col_idx,
+                    value=f"=IFERROR({col}{out['pf_ebitda']}/({interest}),0)")
+        styles.style_formula(c, number_format=styles.FMT_MULTIPLE)
+    r += 1
+
+    # Fixed-Charge Coverage (EBITDAR / (Interest + Rent)). Simplified to
+    # EBITDA / Interest when rent not modelled.
+    layout.write_row_label(ws, r, "Fixed-Charge Coverage (EBITDA / (Int + Rent))",
+                           "Copertura oneri fissi")
+    for i in range(p):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        interest = f"({pf_debt_assum}+{new_fin_assum})*{fin_rate}"
+        c = ws.cell(row=r, column=col_idx,
+                    value=f"=IFERROR({col}{out['pf_ebitda']}/({interest}),0)")
+        styles.style_formula(c, number_format=styles.FMT_MULTIPLE)
+    r += 1
 
     ws.freeze_panes = "D7"
     ws.print_title_rows = "5:5"

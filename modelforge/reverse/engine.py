@@ -250,6 +250,21 @@ def _sheet_name_boost(sheets: list[SheetProfile]) -> dict[str, float]:
         boosts["structured_credit"] = boosts.get("structured_credit", 0) - 0.20
     if any("accretion" in n or "acc_dil" in n for n in names):
         boosts["merger"] = boosts.get("merger", 0) + 0.10
+    # v0.8.7 US-550: stronger merger signals to outweigh the v0.7
+    # enrichment sheets (ComparableBetas, ComplianceCheck, PPA) that
+    # made three_statement score high on enriched merger workbooks.
+    has_dealstruct = any("dealstructure" in n.replace(" ", "") for n in names)
+    has_proforma = any(n == "proforma" or "pro_forma" in n for n in names)
+    has_accdil = any("accretiondilution" in n.replace(" ", "")
+                      or "accretion" in n for n in names)
+    if has_dealstruct and has_proforma and has_accdil:
+        # Full merger triad — unambiguous signal
+        boosts["merger"] = boosts.get("merger", 0) + 0.30
+        # And suppress three_statement since the operating model here is
+        # a pro-forma combination, not a standalone 3-stmt.
+        boosts["three_statement"] = boosts.get("three_statement", 0) - 0.20
+    elif has_dealstruct or has_proforma:
+        boosts["merger"] = boosts.get("merger", 0) + 0.10
     if any("investorreturn" in n.replace(" ", "") for n in names):
         boosts["minibond"] = boosts.get("minibond", 0) + 0.10
     if any("bondstructure" in n.replace(" ", "") for n in names):
