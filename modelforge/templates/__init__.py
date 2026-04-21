@@ -61,6 +61,10 @@ def build_model(
             from modelforge.analytics.monte_carlo import append_monte_carlo_sheet
             from modelforge.analytics.risk_sheet import append_risk_analysis_sheet
             append_sensitivity_sheet(xlsx_path, spec)
+            # v0.8 US-233: 2D Data Tables (WACC × g, WACC × exit_x) for DCF.
+            if mt == "dcf":
+                from modelforge.analytics.sensitivity import append_dcf_2d_tables
+                append_dcf_2d_tables(xlsx_path, spec)
             # MC runs after sensitivity so it can reuse the primary_output
             # named range that sensitivity registers.
             append_monte_carlo_sheet(xlsx_path, spec)
