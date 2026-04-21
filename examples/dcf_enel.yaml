@@ -297,6 +297,27 @@ wacc:
     rationale: Enel ~65% revenue Italy; 35% international (Iberia, LATAM)
     confidence: M
     source_id: S-001
+  # v0.8.7: Duff & Phelps / Kroll size premium + company-specific alpha
+  size_premium_pct:
+    id: A-011
+    name: size_premium_pct
+    label: {en: Size premium (Duff & Phelps), it: Premio di dimensione}
+    unit: pct
+    base: 0.0
+    worst: 0.005
+    best: 0.0
+    rationale: Enel ~€65B mkt cap — in largest decile, size premium = 0bps
+    confidence: H
+  company_specific_alpha_bps:
+    id: A-012
+    name: company_specific_alpha_bps
+    label: {en: Company-specific alpha (bps), it: Alpha specifico d'impresa}
+    unit: bps
+    base: 0
+    worst: 50
+    best: 0
+    rationale: Liquid blue-chip utility; no illiquidity / key-person / single-site risk
+    confidence: H
   # v0.7: Hamada comparable-beta analysis — 5 EU utilities
   comparable_betas:
     - name: E.ON SE

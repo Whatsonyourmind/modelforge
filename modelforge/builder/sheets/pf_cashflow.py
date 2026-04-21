@@ -205,18 +205,59 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
-    # CFADS = EBITDA − cash taxes (simplified: no ΔWC, no maint capex for
-    # a merchant solar SPV where both are negligible — documented at
-    # the row label). Per Breaking Into Wall Street / Edward Bodmer
-    # convention, the full formula is
-    #   CFADS = EBITDA − cash taxes − ΔWC − maintenance capex
+    # ΔWC row (working-capital investment). Simplified: NWC scales
+    # with revenue via nwc_pct_revenue (defaulted to 0 for merchant
+    # solar SPVs where receivables/payables net to ~zero). Kept live
+    # so analysts can override post-build.
+    rows["delta_wc"] = r
+    layout.write_row_label(
+        ws, r, "(−) Δ Working capital", "(−) Δ capitale circolante",
+    )
+    for i in range(c):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        ws.cell(row=r, column=col_idx, value=0)
+    for i in range(c, n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx, value=0)
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # Maintenance capex row. PF solar assumption: 0.3% of cumulative
+    # gross asset value per year from COD (inverter replacement +
+    # module cleaning). Kept as a separate line so CFADS formula below
+    # is the classic bulge-tier identity.
+    rows["maint_capex"] = r
+    layout.write_row_label(
+        ws, r, "(−) Maintenance capex", "(−) Capex di manutenzione",
+    )
+    for i in range(c):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        ws.cell(row=r, column=col_idx, value=0)
+    for i in range(c, n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        cc = ws.cell(row=r, column=col_idx, value=0)
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # CFADS = EBITDA − cash taxes − ΔWC − maintenance capex
+    # Full bulge-tier identity per Breaking Into Wall Street / Edward Bodmer.
+    # (Growth capex is funded from equity/debt, not from operating CF, so it
+    # does not belong in CFADS — kept on the Capex schedule.)
     rows["cads"] = r  # Cash Available for Debt Service
-    layout.write_row_label(ws, r, "CFADS (= EBITDA − cash taxes)",
-                           "CFADS (= EBITDA − imposte in cassa)")
+    layout.write_row_label(
+        ws, r,
+        "CFADS (= EBITDA − cash taxes − ΔWC − maintenance capex)",
+        "CFADS (= EBITDA − imposte − Δ WC − capex manutenzione)",
+    )
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
-        cc = ws.cell(row=r, column=col_idx,
-                     value=f"=${col}${rows['ebitda']}+${col}${rows['tax']}")
+        cc = ws.cell(
+            row=r, column=col_idx,
+            value=(
+                f"=${col}${rows['ebitda']}+${col}${rows['tax']}"
+                f"+${col}${rows['delta_wc']}+${col}${rows['maint_capex']}"
+            ),
+        )
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
         cc.font = styles.font_subheader
         cc.border = styles.BORDER_TOP_THIN
