@@ -17,6 +17,7 @@ DSRA funding is DOWNSTREAM of the DSCR check per market convention.
 
 from __future__ import annotations
 
+import openpyxl.comments
 from openpyxl.worksheet.worksheet import Worksheet
 
 from modelforge.builder import styles, layout
@@ -75,6 +76,10 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     yr1 = spec.operating.availability_payment_eur_m_yr1.name
     idx = spec.operating.revenue_indexation_pct.name
+    # v0.8 US-240: panel degradation compounds into revenue when present.
+    # Revenue_t = Revenue_{t-1} × (1 + indexation) × (1 − degradation).
+    deg_assum = getattr(spec.operating, "panel_degradation_pct_annual", None)
+    deg_factor = f"*(1-{deg_assum.name})" if deg_assum is not None else ""
     for i in range(c):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
         ws.cell(row=r, column=col_idx, value=0)
@@ -84,9 +89,42 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
             cc = ws.cell(row=r, column=col_idx, value=f"={yr1}")
         else:
             prior_col = layout.year_col(i - 1)
-            cc = ws.cell(row=r, column=col_idx, value=f"=${prior_col}${r}*(1+{idx})")
+            cc = ws.cell(row=r, column=col_idx,
+                         value=f"=${prior_col}${r}*(1+{idx}){deg_factor}")
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    if deg_assum is not None:
+        ws.cell(row=r, column=4).comment = openpyxl.comments.Comment(
+            f"Revenue compounds at (1+indexation)×(1−{deg_assum.name}) per "
+            "year (panel degradation, solar PV convention 0.5% p.a. "
+            "per manufacturer warranty).",
+            "ModelForge",
+        )
     r += 1
+
+    # v0.8 US-241: P90 alternative revenue row (downside scenario used
+    # by the debt sizer when debt_sizing_mode='dscr_target_p90').
+    # P90 = P50 × (1 − p90_haircut). Held as a parallel row so both
+    # P50 and P90 CFADS are available to the audit trail.
+    p90_assum = getattr(spec.operating, "p90_revenue_haircut_pct", None)
+    if p90_assum is not None:
+        rows["revenue_p90"] = r
+        layout.write_row_label(ws, r, "Revenue — P90 (downside, haircut)",
+                               "Ricavi — P90 (scenario downside)", indent=True)
+        for i in range(c):
+            col_idx = ord(layout.year_col(i)) - ord("A") + 1
+            ws.cell(row=r, column=col_idx, value=0)
+        for i in range(c, n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            cc = ws.cell(row=r, column=col_idx,
+                         value=f"=${col}${rows['revenue']}*(1-{p90_assum.name})")
+            styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+        ws.cell(row=r, column=4).comment = openpyxl.comments.Comment(
+            "P90 revenue = P50 × (1 − p90_haircut). Used by debt sizer "
+            "under dscr_target_p90 mode per Solargis/NREL bankability "
+            "convention. Both P50 and P90 CFADS kept live for audit trail.",
+            "ModelForge",
+        )
+        r += 1
 
     rows["opex"] = r
     layout.write_row_label(ws, r, "Opex (cost)", "Opex (costo)", indent=True)
@@ -253,11 +291,11 @@ def append_distributable_cash(
         styles.style_xref(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
-    # Distributable cash = CADS + debt service + DSRA funding
+    # Distributable cash (gross, pre lock-up) = CADS + debt service + DSRA
     # (debt service is negative; DSRA funding is negative when funding)
-    rows["distributable"] = r
-    layout.write_row_label(ws, r, "Distributable cash to equity",
-                           "Cassa distribuibile agli equity holder")
+    rows["distributable_gross"] = r
+    layout.write_row_label(ws, r, "Distributable cash — pre lock-up",
+                           "Cassa distribuibile — pre lock-up", indent=True)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,
@@ -265,8 +303,52 @@ def append_distributable_cash(
                             f"+${col}${rows['ds_pull']}"
                             f"+${col}${rows['dsra_pull']}"))
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # v0.8 US-244: Lock-up test pass flag — DSCR ≥ lock_up_threshold.
+    # Reads DSCR from DebtDSCR sheet, threshold from named range.
+    dscr_row = int(debt_refs.get("dscr_row", 0))
+    rows["lockup_pass"] = r
+    layout.write_row_label(ws, r, "Lock-up test pass (DSCR ≥ threshold)",
+                           "Lock-up test — superato", indent=True)
+    lockup_name = spec.covenant.lock_up_threshold.name
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        if i < c or dscr_row == 0:
+            ws.cell(row=r, column=col_idx, value=0)
+        else:
+            cc = ws.cell(
+                row=r, column=col_idx,
+                value=(f"=IF('{debt_sheet}'!{col}{dscr_row}>="
+                       f"{lockup_name},1,0)"),
+            )
+            styles.style_formula(cc, number_format=styles.FMT_INTEGER)
+    r += 1
+
+    # Distributable cash (net, post lock-up) = IF lock-up pass, gross; else 0
+    rows["distributable"] = r
+    layout.write_row_label(ws, r, "Distributable cash to equity (post lock-up)",
+                           "Cassa distribuibile agli equity holder")
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        if i < c or dscr_row == 0:
+            cc = ws.cell(row=r, column=col_idx,
+                         value=f"=${col}${rows['distributable_gross']}")
+        else:
+            cc = ws.cell(
+                row=r, column=col_idx,
+                value=(f"=IF(${col}${rows['lockup_pass']}=1,"
+                       f"${col}${rows['distributable_gross']},0)"),
+            )
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
         cc.font = styles.font_subheader
         cc.border = styles.BORDER_TOP_THIN
+    ws.cell(row=r, column=4).comment = openpyxl.comments.Comment(
+        "Distributable cash is blocked (=0) when DSCR < lock_up_threshold "
+        "per bulge-bracket covenant standard. Gross pre-lock-up figure "
+        "retained above for auditor inspection.",
+        "ModelForge",
+    )
     r += 1
 
     return {f"{k}_row": str(v) for k, v in rows.items()}
