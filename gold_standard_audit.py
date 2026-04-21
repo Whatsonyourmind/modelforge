@@ -575,12 +575,16 @@ def audit_merger(file: str, wb) -> None:
         add(46, "Multi-year accretion/dilution", cat, "pass", file,
             "AccretionDilution sheet has multi-year progression")
 
-    # #47 Cross-over / breakeven synergy
+    # #47 Cross-over / breakeven synergy (v0.8 US-250)
     crossover = find_row(wb, "AccretionDilution", "breakeven") or \
                 find_row(wb, "AccretionDilution", "cross-over")
-    add(47, "Cross-over (breakeven synergy)", cat, "fail", file,
-        "No cross-over analysis (minimum synergy that makes deal EPS-neutral Y1)",
-        "Add reverse-solve: min synergy such that pro-forma EPS ≥ standalone EPS in Y1")
+    if crossover:
+        add(47, "Cross-over (breakeven synergy)", cat, "pass", file,
+            "Reverse-solve row: additional pre-tax synergy to reach EPS-neutral")
+    else:
+        add(47, "Cross-over (breakeven synergy)", cat, "fail", file,
+            "No cross-over analysis (minimum synergy that makes deal EPS-neutral Y1)",
+            "Add reverse-solve: min synergy such that pro-forma EPS ≥ standalone EPS in Y1")
 
     # #48 Break fees / regulatory tail risk
     has_break = find_row(wb, "DealStructure", "break fee") or \
@@ -610,15 +614,29 @@ def audit_merger(file: str, wb) -> None:
         add(50, "Regulatory timeline (HSR/CMA/EU)", cat, "fail", file,
             "No regulatory clearance timeline")
 
-    # #51 Contribution analysis
-    add(51, "Contribution analysis (rev/EBITDA/NI vs equity ownership)", cat, "fail", file,
-        "No contribution table",
-        "Add contrib table: acquirer % revenue/EBITDA/NI vs % equity ownership")
+    # #51 Contribution analysis (v0.8 US-251)
+    contrib = find_row(wb, "AccretionDilution", "Contribution analysis") or \
+              find_row(wb, "AccretionDilution", "contribuzione")
+    if contrib:
+        add(51, "Contribution analysis (rev/EBITDA/NI vs equity ownership)", cat, "pass", file,
+            "Contribution analysis block: acquirer vs target rev/EBITDA/NI% "
+            "vs post-deal equity ownership")
+    else:
+        add(51, "Contribution analysis (rev/EBITDA/NI vs equity ownership)", cat, "fail", file,
+            "No contribution table",
+            "Add contrib table: acquirer % revenue/EBITDA/NI vs % equity ownership")
 
-    # #52 Exchange ratio (for stock deals)
-    add(52, "Exchange ratio fixed vs floating + collar", cat, "fail", file,
-        "Stock consideration uses implicit fixed exchange at deal price",
-        "Add exchange_ratio_mode: fixed (with collar bounds) or floating")
+    # #52 Exchange ratio (for stock deals) (v0.8 US-252)
+    xr_mode = find_row(wb, "DealStructure", "Exchange ratio mode")
+    xr_collar = find_row(wb, "DealStructure", "Collar") or \
+                find_row(wb, "DealStructure", "collar")
+    if xr_mode and xr_collar:
+        add(52, "Exchange ratio fixed vs floating + collar", cat, "pass", file,
+            "Exchange ratio + collar bounds + walk-away threshold emitted")
+    else:
+        add(52, "Exchange ratio fixed vs floating + collar", cat, "fail", file,
+            "Stock consideration uses implicit fixed exchange at deal price",
+            "Add exchange_ratio_mode: fixed (with collar bounds) or floating")
 
 
 # ─── PROJECT FINANCE AUDITS (project_finance_solar, real_enfinity) ────────

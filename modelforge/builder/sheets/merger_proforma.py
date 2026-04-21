@@ -131,6 +131,47 @@ def build_deal_structure(ws: Worksheet, spec) -> dict[str, int]:
                   styles.FMT_EUR_M, highlight=True)
     refs["incr_int"] = r; r += 2
 
+    # v0.8 US-252: Exchange ratio with collar (bulge-bracket stock-deal
+    # convention). For all-cash deals these rows still emit, showing the
+    # equivalent implied exchange ratio for disclosure. Collar bounds set
+    # at ±15% of reference acquirer price; walk-away at −20%.
+    ws.cell(row=r, column=1,
+            value="Exchange ratio & collar").font = styles.font_subheader
+    ws.cell(row=r, column=2,
+            value="Rapporto di cambio & collar").font = styles.font_label_it
+    r += 1
+    write_formula(r, "Exchange ratio mode", "Modalità rapporto di cambio",
+                  '="fixed (implied)"', "General")
+    refs["xr_mode"] = r; r += 1
+    write_formula(r, "Implied exchange ratio (shares / target share)",
+                  "Rapporto implicito (azioni/titolo target)",
+                  f"=D{refs['offer_px']}*(1-cash_mix_pct)/acquirer_share_price_eur",
+                  styles.FMT_MULTIPLE, highlight=True)
+    refs["xr_ratio"] = r; r += 1
+    write_formula(r, "Collar — lower bound (acquirer px × 0.85)",
+                  "Collar — limite inferiore",
+                  "=acquirer_share_price_eur*0.85",
+                  styles.FMT_EUR_ACTUAL)
+    refs["collar_low"] = r; r += 1
+    write_formula(r, "Collar — upper bound (acquirer px × 1.15)",
+                  "Collar — limite superiore",
+                  "=acquirer_share_price_eur*1.15",
+                  styles.FMT_EUR_ACTUAL)
+    refs["collar_high"] = r; r += 1
+    write_formula(r, "Walk-away threshold (acquirer px × 0.80)",
+                  "Soglia walk-away",
+                  "=acquirer_share_price_eur*0.80",
+                  styles.FMT_EUR_ACTUAL)
+    refs["walk_away"] = r
+    ws.cell(row=r, column=4).comment = Comment(
+        "Stock-deal collar convention: implied exchange ratio adjusts if "
+        "acquirer share price moves outside ±15% of reference. Below the "
+        "walk-away threshold, either party may terminate without break-fee "
+        "(per typical bulge-bracket merger agreement template).",
+        "ModelForge",
+    )
+    r += 2
+
     # v0.7: PPA (Purchase Price Allocation) — bulge-bracket standard
     if spec.ppa is not None:
         ws.cell(row=r, column=1, value="Purchase Price Allocation (PPA)").font = styles.font_subheader
@@ -343,6 +384,13 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
                       "acq_net_income_fy0",
                       "Acquirer standalone net income — from spec")
     hist_row += 1
+    # v0.8 US-251: target NI FY0 enables contribution analysis
+    write_named_input(hist_row, "Target net income FY0",
+                      "Utile netto target FY0",
+                      spec.target_financials.net_income_eur_m, styles.FMT_EUR_M,
+                      "tgt_net_income_fy0",
+                      "Target standalone net income — from spec (contribution analysis)")
+    hist_row += 1
 
     # Year headers move below the historical block
     yr_row = hist_row + 1
@@ -475,14 +523,39 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
         "Combined D&A grown 3% p.a. off named FY0 input", "ModelForge")
     r += 1
 
+    # v0.8 US-253: PPA intangible amortization flows into pro-forma P&L
+    # as incremental D&A, reducing EBIT. Sign is already negative from
+    # DealStructure (amort_total row). Straight-line amortization holds
+    # flat across projection window (assumes projection <= shortest life).
+    if spec.ppa is not None and "amort_total" in deal_refs:
+        layout.write_row_label(ws, r, "(−) PPA intangible amortization",
+                               "(−) Ammortamento intangibili PPA", indent=True)
+        out["pf_ppa_amort"] = r
+        for i in range(p):
+            col = layout.year_col(i)
+            col_idx = ord(col) - ord("A") + 1
+            c = ws.cell(row=r, column=col_idx,
+                        value=f"='{deal_sheet}'!$D${deal_refs['amort_total']}")
+            styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        ws.cell(row=r, column=4).comment = Comment(
+            "Total PPA amortization from DealStructure (customer + technology "
+            "+ trade-name). Flat straight-line; auditor must confirm useful "
+            "lives exceed projection horizon.",
+            "ModelForge",
+        )
+        r += 1
+
     layout.write_row_label(ws, r, "Pro-forma EBIT",
                            "EBIT pro-forma", indent=True)
     out["pf_ebit"] = r
+    ebit_parts = f"{{0}}{out['pf_ebitda']}+{{0}}{out['pf_da']}"
+    if "pf_ppa_amort" in out:
+        ebit_parts += f"+{{0}}{out['pf_ppa_amort']}"
     for i in range(p):
         col = layout.year_col(i)
         col_idx = ord(col) - ord("A") + 1
-        c = ws.cell(row=r, column=col_idx,
-                    value=f"={col}{out['pf_ebitda']}+{col}{out['pf_da']}")
+        formula = "=" + ebit_parts.replace("{0}", col)
+        c = ws.cell(row=r, column=col_idx, value=formula)
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
     r += 1
 
@@ -601,6 +674,7 @@ def build_accretion_dilution(
     # Accretion / dilution
     layout.write_row_label(ws, r, "Accretion / (dilution) %",
                            "Accretion / (diluizione) %")
+    ad_row = r
     for i in range(p):
         col = layout.year_col(i)
         col_idx = ord(col) - ord("A") + 1
@@ -609,6 +683,111 @@ def build_accretion_dilution(
         styles.style_formula(c, number_format=styles.FMT_PCT_2DP)
         c.font = styles.font_subheader
         c.border = styles.BORDER_TOP_THIN
+    r += 2
+
+    # v0.8 US-250: Cross-over / breakeven synergy (reverse-solve).
+    # Additional pre-tax synergy needed Y1 to make deal EPS-neutral:
+    #   gap_ni = (std_eps − pf_eps) × (acq_shares + new_shares)
+    #   gap_pretax = gap_ni / (1 − tax)
+    # If gap_pretax > 0 we're dilutive → need that much more synergy.
+    # If negative, already accretive → min synergy needed is zero.
+    ws.cell(row=r, column=1,
+            value="Cross-over / breakeven synergy analysis"
+            ).font = styles.font_subheader
+    ws.cell(row=r, column=2,
+            value="Analisi sinergia di breakeven").font = styles.font_label_it
+    r += 1
+    layout.write_row_label(ws, r,
+                           "Additional breakeven synergy (EPS-neutral, pre-tax)",
+                           "Sinergia breakeven addizionale (pre-tax)")
+    bk_row = r
+    for i in range(p):
+        col = layout.year_col(i)
+        col_idx = ord(col) - ord("A") + 1
+        c = ws.cell(row=r, column=col_idx,
+                    value=(f"=MAX(({col}{std_eps_row}-{col}{pf_eps_row})*"
+                           f"(acq_shares_m+new_shares_issued)/"
+                           f"(1-effective_tax_rate),0)"))
+        styles.style_formula(c, number_format=styles.FMT_EUR_M)
+    ws.cell(row=r, column=4).comment = Comment(
+        "Reverse-solve: min additional pre-tax synergy that lifts pro-forma "
+        "EPS to match acquirer standalone EPS. Zero if already accretive. "
+        "Uses current pro-forma EPS (which already includes existing synergy "
+        "assumptions) so this is the MARGINAL gap.",
+        "ModelForge",
+    )
+    r += 1
+    layout.write_row_label(ws, r,
+                           "Cross-over year (first EPS-neutral year)",
+                           "Anno di cross-over (primo anno EPS-neutrale)")
+    # MATCH first positive accretion: returns year index 1..p, or "not in window"
+    ad_start_col = layout.year_col(0)
+    ad_end_col = layout.year_col(p - 1)
+    c = ws.cell(
+        row=r, column=4,
+        value=(f'=IFERROR(MATCH(TRUE,INDEX('
+               f'{ad_start_col}{ad_row}:{ad_end_col}{ad_row}>=0,0),0),'
+               f'"beyond Y{p}")'),
+    )
+    styles.style_formula(c, number_format=styles.FMT_INTEGER)
+    r += 2
+
+    # v0.8 US-251: Contribution analysis (acquirer vs target contribution
+    # to combined revenue / EBITDA / net income vs post-deal equity share).
+    ws.cell(row=r, column=1,
+            value="Contribution analysis (acquirer vs target)"
+            ).font = styles.font_subheader
+    ws.cell(row=r, column=2,
+            value="Analisi di contribuzione").font = styles.font_label_it
+    r += 1
+
+    # Header: Acquirer | Target | Equity %
+    ws.cell(row=r, column=3, value="Acquirer").font = styles.font_subheader
+    ws.cell(row=r, column=4, value="Target").font = styles.font_subheader
+    ws.cell(row=r, column=5,
+            value="Acquirer equity % (post-deal)").font = styles.font_subheader
+    r += 1
+
+    contribution_rows = [
+        ("Revenue contribution %", "Contribuzione ricavi",
+         "=acq_revenue_fy0/(acq_revenue_fy0+tgt_revenue_fy0)",
+         "=tgt_revenue_fy0/(acq_revenue_fy0+tgt_revenue_fy0)"),
+        ("EBITDA contribution %", "Contribuzione EBITDA",
+         "=(acq_revenue_fy0*acq_ebitda_margin)/"
+         "(acq_revenue_fy0*acq_ebitda_margin+tgt_revenue_fy0*tgt_ebitda_margin)",
+         "=(tgt_revenue_fy0*tgt_ebitda_margin)/"
+         "(acq_revenue_fy0*acq_ebitda_margin+tgt_revenue_fy0*tgt_ebitda_margin)"),
+        ("Net income contribution %", "Contribuzione utile netto",
+         "=acq_net_income_fy0/(acq_net_income_fy0+tgt_net_income_fy0)",
+         "=tgt_net_income_fy0/(acq_net_income_fy0+tgt_net_income_fy0)"),
+    ]
+    equity_acq_formula = "=acq_shares_m/(acq_shares_m+new_shares_issued)"
+    for en, it, acq_f, tgt_f in contribution_rows:
+        layout.write_row_label(ws, r, en, it)
+        ca = ws.cell(row=r, column=3, value=acq_f)
+        styles.style_formula(ca, number_format=styles.FMT_PCT_2DP)
+        ct = ws.cell(row=r, column=4, value=tgt_f)
+        styles.style_formula(ct, number_format=styles.FMT_PCT_2DP)
+        ce = ws.cell(row=r, column=5, value=equity_acq_formula)
+        styles.style_formula(ce, number_format=styles.FMT_PCT_2DP)
+        r += 1
+    layout.write_row_label(ws, r, "Equity ownership post-deal",
+                           "Quota equity post-operazione")
+    ws.cell(row=r, column=3, value=equity_acq_formula)
+    styles.style_formula(ws.cell(row=r, column=3),
+                         number_format=styles.FMT_PCT_2DP)
+    ws.cell(row=r, column=4,
+            value="=new_shares_issued/(acq_shares_m+new_shares_issued)")
+    styles.style_formula(ws.cell(row=r, column=4),
+                         number_format=styles.FMT_PCT_2DP)
+    ws.cell(row=r, column=4).comment = Comment(
+        "Contribution analysis compares each party's pre-deal share of "
+        "combined revenue / EBITDA / NI against acquirer's equity ownership "
+        "post-deal. Large gaps flag fairness concerns (e.g. acquirer paying "
+        "up if equity % << combined-NI contribution).",
+        "ModelForge",
+    )
+    r += 1
 
     ws.freeze_panes = "D7"
     ws.print_title_rows = "5:5"
