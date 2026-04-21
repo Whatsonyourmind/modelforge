@@ -282,5 +282,54 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
     )
     r += 2
 
+    r += 1
+
+    # ─── Section 7: Basel securitization capital framework (v0.8.7 US-510/512)
+    layout.write_section_header(
+        ws, r, "Basel III/IV securitization capital (SEC-SA / SEC-IRBA / SEC-ERBA)",
+        "Capitale Basel su cartolarizzazioni",
+    )
+    r += 1
+
+    ws.cell(row=r, column=1, value="Framework hierarchy (BCBS d374 / CRR Art. 254)").font = styles.font_subheader
+    ws.cell(row=r, column=2, value="Gerarchia framework").font = styles.font_label_it
+    r += 1
+
+    bsec_items = [
+        ("SEC-IRBA (internal ratings-based)",
+         "Banca IRB con rating interni",
+         "Priority 1 — required if bank has IRB approval for underlying"),
+        ("SEC-ERBA (external ratings-based)",
+         "Basato su rating esterni",
+         "Priority 2 — used when ECAI rating available on tranche"),
+        ("SEC-SA (standardised approach)",
+         "Approccio standard",
+         "Priority 3 — fallback; Kirb-based look-through formula"),
+        ("Risk-weight floor (all approaches)",
+         "Floor ponderazione",
+         "15% minimum on senior; 100% on mezz; 1,250% on equity/residual"),
+        ("Output floor (Basel IV)",
+         "Output floor Basel IV",
+         "72.5% of SA by 2028 (phased from 50% in 2022)"),
+        ("STS qualifying (Reg. EU 2017/2402)",
+         "STS conforme",
+         "Simple / Transparent / Standardised — reduced RW"),
+    ]
+    for en, it, val in bsec_items:
+        ws.cell(row=r, column=1, value=f"  • {en}").font = styles.font_label_en
+        ws.cell(row=r, column=2, value=it).font = styles.font_label_it
+        ws.cell(row=r, column=4, value=val).font = styles.font_label_it
+        r += 1
+
+    ws.cell(row=r, column=1, value="").comment = Comment(
+        "Basel III/IV securitization framework per BCBS d374 (December 2014) "
+        "implemented in EU via CRR Art. 254 / Reg. EU 2017/2401 + 2402 (STS). "
+        "Hierarchy: SEC-IRBA > SEC-ERBA > SEC-SA. Output floor 72.5% of SA "
+        "applicable from 2028. Sources: BIS BCBS d374; EBA technical "
+        "standards; Banca d'Italia Circolare 285 Title III.",
+        "ModelForge",
+    )
+    r += 2
+
     ws.freeze_panes = "D5"
     ws.print_title_rows = "1:4"

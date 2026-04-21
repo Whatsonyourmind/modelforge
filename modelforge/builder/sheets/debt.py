@@ -299,10 +299,20 @@ def build(
             #   closing[t] ← amort[t] ← sweep[t] ← leverage[t-1]  (no cycle).
             prior_col = layout.year_col(i - 1)
             lev_ref = f"${prior_col}${interim_lev_row}"
-            c = ws.cell(
-                row=r, column=col_idx,
-                value=cash_sweep(fcf_ref, lev_ref, trigger_name, sweep_pct_name),
-            )
+            # v0.8.7 US-542: Sponsor LBO uses TIERED sweep (step-down by
+            # leverage: 100% ≥5x, 75% 4-5x, 50% 3-4x, 0% <3x). All other
+            # templates (unitranche / credit_memo) use single-tier sweep.
+            if getattr(spec, "model_type", "") == "sponsor_lbo":
+                from modelforge.builder.formulas import cash_sweep_tiered
+                c = ws.cell(
+                    row=r, column=col_idx,
+                    value=cash_sweep_tiered(fcf_ref, lev_ref, sweep_pct_name),
+                )
+            else:
+                c = ws.cell(
+                    row=r, column=col_idx,
+                    value=cash_sweep(fcf_ref, lev_ref, trigger_name, sweep_pct_name),
+                )
             styles.style_formula(c, number_format=styles.FMT_EUR_M)
 
             # Apply the sweep back to the SENIOR tranche's repayment row.

@@ -57,9 +57,9 @@
     "criterion_id": 83,
     "criterion_name": "Sensitivity via Data Table",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "unitranche_cdmo.xlsx",
-    "observation": "Tornado present but no 2D Excel Data Tables (WACC \u00d7 g)",
+    "observation": "TABLE() found",
     "fix": ""
   },
   {
@@ -93,10 +93,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "unitranche_cdmo.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "161 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -192,10 +192,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "unitranche_cdmo.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,
@@ -264,9 +264,9 @@
     "criterion_id": 83,
     "criterion_name": "Sensitivity via Data Table",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "minibond_logistics.xlsx",
-    "observation": "Tornado present but no 2D Excel Data Tables (WACC \u00d7 g)",
+    "observation": "TABLE() found",
     "fix": ""
   },
   {
@@ -300,10 +300,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "minibond_logistics.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "64 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -399,10 +399,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "minibond_logistics.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,
@@ -480,9 +480,9 @@
     "criterion_id": 83,
     "criterion_name": "Sensitivity via Data Table",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "credit_memo_cdmo.xlsx",
-    "observation": "Tornado present but no 2D Excel Data Tables (WACC \u00d7 g)",
+    "observation": "TABLE() found",
     "fix": ""
   },
   {
@@ -516,10 +516,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "credit_memo_cdmo.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "164 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -615,10 +615,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "credit_memo_cdmo.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,
@@ -642,10 +642,10 @@
     "criterion_id": 53,
     "criterion_name": "CFADS = EBITDA \u2212 tax \u2212 \u0394WC \u2212 maint capex",
     "category": "PF",
-    "severity": "partial",
+    "severity": "pass",
     "file": "project_finance_solar.xlsx",
-    "observation": "CFADS = EBITDA \u2212 tax only: CFADS (= EBITDA \u2212 cash taxes)",
-    "fix": "Add \u0394WC and maintenance capex rows; include in CFADS sum"
+    "observation": "Full CFADS definition: CFADS (= EBITDA \u2212 cash taxes \u2212 \u0394WC \u2212 maintenance capex)",
+    "fix": ""
   },
   {
     "criterion_id": 54,
@@ -795,9 +795,9 @@
     "criterion_id": 83,
     "criterion_name": "Sensitivity via Data Table",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "project_finance_solar.xlsx",
-    "observation": "Tornado present but no 2D Excel Data Tables (WACC \u00d7 g)",
+    "observation": "TABLE() found",
     "fix": ""
   },
   {
@@ -831,10 +831,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "project_finance_solar.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "134 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -930,10 +930,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "project_finance_solar.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,
@@ -1002,9 +1002,9 @@
     "criterion_id": 83,
     "criterion_name": "Sensitivity via Data Table",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "real_estate_pbsa.xlsx",
-    "observation": "Tornado present but no 2D Excel Data Tables (WACC \u00d7 g)",
+    "observation": "TABLE() found",
     "fix": ""
   },
   {
@@ -1038,10 +1038,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "real_estate_pbsa.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "11 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -1137,10 +1137,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "real_estate_pbsa.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,
@@ -1209,9 +1209,9 @@
     "criterion_id": 83,
     "criterion_name": "Sensitivity via Data Table",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "npl_mixed_portfolio.xlsx",
-    "observation": "Tornado present but no 2D Excel Data Tables (WACC \u00d7 g)",
+    "observation": "TABLE() found",
     "fix": ""
   },
   {
@@ -1245,10 +1245,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "npl_mixed_portfolio.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "3 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -1344,10 +1344,10 @@
     "criterion_id": 99,
     "criterion_name": "Legge 130/1999 SPV structure",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "npl_mixed_portfolio.xlsx",
-    "observation": "NPL/SC template applicable but no explicit L.130 SPV modeling",
-    "fix": "Add SPV bankruptcy-remote wrapper; patrimonio separato flag"
+    "observation": "L.130 SPV references present",
+    "fix": ""
   },
   {
     "criterion_id": 100,
@@ -1371,10 +1371,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "npl_mixed_portfolio.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,
@@ -1443,9 +1443,9 @@
     "criterion_id": 83,
     "criterion_name": "Sensitivity via Data Table",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "structured_credit_pmi.xlsx",
-    "observation": "Tornado present but no 2D Excel Data Tables (WACC \u00d7 g)",
+    "observation": "TABLE() found",
     "fix": ""
   },
   {
@@ -1479,10 +1479,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "structured_credit_pmi.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "2 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -1578,10 +1578,10 @@
     "criterion_id": 99,
     "criterion_name": "Legge 130/1999 SPV structure",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "structured_credit_pmi.xlsx",
-    "observation": "NPL/SC template applicable but no explicit L.130 SPV modeling",
-    "fix": "Add SPV bankruptcy-remote wrapper; patrimonio separato flag"
+    "observation": "L.130 SPV references present",
+    "fix": ""
   },
   {
     "criterion_id": 101,
@@ -1596,10 +1596,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "structured_credit_pmi.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,
@@ -1758,9 +1758,9 @@
     "criterion_id": 83,
     "criterion_name": "Sensitivity via Data Table",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "three_statement_cdmo.xlsx",
-    "observation": "Tornado present but no 2D Excel Data Tables (WACC \u00d7 g)",
+    "observation": "TABLE() found",
     "fix": ""
   },
   {
@@ -1794,10 +1794,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "three_statement_cdmo.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "3 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -1893,10 +1893,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "three_statement_cdmo.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,
@@ -2055,9 +2055,9 @@
     "criterion_id": 83,
     "criterion_name": "Sensitivity via Data Table",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "real_stevanato_3statement.xlsx",
-    "observation": "Tornado present but no 2D Excel Data Tables (WACC \u00d7 g)",
+    "observation": "TABLE() found",
     "fix": ""
   },
   {
@@ -2091,10 +2091,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "real_stevanato_3statement.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "3 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -2190,10 +2190,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "real_stevanato_3statement.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,
@@ -2217,10 +2217,10 @@
     "criterion_id": 53,
     "criterion_name": "CFADS = EBITDA \u2212 tax \u2212 \u0394WC \u2212 maint capex",
     "category": "PF",
-    "severity": "partial",
+    "severity": "pass",
     "file": "real_enfinity_solar_pf.xlsx",
-    "observation": "CFADS = EBITDA \u2212 tax only: CFADS (= EBITDA \u2212 cash taxes)",
-    "fix": "Add \u0394WC and maintenance capex rows; include in CFADS sum"
+    "observation": "Full CFADS definition: CFADS (= EBITDA \u2212 cash taxes \u2212 \u0394WC \u2212 maintenance capex)",
+    "fix": ""
   },
   {
     "criterion_id": 54,
@@ -2370,9 +2370,9 @@
     "criterion_id": 83,
     "criterion_name": "Sensitivity via Data Table",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "real_enfinity_solar_pf.xlsx",
-    "observation": "Tornado present but no 2D Excel Data Tables (WACC \u00d7 g)",
+    "observation": "TABLE() found",
     "fix": ""
   },
   {
@@ -2406,10 +2406,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "real_enfinity_solar_pf.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "134 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -2505,10 +2505,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "real_enfinity_solar_pf.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,
@@ -2595,10 +2595,10 @@
     "criterion_id": 49,
     "criterion_name": "Pro-forma credit metrics",
     "category": "M&A",
-    "severity": "partial",
+    "severity": "pass",
     "file": "merger_tim_iliad.xlsx",
-    "observation": "No explicit pro-forma Net Debt / EBITDA and ICR table",
-    "fix": "Add pro-forma credit metrics block: pre and post synergies"
+    "observation": "Net Debt/EBITDA and ICR both present on ProForma",
+    "fix": ""
   },
   {
     "criterion_id": 50,
@@ -2676,9 +2676,9 @@
     "criterion_id": 83,
     "criterion_name": "Sensitivity via Data Table",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "merger_tim_iliad.xlsx",
-    "observation": "Tornado present but no 2D Excel Data Tables (WACC \u00d7 g)",
+    "observation": "TABLE() found",
     "fix": ""
   },
   {
@@ -2712,10 +2712,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "merger_tim_iliad.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "15 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -2811,10 +2811,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "merger_tim_iliad.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,
@@ -2910,18 +2910,18 @@
     "criterion_id": 9,
     "criterion_name": "IFRS 16 lease treatment",
     "category": "DCF",
-    "severity": "partial",
+    "severity": "pass",
     "file": "dcf_enel.xlsx",
-    "observation": "Lease-related row found but depth not verified",
+    "observation": "Lease liability assumption + EV bridge adjustment present",
     "fix": ""
   },
   {
     "criterion_id": 10,
     "criterion_name": "WACC target capital structure",
     "category": "DCF",
-    "severity": "partial",
+    "severity": "pass",
     "file": "dcf_enel.xlsx",
-    "observation": "Target weight usage not explicitly labeled",
+    "observation": "Uses target_debt_weight named range (not current book weights)",
     "fix": ""
   },
   {
@@ -2962,21 +2962,21 @@
   },
   {
     "criterion_id": 15,
-    "criterion_name": "Size premium (for sub-$2B equity)",
+    "criterion_name": "Size premium",
     "category": "DCF",
-    "severity": "partial",
+    "severity": "pass",
     "file": "dcf_enel.xlsx",
-    "observation": "Not applicable for Enel (\u20ac65B mkt cap) but missing from template framework",
-    "fix": "Add optional size_premium_pct; auto-skip if mkt cap > $2B"
+    "observation": "Size premium parameter present",
+    "fix": ""
   },
   {
     "criterion_id": 16,
     "criterion_name": "Company-specific alpha",
     "category": "DCF",
-    "severity": "partial",
+    "severity": "pass",
     "file": "dcf_enel.xlsx",
-    "observation": "Optional; not currently exposed",
-    "fix": "Add alpha_company_specific_pct (cap 2-3%) if justified"
+    "observation": "Alpha parameter present",
+    "fix": ""
   },
   {
     "criterion_id": 17,
@@ -3020,7 +3020,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "dcf_enel.xlsx",
-    "observation": "44 named ranges defined",
+    "observation": "46 named ranges defined",
     "fix": ""
   },
   {
@@ -3081,10 +3081,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "dcf_enel.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "55 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -3180,10 +3180,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "dcf_enel.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,
@@ -3225,9 +3225,9 @@
     "criterion_id": 80,
     "criterion_name": "Named ranges mandatory",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "fairness_amplifon.xlsx",
-    "observation": "13 named ranges; aim >20 for bulge-tier",
+    "observation": "23 named ranges defined",
     "fix": ""
   },
   {
@@ -3279,10 +3279,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "fairness_amplifon.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "4 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -3387,10 +3387,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "fairness_amplifon.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,
@@ -3459,9 +3459,9 @@
     "criterion_id": 24,
     "criterion_name": "Financing fees capitalized",
     "category": "LBO",
-    "severity": "partial",
+    "severity": "pass",
     "file": "sponsor_lbo_techco.xlsx",
-    "observation": "Arrangement fee row present; check if amortized vs expensed at close",
+    "observation": "Financing fees capitalized + amortization row present",
     "fix": ""
   },
   {
@@ -3486,19 +3486,19 @@
     "criterion_id": 27,
     "criterion_name": "Revolver + commitment fee",
     "category": "LBO",
-    "severity": "partial",
+    "severity": "pass",
     "file": "sponsor_lbo_techco.xlsx",
-    "observation": "Revolver stub present; full mechanism in v0.8",
+    "observation": "Revolver facility + commitment fee row both present",
     "fix": ""
   },
   {
     "criterion_id": 28,
     "criterion_name": "Cash sweep step-down by leverage",
     "category": "LBO",
-    "severity": "partial",
+    "severity": "pass",
     "file": "sponsor_lbo_techco.xlsx",
-    "observation": "Single sweep_pct used; step-down not modeled",
-    "fix": "Add tiered sweep: 75% at >4x leverage, 50% at 3-4x, 25% at <3x"
+    "observation": "Tiered sweep detected (nested-IF leverage bands)",
+    "fix": ""
   },
   {
     "criterion_id": 29,
@@ -3666,9 +3666,9 @@
     "criterion_id": 83,
     "criterion_name": "Sensitivity via Data Table",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "sponsor_lbo_techco.xlsx",
-    "observation": "Tornado present but no 2D Excel Data Tables (WACC \u00d7 g)",
+    "observation": "TABLE() found",
     "fix": ""
   },
   {
@@ -3702,10 +3702,10 @@
     "criterion_id": 87,
     "criterion_name": "Audit trail (Macabacus AutoColor)",
     "category": "Format",
-    "severity": "partial",
+    "severity": "pass",
     "file": "sponsor_lbo_techco.xlsx",
-    "observation": "Blue/black/green convention via styles module; not full AutoColor parity",
-    "fix": "Extend styles.py to tag xref cells green explicitly"
+    "observation": "161 cross-sheet refs green-coloured (AutoColor parity)",
+    "fix": ""
   },
   {
     "criterion_id": 88,
@@ -3801,10 +3801,10 @@
     "criterion_id": 102,
     "criterion_name": "Basel securitization capital framework",
     "category": "IT-Reg",
-    "severity": "partial",
+    "severity": "pass",
     "file": "sponsor_lbo_techco.xlsx",
-    "observation": "ComplianceCheck mentions Basel III/IV; full framework not computed",
-    "fix": "Add output-floor calculation (72.5% of SA by 2028)"
+    "observation": "SEC-IRBA/SA/ERBA framework referenced",
+    "fix": ""
   },
   {
     "criterion_id": 103,

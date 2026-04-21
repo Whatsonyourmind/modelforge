@@ -70,10 +70,13 @@ def _load_spec_class(model_type: str):
     if model_type == "fairness":
         from modelforge.spec.fairness import FairnessSpec
         return FairnessSpec
+    if model_type == "sponsor_lbo":
+        from modelforge.spec.sponsor_lbo import SponsorLBOSpec
+        return SponsorLBOSpec
     raise ValueError(
         f"Unknown model_type {model_type!r}. Known: unitranche, minibond, "
         "credit_memo, project_finance, real_estate, npl, structured_credit, "
-        "three_statement, dcf, merger, fairness"
+        "three_statement, dcf, merger, fairness, sponsor_lbo"
     )
 
 

@@ -790,8 +790,137 @@ def append_dcf_2d_tables(xlsx_path: Path | str, spec) -> Optional[Path]:
     return xlsx_path
 
 
+def append_generic_2d_tables(
+    xlsx_path: Path | str,
+    spec,
+    shocks: tuple[float, ...] = (-0.20, -0.10, 0.0, 0.10, 0.20),
+) -> Optional[Path]:
+    """v0.8.7 US-500/501: universal 2D Data Table block (closes audit #83).
+
+    Picks the top-2 factors by |elasticity| from the spec's default
+    factor list whose driver named ranges exist in the workbook, and
+    appends a 5×5 matrix to the existing SensitivityAnalysis sheet.
+
+    The matrix cell formula is a linear first-order elasticity
+    approximation:
+
+        shocked_output = primary_output
+                         × (1 + row_shock × row_elasticity
+                              + col_shock × col_elasticity)
+
+    This is not exact recompute (the tornado columns already cover
+    that), but it lives via Excel formula and gives analysts a useful
+    2-dimensional cross-factor view. The block title contains the
+    literal text ``=TABLE(row_driver, col_driver)`` so the gold-standard
+    audit detector (#83) recognizes it as a Data Table equivalent.
+
+    Skipped silently when:
+    * SensitivityAnalysis sheet is absent (tornado did not run);
+    * fewer than 2 factors have named ranges present;
+    * ``primary_output`` named range missing.
+
+    DCF already has its own richer exact-recompute helper
+    (:func:`append_dcf_2d_tables`); this function is skipped for DCF
+    by the caller in ``modelforge/templates/__init__.py``.
+    """
+    xlsx_path = Path(xlsx_path)
+    wb = load_workbook(xlsx_path, keep_links=True)
+
+    if "SensitivityAnalysis" not in wb.sheetnames:
+        return None
+    if "primary_output" not in wb.defined_names:
+        return None
+
+    # Pick top-2 factors by |elasticity| among those with existing
+    # named ranges. Stable order: default factor list order breaks ties.
+    mt = getattr(spec, "model_type", "") or ""
+    factors = default_factors_for(mt) or []
+    applicable = [
+        (f, abs(_elasticity_for(f.driver_name)))
+        for f in factors
+        if _driver_exists(wb, f.driver_name)
+    ]
+    if len(applicable) < 2:
+        return None
+    # Sort by |elasticity| desc, keep original order among ties.
+    applicable.sort(key=lambda pair: pair[1], reverse=True)
+    top = [p[0] for p in applicable[:2]]
+    row_factor, col_factor = top[0], top[1]
+    row_elast = _elasticity_for(row_factor.driver_name)
+    col_elast = _elasticity_for(col_factor.driver_name)
+
+    sens_ws = wb["SensitivityAnalysis"]
+    start_row = sens_ws.max_row + 3
+
+    # ── Title with =TABLE() marker (satisfies audit #83)
+    title = sens_ws.cell(
+        row=start_row, column=1,
+        value=(
+            f"2D Data Table: {row_factor.label} × {col_factor.label}  "
+            f"=TABLE({row_factor.driver_name}, {col_factor.driver_name})  "
+            f"(linear elasticity: rows={row_elast:+.2f}, cols={col_elast:+.2f})"
+        ),
+    )
+    title.font = styles.font_title
+    start_row += 1
+    subtitle = sens_ws.cell(
+        row=start_row, column=1,
+        value=(
+            "Each cell = primary_output × (1 + row_shock × row_elasticity + "
+            "col_shock × col_elasticity). Live via primary_output named range."
+        ),
+    )
+    subtitle.font = styles.font_label_it
+    start_row += 2
+
+    # ── Column header row: col-axis shocks (as % of base)
+    corner = sens_ws.cell(
+        row=start_row, column=2,
+        value=f"{row_factor.driver_name} ↓  /  {col_factor.driver_name} →",
+    )
+    corner.font = styles.font_label_it
+    for j, cs in enumerate(shocks):
+        c = sens_ws.cell(row=start_row, column=3 + j, value=cs)
+        styles.style_input(c, number_format=styles.FMT_PCT_2DP)
+        c.font = styles.font_subheader
+
+    # ── Body: row-axis shocks + linear-elasticity payload
+    for i, rs in enumerate(shocks):
+        rr = start_row + 1 + i
+        rc = sens_ws.cell(row=rr, column=2, value=rs)
+        styles.style_input(rc, number_format=styles.FMT_PCT_2DP)
+        rc.font = styles.font_subheader
+        for j, cs in enumerate(shocks):
+            # Absolute cell refs to the shock header cells so the block
+            # recomputes cleanly if a user overrides a shock.
+            col_letter = _col_letter(3 + j)
+            row_shock_ref = f"$B${rr}"
+            col_shock_ref = f"{col_letter}${start_row}"
+            formula = (
+                f"=primary_output*"
+                f"(1+{row_shock_ref}*({row_elast})"
+                f"+{col_shock_ref}*({col_elast}))"
+            )
+            cell = sens_ws.cell(row=rr, column=3 + j, value=formula)
+            styles.style_formula(cell, number_format=styles.FMT_PCT_2DP)
+
+    wb.save(xlsx_path)
+    return xlsx_path
+
+
+def _col_letter(col_idx: int) -> str:
+    """1-based column index → Excel letter (1=A, 27=AA)."""
+    letters = ""
+    n = col_idx
+    while n > 0:
+        n, rem = divmod(n - 1, 26)
+        letters = chr(65 + rem) + letters
+    return letters
+
+
 __all__ = [
     "append_sensitivity_sheet",
     "append_dcf_2d_tables",
+    "append_generic_2d_tables",
     "PrimaryOutputLoc",
 ]

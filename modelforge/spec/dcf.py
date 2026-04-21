@@ -65,6 +65,15 @@ class WACCInputs(BaseModel):
     # v0.7 optional: Hamada comparable-beta analysis
     comparable_betas: list[ComparableBeta] = Field(default_factory=list)
 
+    # v0.8.7 US-532 / US-533: Duff & Phelps / Kroll size premium and
+    # company-specific alpha. Both default to zero and auto-skip the
+    # Assumptions row when absent, so legacy specs are unaffected.
+    # Size premium ramps 0% (>$20B equity) → 500bps (<$100M equity).
+    # Alpha captures residual unsystematic risk not in β (illiquidity,
+    # key-person, single-site concentration).
+    size_premium_pct: Assumption | None = None
+    company_specific_alpha_bps: Assumption | None = None
+
 
 class FCFInputs(BaseModel):
     revenue_growth_by_year: list[Assumption]
@@ -154,7 +163,9 @@ class DCFSpec(BaseModel):
         for opt in (self.wacc.mature_erp,
                     self.wacc.sovereign_default_spread,
                     self.wacc.equity_bond_vol_ratio,
-                    self.wacc.lambda_country_exposure):
+                    self.wacc.lambda_country_exposure,
+                    self.wacc.size_premium_pct,
+                    self.wacc.company_specific_alpha_bps):
             if opt is not None:
                 out.append(opt)
         out.append(self.terminal.terminal_growth_pct)

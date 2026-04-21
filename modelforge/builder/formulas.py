@@ -181,7 +181,7 @@ def eir_xirr(cashflow_range: str, date_range: str, guess: str = "0.08") -> str:
 
 
 def cash_sweep(fcf_ref: str, leverage_ref: str, threshold_ref: str, sweep_pct_ref: str) -> str:
-    """Cash sweep mechanism.
+    """Cash sweep mechanism (single-tier).
 
     If leverage > threshold, sweep `sweep_pct` of positive FCF to principal.
     Returns a negative number (reduces debt closing).
@@ -190,6 +190,25 @@ def cash_sweep(fcf_ref: str, leverage_ref: str, threshold_ref: str, sweep_pct_re
     """
     return (
         f"=-IF({leverage_ref}>{threshold_ref},MAX({fcf_ref},0)*{sweep_pct_ref},0)"
+    )
+
+
+def cash_sweep_tiered(fcf_ref: str, leverage_ref: str, sweep_pct_ref: str) -> str:
+    """v0.8.7 US-542: Cash sweep stepping down by leverage tier.
+
+    Bulge-bracket convention (per WSP / Macabacus LBO templates):
+      Leverage ≥ 5.0x   → 100% of sweep_pct × FCF
+      Leverage 4.0-5.0x →  75% of sweep_pct × FCF
+      Leverage 3.0-4.0x →  50% of sweep_pct × FCF
+      Leverage < 3.0x   →   0% (deal-dependent covenant carve-out)
+
+    Returns a negative number (reduces debt closing).
+    """
+    base_sweep = f"MAX({fcf_ref},0)*{sweep_pct_ref}"
+    return (
+        f"=-IF({leverage_ref}>=5,{base_sweep}*1,"
+        f"IF({leverage_ref}>=4,{base_sweep}*0.75,"
+        f"IF({leverage_ref}>=3,{base_sweep}*0.5,0)))"
     )
 
 

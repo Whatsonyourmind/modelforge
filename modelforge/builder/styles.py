@@ -187,3 +187,96 @@ def style_check(cell, is_ok: bool = True, number_format: str = FMT_INTEGER) -> N
     cell.number_format = number_format
     cell.alignment = align_center
     cell.border = BORDER_BOX
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v0.8.7 US-505 — Macabacus AutoColor parity (post-build pass)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Macabacus AutoColor convention:
+#   Blue   — hardcoded input
+#   Black  — formula (same-sheet)
+#   Green  — formula referencing another sheet ( =Sheet!Cell )
+#   Red    — external link ( =[Book.xlsx]Sheet!Cell ) / warning
+#
+# We already tag blue and black at write-time via style_input / style_formula.
+# The green xref tagging is hard to retrofit at every write site across the
+# codebase, so v0.8.7 does it in a post-build pass that walks the workbook
+# once and promotes cross-sheet formula cells to green, and external-link
+# cells to red.
+
+
+def _formula_is_xref(formula: str) -> bool:
+    """True if formula references another sheet.
+
+    Looks for a sheet-qualified ref like ``Sheet!A1`` or ``'Named Sheet'!A1``.
+    Named-range references without a ``!`` count as same-sheet for colouring.
+    External workbook refs (``[Book.xlsx]Sheet!A1``) are handled separately.
+    """
+    if not formula or not isinstance(formula, str):
+        return False
+    if not formula.startswith("="):
+        return False
+    # External link marker
+    if "[" in formula and "]" in formula and "!" in formula:
+        return False  # external — tagged separately
+    return "!" in formula
+
+
+def _formula_is_external_link(formula: str) -> bool:
+    """True if formula references an external workbook."""
+    if not formula or not isinstance(formula, str):
+        return False
+    if not formula.startswith("="):
+        return False
+    return "[" in formula and "]" in formula and "!" in formula
+
+
+def auto_color_xrefs(wb) -> int:
+    """Walk every cell in every sheet; green cross-sheet refs, red externals.
+
+    Called as the last step of the build pipeline. Idempotent — re-running
+    on a coloured workbook produces no change.
+
+    Returns the count of cells promoted to green or red (useful for tests
+    and telemetry).
+    """
+    promoted = 0
+    for ws in wb.worksheets:
+        for row in ws.iter_rows():
+            for c in row:
+                v = c.value
+                if not isinstance(v, str) or not v.startswith("="):
+                    continue
+                # Skip if already red (warning) — don't downgrade
+                current_color = getattr(c.font, "color", None)
+                rgb = None
+                if current_color is not None:
+                    rgb = getattr(current_color, "rgb", None)
+                if isinstance(rgb, str) and rgb.upper().endswith("C00000"):
+                    continue
+
+                if _formula_is_external_link(v):
+                    c.font = font_warning
+                    promoted += 1
+                elif _formula_is_xref(v):
+                    # Promote if currently black or unset (default). Skip
+                    # cells with explicit blue (input) or other colors, so
+                    # special styling (warning orange, subheader) is kept.
+                    is_black = (
+                        isinstance(rgb, str)
+                        and rgb.upper().endswith("000000")
+                    ) or rgb is None
+                    if is_black:
+                        is_bold = bool(getattr(c.font, "bold", False))
+                        size = c.font.size or FONT_SIZE_BODY
+                        italic = bool(getattr(c.font, "italic", False))
+                        c.font = Font(
+                            name=FONT_BASE,
+                            size=size,
+                            color=COLOR_XREF,
+                            bold=is_bold,
+                            italic=italic,
+                        )
+                        promoted += 1
+    return promoted
