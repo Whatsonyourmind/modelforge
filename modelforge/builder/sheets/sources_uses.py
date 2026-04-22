@@ -456,6 +456,39 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
     c = ws.cell(row=r, column=4,
                 value=getattr(spec, "earnout_year", 2))
     styles.style_input(c, number_format=styles.FMT_INTEGER)
+    r += 1
+
+    # v0.8.9 US-589: Earnout accretion through P&L. Default 5% discount
+    # rate on fair value; accretes each period until payment.
+    refs["earnout_discount"] = r
+    layout.write_row_label(
+        ws, r, "Earnout discount rate (accretion)",
+        "Tasso sconto earnout", indent=True,
+    )
+    c = ws.cell(row=r, column=4,
+                value=getattr(spec, "earnout_discount_pct", 0.05))
+    styles.style_input(c, number_format=styles.FMT_PCT_2DP)
+    _def(wb, "earnout_discount_pct", ws.title, f"$D${r}")
+    r += 1
+
+    # Total accretion over life = FV × ((1+disc)^year − 1)
+    refs["earnout_accretion"] = r
+    layout.write_row_label(
+        ws, r, "Earnout accretion through P&L (total)",
+        "Accrual earnout a P&L (totale)", indent=True,
+    )
+    c = ws.cell(
+        row=r, column=4,
+        value=(f"=D{refs['earnout_fv']}*"
+               f"((1+earnout_discount_pct)^D{refs['earnout_year']}-1)"),
+    )
+    styles.style_formula(c, number_format=styles.FMT_EUR_M)
+    ws.cell(row=r, column=4).comment = Comment(
+        "Earnout / CVR accretion through P&L per IFRS 3.58: contingent "
+        "consideration at FV unwinds at the discount rate each period. "
+        "Total accretion over life = FV × ((1+disc)^year − 1).",
+        "ModelForge",
+    )
     r += 2
 
     # ── SECTION 8: Dividend recap (US-208) ────────────────────────────────
@@ -482,6 +515,18 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
     c = ws.cell(row=r, column=4,
                 value=getattr(spec, "div_recap_target_leverage", 4.0))
     styles.style_input(c, number_format=styles.FMT_MULTIPLE)
+    _def(wb, "recap_target_leverage", ws.title, f"$D${r}")
+    r += 1
+
+    # v0.8.9 US-584: Recap sponsor share — fraction of recap proceeds
+    # distributed to sponsor (vs held as cash on BS). Default 1.0.
+    refs["recap_sponsor_share"] = r
+    layout.write_row_label(ws, r, "Recap sponsor share of proceeds",
+                           "Quota sponsor su proventi recap", indent=True)
+    c = ws.cell(row=r, column=4,
+                value=getattr(spec, "div_recap_sponsor_share_pct", 1.0))
+    styles.style_input(c, number_format=styles.FMT_PCT)
+    _def(wb, "recap_sponsor_share_pct", ws.title, f"$D${r}")
     r += 2
 
     # ── SECTION 9: Exit scenarios ×3 (US-210, #37) ────────────────────────
@@ -616,7 +661,8 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
                 )
                 recap_div = (
                     f"IF(AND(D{refs['recap_enabled']}=1,{y}=D{refs['recap_year']}),"
-                    f"D{refs['cap_sponsor_eq']}*0.5,0)"
+                    f"(recap_target_leverage*historical_ebitda_lfy"
+                    f"-D{refs['cap_sponsor_eq']})*recap_sponsor_share_pct,0)"
                 )
                 # Earnout payment in earnout_year (neutral to sponsor — adds to
                 # exit proceeds when relevant; placeholder 0 for cleanliness)
@@ -675,33 +721,45 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
     )
     r += 1
 
-    # PIK compound accrual proxy row: shows how a PIK tranche grows from
-    # entry principal to exit if interest compounds. Uses pik_margin_bps
-    # assumption if present, else 7.5% default.
+    # v0.8.9 US-580: PIK coupon rate as workbook-level named range.
+    # Input cell first, then the accrued-principal formula below refers
+    # to the named range rather than a literal.
+    refs["pik_coupon_input"] = r
+    layout.write_row_label(
+        ws, r, "PIK coupon rate (compound)",
+        "Cedola PIK (compound)", indent=True,
+    )
+    c = ws.cell(row=r, column=4,
+                value=getattr(spec, "pik_coupon_pct", 0.075))
+    styles.style_input(c, number_format=styles.FMT_PCT)
+    _def(wb, "pik_coupon_pct", ws.title, f"$D${r}")
+    r += 1
+
+    # PIK compound accrual: principal × (1 + pik_coupon_pct)^exit_year.
+    # Both factors are now named-range driven.
     refs["pik_accrued_exit"] = r
     layout.write_row_label(
         ws, r, "PIK tranche accrued principal at exit",
         "Principale PIK accruato all'uscita", indent=True,
     )
-    pik_rate = 0.075  # 7.5% default PIK coupon
     pik_initial_ref = (
         f"D{refs.get('cap_pik_debt', refs['cap_sponsor_eq'])}"
     )
     c = ws.cell(
         row=r, column=4,
-        value=f"={pik_initial_ref}*(1+{pik_rate})^D{refs['exit_year']}",
+        value=f"={pik_initial_ref}*(1+pik_coupon_pct)^D{refs['exit_year']}",
     )
     styles.style_formula(c, number_format=styles.FMT_EUR_M)
     ws.cell(row=r, column=4).comment = Comment(
-        f"PIK compound accrual: principal × (1+{pik_rate:.1%})^exit_year. "
-        f"Assumes PIK coupon rolls into principal each period. Override "
-        f"via spec.debt_stack PIK tranche when present.",
+        "PIK compound accrual: principal × (1+pik_coupon_pct)^exit_year. "
+        "Coupon named range pik_coupon_pct is editable. Assumes PIK "
+        "coupon rolls into principal each period.",
         "ModelForge",
     )
     r += 1
 
-    # Dividend recap flow row: new debt issued - existing debt = sponsor
-    # distribution, when recap_enabled=1 and current year = recap_year.
+    # v0.8.9 US-584: Dividend recap with live sponsor-share fraction.
+    # Distribution = (target_lev × EBITDA − sponsor_eq) × sponsor_share_pct.
     refs["recap_distribution"] = r
     layout.write_row_label(
         ws, r, "Dividend recap — distribution to sponsor",
@@ -710,8 +768,8 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
     c = ws.cell(
         row=r, column=4,
         value=(f"=IF(D{refs['recap_enabled']}=1,"
-               f"D{refs['recap_leverage']}*historical_ebitda_lfy"
-               f"-D{refs['cap_sponsor_eq']},0)"),
+               f"(recap_target_leverage*historical_ebitda_lfy"
+               f"-D{refs['cap_sponsor_eq']})*recap_sponsor_share_pct,0)"),
     )
     styles.style_formula(c, number_format=styles.FMT_EUR_M)
     ws.cell(row=r, column=4).comment = Comment(

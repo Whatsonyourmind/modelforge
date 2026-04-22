@@ -867,13 +867,59 @@ def append_generic_2d_tables(
         row=start_row, column=1,
         value=(
             "Each cell = primary_output × (1 + row_shock × row_elasticity + "
-            "col_shock × col_elasticity). Live via primary_output named range."
+            "col_shock × col_elasticity). Shocks + elasticity live via "
+            "named ranges sensitivity_shock_1..5 (editable inputs)."
         ),
     )
     subtitle.font = styles.font_label_it
     start_row += 2
 
-    # ── Column header row: col-axis shocks (as % of base)
+    # v0.8.9 US-583: register shock_1..5 as workbook-level named ranges
+    # so every 2D block in the workbook (and downstream exports) reads
+    # the same shock grid. First call wins — subsequent blocks reuse.
+    shock_names = [f"sensitivity_shock_{i+1}" for i in range(len(shocks))]
+
+    # v0.8.9 US-590: when a shadow engine exists for this model_type,
+    # recompute each 2D matrix cell via compute_primary_output(spec,
+    # overrides). Produces EXACT numeric 2D — not linear elasticity.
+    # Fallback to elasticity formula when shadow unavailable.
+    shadow_grid: list[list[float]] | None = None
+    try:
+        from modelforge.shadow import (
+            compute_primary_output, has_shadow_engine,
+        )
+        mt_local = getattr(spec, "model_type", "") or ""
+        if has_shadow_engine(mt_local):
+            base = compute_primary_output(spec, {})
+            if base is not None:
+                all_assums = {a.name: a for a in spec.all_assumptions()}
+                row_base = (
+                    all_assums[row_factor.driver_name].base
+                    if row_factor.driver_name in all_assums else None
+                )
+                col_base = (
+                    all_assums[col_factor.driver_name].base
+                    if col_factor.driver_name in all_assums else None
+                )
+                if row_base is not None and col_base is not None:
+                    shadow_grid = []
+                    for rs in shocks:
+                        row_out: list[float] = []
+                        for cs in shocks:
+                            overrides = {
+                                row_factor.driver_name: row_base * (1 + rs),
+                                col_factor.driver_name: col_base * (1 + cs),
+                            }
+                            v = compute_primary_output(spec, overrides)
+                            # fallback to elasticity if engine returned None
+                            if v is None:
+                                v = base * (1 + rs * row_elast + cs * col_elast)
+                            row_out.append(v)
+                        shadow_grid.append(row_out)
+    except Exception:
+        shadow_grid = None  # safety net — never block the build
+
+    # ── Column header row: col-axis shocks as input cells + named ranges
     corner = sens_ws.cell(
         row=start_row, column=2,
         value=f"{row_factor.driver_name} ↓  /  {col_factor.driver_name} →",
@@ -883,26 +929,40 @@ def append_generic_2d_tables(
         c = sens_ws.cell(row=start_row, column=3 + j, value=cs)
         styles.style_input(c, number_format=styles.FMT_PCT_2DP)
         c.font = styles.font_subheader
+        if shock_names[j] not in wb.defined_names:
+            wb.defined_names[shock_names[j]] = DefinedName(
+                name=shock_names[j],
+                attr_text=f"'{sens_ws.title}'!${_col_letter(3+j)}${start_row}",
+            )
 
-    # ── Body: row-axis shocks + linear-elasticity payload
+    # ── Body: row-axis shocks via named ranges + payload (shadow or linear)
     for i, rs in enumerate(shocks):
         rr = start_row + 1 + i
-        rc = sens_ws.cell(row=rr, column=2, value=rs)
-        styles.style_input(rc, number_format=styles.FMT_PCT_2DP)
+        rc = sens_ws.cell(row=rr, column=2, value=f"={shock_names[i]}")
+        styles.style_formula(rc, number_format=styles.FMT_PCT_2DP)
         rc.font = styles.font_subheader
         for j, cs in enumerate(shocks):
-            # Absolute cell refs to the shock header cells so the block
-            # recomputes cleanly if a user overrides a shock.
-            col_letter = _col_letter(3 + j)
-            row_shock_ref = f"$B${rr}"
-            col_shock_ref = f"{col_letter}${start_row}"
-            formula = (
-                f"=primary_output*"
-                f"(1+{row_shock_ref}*({row_elast})"
-                f"+{col_shock_ref}*({col_elast}))"
-            )
-            cell = sens_ws.cell(row=rr, column=3 + j, value=formula)
-            styles.style_formula(cell, number_format=styles.FMT_PCT_2DP)
+            if shadow_grid is not None:
+                # Exact numeric from shadow engine (method=shadow-2d)
+                v = shadow_grid[i][j]
+                cell = sens_ws.cell(row=rr, column=3 + j, value=v)
+                styles.style_input(cell, number_format=styles.FMT_PCT_2DP)
+                if i == 0 and j == 0:
+                    cell.comment = Comment(
+                        "method=shadow-2d — exact Python recompute via "
+                        "per-template shadow engine. Non-linear; reflects "
+                        "full model response to joint driver shocks.",
+                        "ModelForge",
+                    )
+            else:
+                # Linear elasticity formula (fallback)
+                formula = (
+                    f"=primary_output*"
+                    f"(1+{shock_names[i]}*({row_elast})"
+                    f"+{shock_names[j]}*({col_elast}))"
+                )
+                cell = sens_ws.cell(row=rr, column=3 + j, value=formula)
+                styles.style_formula(cell, number_format=styles.FMT_PCT_2DP)
 
     wb.save(xlsx_path)
     return xlsx_path
