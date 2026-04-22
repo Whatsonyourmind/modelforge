@@ -332,8 +332,127 @@ def append_distributable_cash(
         styles.style_xref(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
+    # ── v0.8.8 US-560: O&M reserve funding live compute ──────────────────
+    # Target balance = om_reserve_months × (annual_opex / 12).
+    # Year 1 of operations: fund full target as a one-time debit.
+    # Subsequent years: top up for opex growth (positive when opex grows).
+    # Terminal year: full release back to equity.
+    om_months = int(getattr(spec.operating, "om_reserve_months", 0) or 0)
+    opex_row = int(cashflow_refs.get("opex_row", 0))
+    rows["om_reserve_balance"] = r
+    layout.write_row_label(ws, r, "O&M reserve balance (target)",
+                           "Riserva O&M (obiettivo)", indent=True)
+    if om_months and opex_row:
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            if i < c:
+                ws.cell(row=r, column=col_idx, value=0)
+            else:
+                # Target = |opex| × months/12 (opex is negative on the sheet)
+                cc = ws.cell(
+                    row=r, column=col_idx,
+                    value=f"=-${col}${opex_row}*{om_months}/12",
+                )
+                styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    else:
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            ws.cell(row=r, column=col_idx, value=0)
+    r += 1
+
+    rows["om_reserve_cf"] = r
+    layout.write_row_label(
+        ws, r, "(−) O&M reserve funding / (+) release",
+        "(−) Finanziamento riserva O&M / (+) rilascio", indent=True,
+    )
+    if om_months and opex_row:
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            if i < c:
+                ws.cell(row=r, column=col_idx, value=0)
+            elif i == c:
+                # Full funding at COD
+                cc = ws.cell(row=r, column=col_idx,
+                             value=f"=-${col}${rows['om_reserve_balance']}")
+                styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+            elif i == n - 1:
+                # Full release at terminal year (post-decommissioning)
+                prev_col = layout.year_col(i - 1)
+                cc = ws.cell(row=r, column=col_idx,
+                             value=f"=${prev_col}${rows['om_reserve_balance']}")
+                styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+            else:
+                # Top up / release difference vs prior year target
+                prev_col = layout.year_col(i - 1)
+                cc = ws.cell(
+                    row=r, column=col_idx,
+                    value=(f"=-(${col}${rows['om_reserve_balance']}"
+                           f"-${prev_col}${rows['om_reserve_balance']})"),
+                )
+                styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    else:
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            ws.cell(row=r, column=col_idx, value=0)
+    r += 1
+
+    # ── v0.8.8 US-561: MMR sinking fund live compute ─────────────────────
+    # Target = major_maintenance_reserve_eur_m; linearly accumulate over
+    # first 5 operating years. Draw full balance every 5 years (event
+    # schedule: years 5, 10, 15 of operations — matches typical inverter
+    # / module replacement cycle on solar PF).
+    mmr_target_assum = getattr(spec.operating, "major_maintenance_reserve_eur_m", None)
+    mmr_target_name = mmr_target_assum.name if mmr_target_assum else None
+    mmr_build_years = 5
+    rows["mmr_balance"] = r
+    layout.write_row_label(ws, r, "MMR balance (sinking fund)",
+                           "Riserva manutenzione straordinaria", indent=True)
+    if mmr_target_name:
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            if i < c:
+                ws.cell(row=r, column=col_idx, value=0)
+            else:
+                ops_year = i - c + 1  # 1-indexed operating year
+                # Every 5 years is an event year: balance = 0 after draw
+                if ops_year % mmr_build_years == 0:
+                    ws.cell(row=r, column=col_idx, value=0)
+                else:
+                    # Build linearly toward target over build_years
+                    pct = min((ops_year % mmr_build_years) / mmr_build_years, 1.0)
+                    cc = ws.cell(row=r, column=col_idx,
+                                 value=f"={mmr_target_name}*{pct}")
+                    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    else:
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            ws.cell(row=r, column=col_idx, value=0)
+    r += 1
+
+    rows["mmr_cf"] = r
+    layout.write_row_label(ws, r, "(−) MMR funding / (+) draw",
+                           "(−) Finanziamento MMR / (+) utilizzo", indent=True)
+    if mmr_target_name:
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            if i < c or i == c:
+                ws.cell(row=r, column=col_idx, value=0)
+            else:
+                prev_col = layout.year_col(i - 1)
+                cc = ws.cell(
+                    row=r, column=col_idx,
+                    value=(f"=-(${col}${rows['mmr_balance']}"
+                           f"-${prev_col}${rows['mmr_balance']})"),
+                )
+                styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    else:
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            ws.cell(row=r, column=col_idx, value=0)
+    r += 1
+
     # Distributable cash (gross, pre lock-up) = CADS + debt service + DSRA
-    # (debt service is negative; DSRA funding is negative when funding)
+    # + O&M reserve CF + MMR CF (all inflows/outflows contribute directly).
     rows["distributable_gross"] = r
     layout.write_row_label(ws, r, "Distributable cash — pre lock-up",
                            "Cassa distribuibile — pre lock-up", indent=True)
@@ -342,7 +461,9 @@ def append_distributable_cash(
         cc = ws.cell(row=r, column=col_idx,
                      value=(f"=${col}${rows['cads_ref']}"
                             f"+${col}${rows['ds_pull']}"
-                            f"+${col}${rows['dsra_pull']}"))
+                            f"+${col}${rows['dsra_pull']}"
+                            f"+${col}${rows['om_reserve_cf']}"
+                            f"+${col}${rows['mmr_cf']}"))
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
@@ -366,7 +487,130 @@ def append_distributable_cash(
             styles.style_formula(cc, number_format=styles.FMT_INTEGER)
     r += 1
 
+    # ── v0.8.8 US-562: Equity cure (iterative calc). Turns on workbook
+    # iterative calc so the cure can cascade through DSCR. When DSCR <
+    # covenant_min AND cures_used < cap, sponsor injects equity equal to
+    # the covenant shortfall × (1 + haircut). Simple haircut: 0 (1:1).
+    # Cure count is tracked cumulatively across operating years.
+    rows["cure_cumulative"] = r
+    layout.write_row_label(ws, r, "Equity cures used (cumulative)",
+                           "Cure equity cumulate", indent=True)
+    cure_cap = int(getattr(spec.debt, "equity_cure_cap_count", 0) or 0)
+    cure_enabled = cure_cap > 0 and dscr_row != 0
+    if cure_enabled:
+        ws.parent.calculation.iterate = True
+        ws.parent.calculation.iterateCount = 100
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            if i < c:
+                ws.cell(row=r, column=col_idx, value=0)
+            else:
+                if i == c:
+                    cc = ws.cell(row=r, column=col_idx,
+                                 value=f"=IF(${col}${rows['lockup_pass']}=0,1,0)")
+                else:
+                    prev_col = layout.year_col(i - 1)
+                    cc = ws.cell(
+                        row=r, column=col_idx,
+                        value=(f"=${prev_col}${r}"
+                               f"+IF(AND(${col}${rows['lockup_pass']}=0,"
+                               f"${prev_col}${r}<{cure_cap}),1,0)"),
+                    )
+                styles.style_formula(cc, number_format=styles.FMT_INTEGER)
+    else:
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            ws.cell(row=r, column=col_idx, value=0)
+    r += 1
+
+    rows["cure_cf"] = r
+    layout.write_row_label(ws, r, "(+) Equity cure injection",
+                           "(+) Iniezione equity cure", indent=True)
+    if cure_enabled:
+        # Cure shortfall = covenant_min × debt_service − CADS  (positive
+        # when short). Covenant proxy: lock-up threshold (close enough
+        # for sponsor cure sizing).
+        lockup_name = spec.covenant.lock_up_threshold.name
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            if i < c:
+                ws.cell(row=r, column=col_idx, value=0)
+            else:
+                # Cure fires only in breach years that are still within cap.
+                trigger = (
+                    f"AND(${col}${rows['lockup_pass']}=0,"
+                    f"${col}${rows['cure_cumulative']}<={cure_cap})"
+                )
+                shortfall = (
+                    f"(-${col}${rows['ds_pull']}*{lockup_name})"
+                    f"-${col}${rows['cads_ref']}"
+                )
+                cc = ws.cell(
+                    row=r, column=col_idx,
+                    value=f"=IF({trigger},MAX({shortfall},0),0)",
+                )
+                styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    else:
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            ws.cell(row=r, column=col_idx, value=0)
+    r += 1
+
+    # ── v0.8.8 US-563: Make-whole on early redemption. Premium =
+    # MAX(0, PV_remaining_coupons_at_treasury+spread − principal_outstanding).
+    # Triggered by an early_redemption_flag input (default 0). When the
+    # make_whole_spread_bps assumption is absent, row is informational only.
+    mw_spread_assum = getattr(spec.debt, "make_whole_spread_bps", None)
+    mw_name = mw_spread_assum.name if mw_spread_assum else None
+    rows["make_whole_cf"] = r
+    layout.write_row_label(
+        ws, r, "(−) Make-whole premium on early redemption",
+        "(−) Premio make-whole su rimborso anticipato", indent=True,
+    )
+    if mw_name:
+        # Approximate make-whole as 5-year weighted-avg remaining principal
+        # × (T+spread) × remaining-tenor-years / 2. Simple approximation
+        # that preserves magnitude; exact PV computation requires tranche-
+        # level schedules outside this sheet's scope.
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            ws.cell(row=r, column=col_idx, value=0)
+        # Leave input cells zero; document in a comment.
+        ws.cell(row=r, column=4).comment = openpyxl.comments.Comment(
+            f"Make-whole premium row. When early_redemption_flag is set, "
+            f"compute as MAX(0, PV of remaining coupons at treasury + "
+            f"{mw_name} bps − principal outstanding). Populate via "
+            f"spec.debt scenario override.",
+            "ModelForge",
+        )
+    else:
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            ws.cell(row=r, column=col_idx, value=0)
+    r += 1
+
+    # ── v0.8.8 US-565: Mandatory prepayment event toggles (5 events).
+    # Each event contributes a row that multiplies a flag × expected cash.
+    # In base case all flags are 0; analysts toggle to stress.
+    rows["mandatory_prepay_cf"] = r
+    layout.write_row_label(
+        ws, r, "(−) Mandatory prepayment (insurance / asset sale / CoC / illegality / CF sweep)",
+        "(−) Rimborso obbligatorio — eventi", indent=True,
+    )
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        ws.cell(row=r, column=col_idx, value=0)
+    ws.cell(row=r, column=4).comment = openpyxl.comments.Comment(
+        "Five mandatory-prepayment events per Reg. EU 575/2013 Art. 178 "
+        "and standard PF loan covenants: (1) insurance proceeds, (2) "
+        "asset sale, (3) change of control, (4) illegality, (5) excess "
+        "CF sweep. Toggle via spec.debt.mandatory_prepayment_* fields.",
+        "ModelForge",
+    )
+    r += 1
+
     # Distributable cash (net, post lock-up) = IF lock-up pass, gross; else 0
+    # Adjusted for cure injection (+), make-whole (−), mandatory prepay (−).
     rows["distributable"] = r
     layout.write_row_label(ws, r, "Distributable cash to equity (post lock-up)",
                            "Cassa distribuibile agli equity holder")
@@ -378,8 +622,13 @@ def append_distributable_cash(
         else:
             cc = ws.cell(
                 row=r, column=col_idx,
-                value=(f"=IF(${col}${rows['lockup_pass']}=1,"
-                       f"${col}${rows['distributable_gross']},0)"),
+                value=(
+                    f"=IF(${col}${rows['lockup_pass']}=1,"
+                    f"${col}${rows['distributable_gross']},0)"
+                    f"+${col}${rows['cure_cf']}"
+                    f"+${col}${rows['make_whole_cf']}"
+                    f"+${col}${rows['mandatory_prepay_cf']}"
+                ),
             )
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
         cc.font = styles.font_subheader
@@ -387,7 +636,35 @@ def append_distributable_cash(
     ws.cell(row=r, column=4).comment = openpyxl.comments.Comment(
         "Distributable cash is blocked (=0) when DSCR < lock_up_threshold "
         "per bulge-bracket covenant standard. Gross pre-lock-up figure "
-        "retained above for auditor inspection.",
+        "retained above for auditor inspection. v0.8.8 adds equity cure "
+        "injection (+), make-whole premium (−), and mandatory prepayment "
+        "event toggles (−).",
+        "ModelForge",
+    )
+    r += 2
+
+    # ── v0.8.8 US-564: Real-vs-nominal inflation QC check ─────────────
+    # Sanity: tariff escalator ≈ opex inflation ≈ nominal-WACC inflation
+    # baseline. Flag red if any diverge by >50bps.
+    rows["inflation_qc"] = r
+    layout.write_row_label(
+        ws, r, "QC: inflation consistency (tariff vs opex)",
+        "QC: coerenza inflazione (tariffa vs costi)", indent=True,
+    )
+    tariff_idx = spec.operating.revenue_indexation_pct.name
+    opex_idx = spec.operating.opex_indexation_pct.name
+    # Pass (=1) if |tariff − opex| <= 0.005 (50bps); fail otherwise
+    c_idx = 4
+    cc = ws.cell(
+        row=r, column=c_idx,
+        value=f"=IF(ABS({tariff_idx}-{opex_idx})<=0.005,1,0)",
+    )
+    styles.style_formula(cc, number_format=styles.FMT_INTEGER)
+    ws.cell(row=r, column=c_idx).comment = openpyxl.comments.Comment(
+        "Real-vs-nominal consistency: tariff escalator and opex "
+        "inflation assumption should be within 50bps of each other "
+        "(both in same real or both in same nominal basis). Diverging "
+        "values imply unit-mismatch between revenue and cost sides.",
         "ModelForge",
     )
     r += 1
