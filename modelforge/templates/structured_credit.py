@@ -5,7 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from modelforge.builder.base_workbook import build_base_workbook
-from modelforge.builder.sheets import compliance as compliance_sheet, generic_qc, sc_tranches
+from modelforge.builder.sheets import (
+    compliance as compliance_sheet,
+    generic_qc,
+    ifrs9_ecl,
+    sc_tranches,
+)
 
 
 def build(spec, out_path: Path | str, graph_db_path=None):
@@ -32,6 +37,10 @@ def build(spec, out_path: Path | str, graph_db_path=None):
         generic_qc.build(qc_ws, checks)
         compliance_ws = wb.create_sheet("ComplianceCheck")
         compliance_sheet.build(compliance_ws, spec)
+
+        # v0.8.8 US-566..569: dedicated IFRS 9 ECL sheet
+        ecl_ws = wb.create_sheet("IFRS9ECL")
+        ifrs9_ecl.build(ecl_ws, spec)
 
         return {}
 
