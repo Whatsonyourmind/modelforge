@@ -5,7 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from modelforge.builder.base_workbook import build_base_workbook
-from modelforge.builder.sheets import compliance as compliance_sheet, generic_qc, npl_waterfall
+from modelforge.builder.sheets import (
+    compliance as compliance_sheet,
+    generic_qc,
+    ifrs9_ecl,
+    npl_waterfall,
+)
 
 
 def build(spec, out_path: Path | str, graph_db_path=None):
@@ -34,6 +39,40 @@ def build(spec, out_path: Path | str, graph_db_path=None):
         compliance_ws = wb.create_sheet("ComplianceCheck")
         compliance_sheet.build(compliance_ws, spec)
 
+        # v0.8.8 US-566..569: dedicated IFRS 9 ECL sheet. NPL uses POCI
+        # treatment per IFRS 9 §5.5.13 for purchased-at-discount loans.
+        ecl_ws = wb.create_sheet("IFRS9ECL")
+        poci_facilities = _poci_facilities_for_npl(spec)
+        ifrs9_ecl.build(ecl_ws, spec, context={"facilities": poci_facilities})
+
         return {}
+
+    def _poci_facilities_for_npl(spec):
+        """NPL defaults: all facilities are POCI, lifetime PD=1, LGD
+        driven by portfolio recovery assumptions. Both attributes may
+        be either plain floats or Assumption objects — unwrap safely.
+        """
+        def _base(v, default):
+            if v is None:
+                return default
+            return float(getattr(v, "base", v))
+        recovery_pct = _base(
+            getattr(spec.portfolio, "gross_recovery_rate_pct", None), 0.40,
+        )
+        gbv = _base(getattr(spec.portfolio, "gbv_eur_m", None), 100.0)
+        return [
+            {
+                "facility_id": "NPL-PORTFOLIO",
+                "stage": "POCI",
+                "pd_12m": 1.00,
+                "lifetime_pd": 1.00,
+                "lgd": max(0.0, 1.0 - recovery_pct),
+                "ead": gbv,
+                "eir": 0.10,
+                "years_to_maturity": int(
+                    getattr(spec.horizon, "collection_years", 5) or 5
+                ),
+            }
+        ]
 
     return build_base_workbook(spec, out_path, core_sheets, graph_db_path)[:2]
