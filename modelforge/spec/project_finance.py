@@ -79,6 +79,11 @@ class OperatingPhase(BaseModel):
     om_reserve_months: int = 0
     major_maintenance_reserve_eur_m: Optional[Assumption] = None
 
+    # v0.8.9 US-588: NWC as % of revenue. ΔWC = (rev_t − rev_{t-1}) × pct
+    # seeds working cap at COD and flexes with revenue changes thereafter.
+    # Default absent → 0 (merchant solar SPV with negligible AR/AP).
+    nwc_pct_revenue: Optional[Assumption] = None
+
 
 class PFDebt(BaseModel):
     """Project debt tranche."""
@@ -102,6 +107,28 @@ class PFDebt(BaseModel):
     make_whole_spread_bps: Optional[Assumption] = None  # T+50 typical for early redemption
     equity_cure_cap_count: int = 0  # max number of cures over loan life (0 = disabled)
     equity_cure_max_uplift_pct: Optional[Assumption] = None  # 20% EBITDA typical
+
+    # v0.8.9 US-586: early-redemption trigger for make-whole.
+    # Flag: 0 = no early redemption (base case); 1 = triggered.
+    # Year: 1-indexed operating year of the redemption event.
+    early_redemption_flag: int = 0
+    early_redemption_year: int = 0
+    # Remaining-principal proxy: fraction of initial debt outstanding
+    # at redemption (defaults 0.8 = typical post-grace + 1y amort).
+    early_redemption_principal_pct: float = 0.8
+
+    # v0.8.9 US-587: five mandatory-prepayment event flags per typical
+    # PF loan covenant package. Each toggles an expected cash trigger.
+    mp_insurance_flag: int = 0
+    mp_insurance_eur_m: float = 0.0
+    mp_asset_sale_flag: int = 0
+    mp_asset_sale_eur_m: float = 0.0
+    mp_coc_flag: int = 0
+    mp_coc_eur_m: float = 0.0
+    mp_illegality_flag: int = 0
+    mp_illegality_eur_m: float = 0.0
+    mp_cf_sweep_flag: int = 0
+    mp_cf_sweep_eur_m: float = 0.0
 
 
 class DSCRCovenant(BaseModel):
@@ -185,11 +212,12 @@ class ProjectFinanceSpec(BaseModel):
         out.append(self.covenant.lock_up_threshold)
         out.append(self.equity.target_irr)
         out.append(self.equity.effective_tax_rate)
-        # v0.7 additions
+        # v0.7 + v0.8.9 optional assumptions
         for opt in (
             self.operating.panel_degradation_pct_annual,
             self.operating.p90_revenue_haircut_pct,
             self.operating.major_maintenance_reserve_eur_m,
+            self.operating.nwc_pct_revenue,
             self.debt.make_whole_spread_bps,
             self.debt.equity_cure_max_uplift_pct,
         ):

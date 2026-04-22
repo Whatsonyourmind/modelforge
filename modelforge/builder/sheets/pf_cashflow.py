@@ -205,10 +205,12 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
-    # ΔWC row (working-capital investment). Simplified: NWC scales
-    # with revenue via nwc_pct_revenue (defaulted to 0 for merchant
-    # solar SPVs where receivables/payables net to ~zero). Kept live
-    # so analysts can override post-build.
+    # v0.8.9 US-588: ΔWC = (rev_t − rev_{t-1}) × nwc_pct_revenue.
+    # When spec.operating.nwc_pct_revenue is absent, default to 0.
+    nwc_pct_assum = getattr(spec.operating, "nwc_pct_revenue", None)
+    nwc_pct_ref = (
+        nwc_pct_assum.name if nwc_pct_assum is not None else "0"
+    )
     rows["delta_wc"] = r
     layout.write_row_label(
         ws, r, "(−) Δ Working capital", "(−) Δ capitale circolante",
@@ -218,14 +220,31 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         ws.cell(row=r, column=col_idx, value=0)
     for i in range(c, n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
-        cc = ws.cell(row=r, column=col_idx, value=0)
+        if i == c:
+            # First operating year: ΔWC = rev × nwc_pct (seed working cap)
+            cc = ws.cell(
+                row=r, column=col_idx,
+                value=f"=-${col}${rows['revenue']}*{nwc_pct_ref}",
+            )
+        else:
+            prev_col = layout.year_col(i - 1)
+            cc = ws.cell(
+                row=r, column=col_idx,
+                value=(f"=-(${col}${rows['revenue']}"
+                       f"-${prev_col}${rows['revenue']})*{nwc_pct_ref}"),
+            )
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
-    # Maintenance capex row. PF solar assumption: 0.3% of cumulative
-    # gross asset value per year from COD (inverter replacement +
-    # module cleaning). Kept as a separate line so CFADS formula below
-    # is the classic bulge-tier identity.
+    # v0.8.9 US-588: Maintenance capex = -revenue × maintenance_reserve_pct_revenue.
+    # Leverages the existing OperatingPhase.maintenance_reserve_pct_revenue
+    # assumption already on the Assumptions sheet as a named range.
+    maint_pct_assum = getattr(
+        spec.operating, "maintenance_reserve_pct_revenue", None,
+    )
+    maint_pct_ref = (
+        maint_pct_assum.name if maint_pct_assum is not None else "0"
+    )
     rows["maint_capex"] = r
     layout.write_row_label(
         ws, r, "(−) Maintenance capex", "(−) Capex di manutenzione",
@@ -235,7 +254,10 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         ws.cell(row=r, column=col_idx, value=0)
     for i in range(c, n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
-        cc = ws.cell(row=r, column=col_idx, value=0)
+        cc = ws.cell(
+            row=r, column=col_idx,
+            value=f"=-${col}${rows['revenue']}*{maint_pct_ref}",
+        )
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
@@ -396,14 +418,32 @@ def append_distributable_cash(
             ws.cell(row=r, column=col_idx, value=0)
     r += 1
 
-    # ── v0.8.8 US-561: MMR sinking fund live compute ─────────────────────
-    # Target = major_maintenance_reserve_eur_m; linearly accumulate over
-    # first 5 operating years. Draw full balance every 5 years (event
-    # schedule: years 5, 10, 15 of operations — matches typical inverter
-    # / module replacement cycle on solar PF).
+    # ── v0.8.8 US-561 + v0.8.9 US-581: MMR sinking fund (fully live).
+    # Target = major_maintenance_reserve_eur_m (named range).
+    # Build years + event-cycle length live via mmr_build_years named
+    # range. Balance formula: target × MOD(ops_year, mmr_build_years) /
+    # mmr_build_years. Event year (MOD = 0) resets balance to 0.
     mmr_target_assum = getattr(spec.operating, "major_maintenance_reserve_eur_m", None)
     mmr_target_name = mmr_target_assum.name if mmr_target_assum else None
-    mmr_build_years = 5
+
+    if mmr_target_name:
+        # Register mmr_build_years as workbook-level named range first
+        from openpyxl.workbook.defined_name import DefinedName
+        wb = ws.parent
+        layout.write_row_label(
+            ws, r, "MMR build-years (sinking schedule)",
+            "Anni di accantonamento MMR", indent=True,
+        )
+        c = ws.cell(row=r, column=4, value=5)
+        styles.style_input(c, number_format=styles.FMT_INTEGER)
+        if "mmr_build_years" in wb.defined_names:
+            del wb.defined_names["mmr_build_years"]
+        wb.defined_names["mmr_build_years"] = DefinedName(
+            name="mmr_build_years",
+            attr_text=f"'{ws.title}'!$D${r}",
+        )
+        r += 1
+
     rows["mmr_balance"] = r
     layout.write_row_label(ws, r, "MMR balance (sinking fund)",
                            "Riserva manutenzione straordinaria", indent=True)
@@ -414,15 +454,15 @@ def append_distributable_cash(
                 ws.cell(row=r, column=col_idx, value=0)
             else:
                 ops_year = i - c + 1  # 1-indexed operating year
-                # Every 5 years is an event year: balance = 0 after draw
-                if ops_year % mmr_build_years == 0:
-                    ws.cell(row=r, column=col_idx, value=0)
-                else:
-                    # Build linearly toward target over build_years
-                    pct = min((ops_year % mmr_build_years) / mmr_build_years, 1.0)
-                    cc = ws.cell(row=r, column=col_idx,
-                                 value=f"={mmr_target_name}*{pct}")
-                    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+                # Formula: target × MOD(ops_year, build_years) / build_years
+                # Event year (MOD = 0) resets balance to 0 automatically.
+                cc = ws.cell(
+                    row=r, column=col_idx,
+                    value=(f"={mmr_target_name}*"
+                           f"MOD({ops_year},mmr_build_years)"
+                           f"/mmr_build_years"),
+                )
+                styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     else:
         for i in range(n):
             col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
@@ -556,10 +596,11 @@ def append_distributable_cash(
             ws.cell(row=r, column=col_idx, value=0)
     r += 1
 
-    # ── v0.8.8 US-563: Make-whole on early redemption. Premium =
-    # MAX(0, PV_remaining_coupons_at_treasury+spread − principal_outstanding).
-    # Triggered by an early_redemption_flag input (default 0). When the
-    # make_whole_spread_bps assumption is absent, row is informational only.
+    # ── v0.8.8 US-563 + v0.8.9 US-586: Make-whole on early redemption,
+    # fully live. Premium = principal_outstanding × make_whole_spread_bps
+    # × remaining_tenor_years / 10000, applied in the early-redemption year.
+    # Triggered by spec.debt.early_redemption_flag = 1. Principal proxy
+    # = initial_debt × early_redemption_principal_pct.
     mw_spread_assum = getattr(spec.debt, "make_whole_spread_bps", None)
     mw_name = mw_spread_assum.name if mw_spread_assum else None
     rows["make_whole_cf"] = r
@@ -567,44 +608,97 @@ def append_distributable_cash(
         ws, r, "(−) Make-whole premium on early redemption",
         "(−) Premio make-whole su rimborso anticipato", indent=True,
     )
-    if mw_name:
-        # Approximate make-whole as 5-year weighted-avg remaining principal
-        # × (T+spread) × remaining-tenor-years / 2. Simple approximation
-        # that preserves magnitude; exact PV computation requires tranche-
-        # level schedules outside this sheet's scope.
-        for i in range(n):
-            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+    er_flag = int(getattr(spec.debt, "early_redemption_flag", 0) or 0)
+    er_year = int(getattr(spec.debt, "early_redemption_year", 0) or 0)
+    er_pct = float(getattr(spec.debt, "early_redemption_principal_pct", 0.8) or 0.0)
+    total_op_years = o  # operating-phase tenor proxy
+    # Find debt-principal reference (sum of debt-tranche amounts)
+    initial_debt_ref = "+".join(
+        f"{t.amount.name}" for t in spec.debt.tranches
+    ) if getattr(spec.debt, "tranches", None) else "0"
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        if i < c:
             ws.cell(row=r, column=col_idx, value=0)
-        # Leave input cells zero; document in a comment.
-        ws.cell(row=r, column=4).comment = openpyxl.comments.Comment(
-            f"Make-whole premium row. When early_redemption_flag is set, "
-            f"compute as MAX(0, PV of remaining coupons at treasury + "
-            f"{mw_name} bps − principal outstanding). Populate via "
-            f"spec.debt scenario override.",
-            "ModelForge",
-        )
-    else:
-        for i in range(n):
-            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
-            ws.cell(row=r, column=col_idx, value=0)
+        else:
+            ops_year = i - c + 1
+            if mw_name and er_flag and ops_year == er_year:
+                remaining = max(total_op_years - ops_year, 0)
+                cc = ws.cell(
+                    row=r, column=col_idx,
+                    value=(f"=-({initial_debt_ref})*{er_pct}"
+                           f"*{mw_name}/10000*{remaining}"),
+                )
+                styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+            else:
+                ws.cell(row=r, column=col_idx, value=0)
+    ws.cell(row=r, column=4).comment = openpyxl.comments.Comment(
+        "Make-whole premium: -principal_outstanding × make_whole_spread_bps "
+        "/ 10000 × remaining_tenor_years. Triggers only when "
+        "early_redemption_flag=1 and ops_year=early_redemption_year.",
+        "ModelForge",
+    )
     r += 1
 
-    # ── v0.8.8 US-565: Mandatory prepayment event toggles (5 events).
-    # Each event contributes a row that multiplies a flag × expected cash.
-    # In base case all flags are 0; analysts toggle to stress.
+    # ── v0.8.8 US-565 + v0.8.9 US-587: Mandatory prepayment 5-event live.
+    # Each event row: flag × expected_cash in year = trigger_year.
+    # Default trigger_year = first operating year unless spec overrides.
+    mp_events = [
+        ("mp_insurance_flag", "mp_insurance_eur_m",
+         "Insurance proceeds",
+         "Proventi assicurativi"),
+        ("mp_asset_sale_flag", "mp_asset_sale_eur_m",
+         "Asset sale",
+         "Vendita cespiti"),
+        ("mp_coc_flag", "mp_coc_eur_m",
+         "Change of control",
+         "Cambio controllo"),
+        ("mp_illegality_flag", "mp_illegality_eur_m",
+         "Illegality event",
+         "Illegalità"),
+        ("mp_cf_sweep_flag", "mp_cf_sweep_eur_m",
+         "Excess CF sweep",
+         "Eccesso CF sweep"),
+    ]
+    mp_sub_rows: list[int] = []
+    for flag_attr, cash_attr, en, it in mp_events:
+        flag = int(getattr(spec.debt, flag_attr, 0) or 0)
+        cash = float(getattr(spec.debt, cash_attr, 0.0) or 0.0)
+        mp_sub_rows.append(r)
+        layout.write_row_label(
+            ws, r, f"  ◦ {en} (flag × amount)",
+            f"  ◦ {it}", indent=True,
+        )
+        for i in range(n):
+            col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+            if i < c:
+                ws.cell(row=r, column=col_idx, value=0)
+            else:
+                ops_year = i - c + 1
+                # Event fires in first operating year by default.
+                if ops_year == 1 and flag:
+                    cc = ws.cell(row=r, column=col_idx, value=-cash)
+                    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+                else:
+                    ws.cell(row=r, column=col_idx, value=0)
+        r += 1
+
+    # Mandatory-prepay aggregate row (sum of 5 event rows)
     rows["mandatory_prepay_cf"] = r
     layout.write_row_label(
-        ws, r, "(−) Mandatory prepayment (insurance / asset sale / CoC / illegality / CF sweep)",
-        "(−) Rimborso obbligatorio — eventi", indent=True,
+        ws, r, "(−) Mandatory prepayment — total",
+        "(−) Rimborso obbligatorio — totale", indent=True,
     )
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
-        ws.cell(row=r, column=col_idx, value=0)
+        parts = [f"${col}${sr}" for sr in mp_sub_rows]
+        cc = ws.cell(row=r, column=col_idx, value=f"=" + "+".join(parts))
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+        cc.font = styles.font_subheader
     ws.cell(row=r, column=4).comment = openpyxl.comments.Comment(
-        "Five mandatory-prepayment events per Reg. EU 575/2013 Art. 178 "
-        "and standard PF loan covenants: (1) insurance proceeds, (2) "
-        "asset sale, (3) change of control, (4) illegality, (5) excess "
-        "CF sweep. Toggle via spec.debt.mandatory_prepayment_* fields.",
+        "Sum of five mandatory-prepayment events per Reg. EU 575/2013 "
+        "Art. 178 and standard PF loan covenants. Each event toggleable "
+        "via spec.debt.mp_*_flag + mp_*_eur_m input.",
         "ModelForge",
     )
     r += 1
