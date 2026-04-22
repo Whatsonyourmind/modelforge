@@ -26,6 +26,7 @@ compliance.py Basel section stays in place for qualitative recap.
 from __future__ import annotations
 
 from openpyxl.comments import Comment
+from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.worksheet import Worksheet
 
 from modelforge.builder import layout, styles
@@ -104,33 +105,49 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
         styles.style_header(c)
     r += 1
 
+    # v0.8.9 US-585: Register workbook-level named ranges for scenario
+    # weights + PD multipliers so the weighted-PD formula + any downstream
+    # reporting can reference by name rather than cell position.
+    wb = ws.parent
+    def _reg(name: str, cell_addr: str) -> None:
+        if name in wb.defined_names:
+            del wb.defined_names[name]
+        wb.defined_names[name] = DefinedName(
+            name=name, attr_text=f"'{ws.title}'!{cell_addr}",
+        )
+
     scenario_rows: dict[str, int] = {}
     for sc in _DEFAULT_SCENARIOS:
         ws.cell(row=r, column=1, value=sc["name"]).font = styles.font_label_en
         c = ws.cell(row=r, column=2, value=sc["weight"])
         styles.style_input(c, number_format=styles.FMT_PCT)
+        _reg(f"ecl_scenario_weight_{sc['name'].lower()}", f"$B${r}")
         c = ws.cell(row=r, column=3, value=sc["gdp_growth"])
         styles.style_input(c, number_format=styles.FMT_PCT_2DP)
+        _reg(f"ecl_gdp_growth_{sc['name'].lower()}", f"$C${r}")
         c = ws.cell(row=r, column=4, value=sc["unemployment"])
         styles.style_input(c, number_format=styles.FMT_PCT_2DP)
         c = ws.cell(row=r, column=5, value=sc["cpi"])
         styles.style_input(c, number_format=styles.FMT_PCT_2DP)
         c = ws.cell(row=r, column=6, value=sc["pd_multiplier"])
         styles.style_input(c, number_format=styles.FMT_MULTIPLE)
+        _reg(f"ecl_pd_mult_{sc['name'].lower()}", f"$F${r}")
         scenario_rows[sc["name"]] = r
         r += 1
 
-    # Weighted PD multiplier
+    # Weighted PD multiplier — formula now uses named ranges.
     ws.cell(row=r, column=1,
             value="Weighted PD multiplier").font = styles.font_subheader
     ws.cell(row=r, column=2, value="Moltiplicatore ponderato").font = styles.font_label_it
-    weight_formula = "+".join(
-        f"B{scenario_rows[s['name']]}*F{scenario_rows[s['name']]}"
-        for s in _DEFAULT_SCENARIOS
+    weighted_formula = (
+        "=ecl_scenario_weight_upside*ecl_pd_mult_upside"
+        "+ecl_scenario_weight_base*ecl_pd_mult_base"
+        "+ecl_scenario_weight_downside*ecl_pd_mult_downside"
     )
-    weighted_mult_cell = ws.cell(row=r, column=6, value=f"={weight_formula}")
+    weighted_mult_cell = ws.cell(row=r, column=6, value=weighted_formula)
     styles.style_formula(weighted_mult_cell, number_format=styles.FMT_MULTIPLE)
     weighted_mult_cell.font = styles.font_subheader
+    _reg("ecl_weighted_pd_multiplier", f"$F${r}")
     weighted_mult_row = r
     r += 2
 
@@ -179,9 +196,10 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
         styles.style_formula(pd_used_cell, number_format=styles.FMT_PCT_2DP)
         # Stage-adjusted PD = PD_used × weighted macro multiplier.
         # POCI: always gross-carrying lifetime (no 12m/lifetime switch).
+        # Macro multiplier via named range ecl_weighted_pd_multiplier.
         stage_adj_cell = ws.cell(
             row=r, column=11,
-            value=f'=IF(B{r}="POCI",D{r},J{r})*$F${weighted_mult_row}',
+            value=f'=IF(B{r}="POCI",D{r},J{r})*ecl_weighted_pd_multiplier',
         )
         styles.style_formula(stage_adj_cell, number_format=styles.FMT_PCT_2DP)
         # ECL = stage_adj_pd × LGD × EAD × DF

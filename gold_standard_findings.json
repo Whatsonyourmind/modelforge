@@ -32,7 +32,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "unitranche_cdmo.xlsx",
-    "observation": "54 named ranges defined",
+    "observation": "59 named ranges defined",
     "fix": ""
   },
   {
@@ -239,7 +239,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "minibond_logistics.xlsx",
-    "observation": "48 named ranges defined",
+    "observation": "53 named ranges defined",
     "fix": ""
   },
   {
@@ -455,7 +455,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "credit_memo_cdmo.xlsx",
-    "observation": "59 named ranges defined",
+    "observation": "64 named ranges defined",
     "fix": ""
   },
   {
@@ -770,7 +770,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "project_finance_solar.xlsx",
-    "observation": "44 named ranges defined",
+    "observation": "49 named ranges defined",
     "fix": ""
   },
   {
@@ -977,7 +977,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "real_estate_pbsa.xlsx",
-    "observation": "27 named ranges defined",
+    "observation": "32 named ranges defined",
     "fix": ""
   },
   {
@@ -1184,7 +1184,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "npl_mixed_portfolio.xlsx",
-    "observation": "30 named ranges defined",
+    "observation": "45 named ranges defined",
     "fix": ""
   },
   {
@@ -1418,7 +1418,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "structured_credit_pmi.xlsx",
-    "observation": "32 named ranges defined",
+    "observation": "47 named ranges defined",
     "fix": ""
   },
   {
@@ -1733,7 +1733,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "three_statement_cdmo.xlsx",
-    "observation": "25 named ranges defined",
+    "observation": "30 named ranges defined",
     "fix": ""
   },
   {
@@ -2030,7 +2030,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "real_stevanato_3statement.xlsx",
-    "observation": "25 named ranges defined",
+    "observation": "30 named ranges defined",
     "fix": ""
   },
   {
@@ -2345,7 +2345,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "real_enfinity_solar_pf.xlsx",
-    "observation": "45 named ranges defined",
+    "observation": "50 named ranges defined",
     "fix": ""
   },
   {
@@ -2651,7 +2651,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "merger_tim_iliad.xlsx",
-    "observation": "41 named ranges defined",
+    "observation": "46 named ranges defined",
     "fix": ""
   },
   {
@@ -3641,7 +3641,7 @@
     "category": "Format",
     "severity": "pass",
     "file": "sponsor_lbo_techco.xlsx",
-    "observation": "57 named ranges defined",
+    "observation": "72 named ranges defined",
     "fix": ""
   },
   {

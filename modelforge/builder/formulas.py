@@ -194,21 +194,23 @@ def cash_sweep(fcf_ref: str, leverage_ref: str, threshold_ref: str, sweep_pct_re
 
 
 def cash_sweep_tiered(fcf_ref: str, leverage_ref: str, sweep_pct_ref: str) -> str:
-    """v0.8.7 US-542: Cash sweep stepping down by leverage tier.
+    """v0.8.7 US-542 + v0.8.9 US-582: Tiered cash sweep by leverage.
 
-    Bulge-bracket convention (per WSP / Macabacus LBO templates):
-      Leverage ≥ 5.0x   → 100% of sweep_pct × FCF
-      Leverage 4.0-5.0x →  75% of sweep_pct × FCF
-      Leverage 3.0-4.0x →  50% of sweep_pct × FCF
-      Leverage < 3.0x   →   0% (deal-dependent covenant carve-out)
-
+    Thresholds and per-tier fractions are workbook-level named ranges
+    (sweep_tier1_lev, sweep_tier1_pct, ..., sweep_tier3_pct) registered
+    by the sponsor-LBO debt sheet emitter. Defaults applied by the
+    emitter when the spec does not override:
+      tier1: 5.0x → 100%
+      tier2: 4.0x →  75%
+      tier3: 3.0x →  50%
+      below  →   0%
     Returns a negative number (reduces debt closing).
     """
     base_sweep = f"MAX({fcf_ref},0)*{sweep_pct_ref}"
     return (
-        f"=-IF({leverage_ref}>=5,{base_sweep}*1,"
-        f"IF({leverage_ref}>=4,{base_sweep}*0.75,"
-        f"IF({leverage_ref}>=3,{base_sweep}*0.5,0)))"
+        f"=-IF({leverage_ref}>=sweep_tier1_lev,{base_sweep}*sweep_tier1_pct,"
+        f"IF({leverage_ref}>=sweep_tier2_lev,{base_sweep}*sweep_tier2_pct,"
+        f"IF({leverage_ref}>=sweep_tier3_lev,{base_sweep}*sweep_tier3_pct,0)))"
     )
 
 

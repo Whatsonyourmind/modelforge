@@ -251,6 +251,38 @@ def build(
         layout.write_section_header(ws, r, "Cash sweep", "Rimborso automatico (cash sweep)")
         r += 1
 
+        # v0.8.9 US-582: for sponsor_lbo, register the 6 tier named ranges
+        # before the sweep formula is emitted (so cash_sweep_tiered works).
+        if getattr(spec, "model_type", "") == "sponsor_lbo":
+            from openpyxl.workbook.defined_name import DefinedName
+            wb = ws.parent
+            tier_defaults = [
+                ("sweep_tier1_lev", 5.0, styles.FMT_MULTIPLE,
+                 "Cash sweep tier 1 — leverage threshold (≥)"),
+                ("sweep_tier1_pct", 1.0, styles.FMT_PCT,
+                 "Cash sweep tier 1 — fraction of sweep_pct applied"),
+                ("sweep_tier2_lev", 4.0, styles.FMT_MULTIPLE,
+                 "Cash sweep tier 2 — leverage threshold (≥)"),
+                ("sweep_tier2_pct", 0.75, styles.FMT_PCT,
+                 "Cash sweep tier 2 — fraction of sweep_pct applied"),
+                ("sweep_tier3_lev", 3.0, styles.FMT_MULTIPLE,
+                 "Cash sweep tier 3 — leverage threshold (≥)"),
+                ("sweep_tier3_pct", 0.50, styles.FMT_PCT,
+                 "Cash sweep tier 3 — fraction of sweep_pct applied"),
+            ]
+            for name, default, fmt, label in tier_defaults:
+                layout.write_row_label(ws, r, label, label, indent=True)
+                c = ws.cell(row=r, column=4, value=default)
+                styles.style_input(c, number_format=fmt)
+                if name in wb.defined_names:
+                    del wb.defined_names[name]
+                wb.defined_names[name] = DefinedName(
+                    name=name,
+                    attr_text=f"'{ws.title}'!$D${r}",
+                )
+                r += 1
+            r += 1  # blank separator
+
         # Interim leverage = (sum of pre-sweep closing) / EBITDA
         # Note: this row is informational only; the sweep itself uses the
         # PRIOR period's value of this row, so the cycle is broken.
