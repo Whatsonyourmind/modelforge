@@ -7,12 +7,12 @@
     "source": "github",
     "subfolder": "modelforge"
   },
-  "version": "0.9.3",
+  "version": "0.9.5",
   "packages": [
     {
       "registryType": "pypi",
-      "identifier": "modelforge",
-      "version": "0.9.3",
+      "identifier": "modelforge-finance",
+      "version": "0.9.5",
       "transport": { "type": "stdio" },
       "environmentVariables": [
         {

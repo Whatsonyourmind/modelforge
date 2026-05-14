@@ -3,8 +3,8 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "modelforge"
-version = "0.9.4"
+name = "modelforge-finance"
+version = "0.9.5"
 description = "Bulge-tier Excel financial model factory. Every cell live-formulated, every number traceable. MCP-native."
 readme = "README.md"
 requires-python = ">=3.11"
