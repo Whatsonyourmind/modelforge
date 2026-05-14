@@ -281,6 +281,111 @@ def export_pptx(xlsx_path: str, output_path: str | None = None) -> dict[str, Any
 
 
 @server.tool()
+def screen_deals(
+    spec_dir: str,
+    filters: dict[str, Any] | None = None,
+    rank_by: dict[str, float] | None = None,
+    top_n: int = 25,
+) -> dict[str, Any]:
+    """Screen a directory of deal YAMLs by criteria, ranking the top N matches.
+
+    Mirrors Rogo's Screenings feature: filter 1,000+ deals by sector, geography,
+    deal size, IRR threshold, leverage ceiling, EBITDA margin — without building
+    each model. Works on spec YAMLs with a ``screening:`` block.
+
+    Args:
+        spec_dir: Directory containing deal spec YAML files (walked recursively).
+        filters: e.g. ``{"sector": "industrials", "ebitda_margin_min": 0.20,
+                  "leverage_x_max": 5.0, "geography_in": ["EU/IT","EU/ES"]}``.
+                  Suffixes: ``_min`` (gte), ``_max`` (lte), ``_in`` (membership),
+                  no suffix = equality.
+        rank_by: Weights for sort key. Positive = higher better, negative = lower better.
+                  e.g. ``{"irr_base": 0.5, "leverage_x": -0.3, "deal_size_eur_m": 0.2}``.
+        top_n: Max results returned (default 25).
+
+    Returns:
+        Ranked list of {deal_id, spec_path, summary, score}.
+    """
+    try:
+        from modelforge.screening import screen
+    except ImportError as e:
+        return {"error": f"screening unavailable: {e!r}"}
+
+    results = screen(
+        spec_dir=spec_dir,
+        filters=filters or {},
+        rank_by=rank_by or {},
+        top_n=top_n,
+    )
+    return {
+        "spec_dir": spec_dir,
+        "count": len(results),
+        "results": [
+            {
+                "deal_id": r.deal_id,
+                "spec_path": str(r.spec_path),
+                "summary": r.summary,
+                "score": r.score,
+            }
+            for r in results
+        ],
+    }
+
+
+@server.tool()
+def compute_tax(
+    jurisdiction: str,
+    pretax_book_income: float,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Compute corporate tax for a given jurisdiction.
+
+    Args:
+        jurisdiction: One of "IT" (Italy), "US" (federal+state), "UK" (FRS 102),
+                       "DE" (Germany), "FR" (France), "ES" (Spain), "JP" (Japan).
+        pretax_book_income: Pretax book income in local currency.
+        **kwargs: Additional jurisdiction-specific parameters (NOL CF, R&D,
+                  state rate, Hebesatz, capital, etc.). See finance_core module
+                  for each jurisdiction's full input dataclass.
+
+    Returns:
+        Effective rate + total tax + per-component breakdown.
+    """
+    from decimal import Decimal
+    pti = Decimal(str(pretax_book_income))
+
+    j = jurisdiction.upper()
+    if j == "IT":
+        from modelforge.finance_core import italian_tax as t
+        return {"jurisdiction": "IT", "note": "use italian_tax module for full IRES/IRAP/SIIQ/PEX inputs"}
+    if j == "US":
+        from modelforge.finance_core.us_gaap_tax import compute_us_tax, USTaxInputs
+        out = compute_us_tax(USTaxInputs(pretax_book_income=pti))
+        return {"jurisdiction": "US", "etr": float(out.effective_rate), "total_tax": float(out.total_current_tax)}
+    if j == "UK":
+        from modelforge.finance_core.uk_corp_tax import compute_uk_tax, UKTaxInputs
+        out = compute_uk_tax(UKTaxInputs(pretax_book_income=pti))
+        return {"jurisdiction": "UK", "etr": float(out.effective_rate), "total_tax": float(out.corporation_tax)}
+    if j == "DE":
+        from modelforge.finance_core.german_corp_tax import compute_german_tax, GermanTaxInputs
+        out = compute_german_tax(GermanTaxInputs(pretax_book_income=pti))
+        return {"jurisdiction": "DE", "etr": float(out.effective_rate), "total_tax": float(out.total_tax)}
+    if j == "FR":
+        from modelforge.finance_core.french_corp_tax import compute_french_tax, FrenchTaxInputs
+        out = compute_french_tax(FrenchTaxInputs(pretax_book_income=pti))
+        return {"jurisdiction": "FR", "etr": float(out.effective_rate), "total_tax": float(out.total_tax)}
+    if j == "ES":
+        from modelforge.finance_core.spanish_corp_tax import compute_spanish_tax, SpanishTaxInputs
+        out = compute_spanish_tax(SpanishTaxInputs(pretax_book_income=pti))
+        return {"jurisdiction": "ES", "etr": float(out.effective_rate), "total_tax": float(out.total_tax)}
+    if j == "JP":
+        from modelforge.finance_core.japanese_corp_tax import compute_japanese_tax, JapaneseTaxInputs
+        out = compute_japanese_tax(JapaneseTaxInputs(pretax_book_income=pti, capital=Decimal(str(kwargs.get("capital", 200000000)))))
+        return {"jurisdiction": "JP", "etr": float(out.effective_rate), "total_tax": float(out.total_tax)}
+    return {"error": f"unknown jurisdiction {jurisdiction!r}. Use one of IT/US/UK/DE/FR/ES/JP."}
+
+
+@server.tool()
 def export_docx(xlsx_path: str, output_path: str | None = None) -> dict[str, Any]:
     """Generate an IC/credit-memo DOCX from a ModelForge workbook.
 
