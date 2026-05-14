@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "modelforge-finance"
-version = "0.9.5"
+version = "0.9.6"
 description = "Bulge-tier Excel financial model factory. Every cell live-formulated, every number traceable. MCP-native."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,7 +26,7 @@ dependencies = [
 validate = []  # formulas is now core — kept as empty extra for back-compat
 data = ["requests>=2.31", "pandas>=2.2"]
 ingest = ["anthropic>=0.89", "pdfplumber>=0.11", "pypdf>=5.0"]
-ingest-ocr = ["pytesseract>=0.3.10", "pdf2image>=1.17", "Pillow>=10.0"]
+ingest-ocr = ["pytesseract>=0.3.10", "pdf2image>=1.17", "Pillow>=10.0", "pdfplumber>=0.11"]
 web = ["fastapi>=0.100", "uvicorn[standard]>=0.20", "python-multipart>=0.0.9"]
 export = ["python-pptx>=1.0", "python-docx>=1.1"]
 mcp = ["mcp>=1.12.0"]
