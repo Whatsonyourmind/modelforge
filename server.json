@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.Whatsonyourmind/modelforge",
-  "description": "Deterministic bulge-tier financial model factory — every cell live-formulated, every number source-traced to doc page. LBO, DCF, M&A, project finance, NPL, structured credit, 3-statement. IFRS-9, US GAAP, Italian regulatory pack.",
+  "description": "Bulge-tier financial model factory — live formulas, source-traced cells, 14 templates.",
   "repository": {
     "url": "https://github.com/Whatsonyourmind/modelforge",
     "source": "github",
     "subfolder": "modelforge"
   },
-  "version": "0.9.0",
+  "version": "0.9.3",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "modelforge",
-      "version": "0.9.0",
+      "version": "0.9.3",
       "transport": { "type": "stdio" },
       "environmentVariables": [
         {
