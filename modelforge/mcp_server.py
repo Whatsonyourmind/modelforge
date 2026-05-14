@@ -5,7 +5,7 @@ ChatGPT Enterprise, etc.). Distribution lever per GTM_STRATEGY.md §4 Channel A.
 
 Usage::
 
-    pip install modelforge[mcp]
+    pip install modelforge-finance[mcp]
     modelforge-mcp                       # stdio server
     npx -y @modelforge/mcp-server@latest # via Node wrapper (Phase B)
 
