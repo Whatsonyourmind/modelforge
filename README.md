@@ -1,6 +1,8 @@
 # ModelForge
 
-[![Status](https://img.shields.io/badge/version-0.9.0-blue)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-431%2F431-brightgreen)](./tests) [![Audit](https://img.shields.io/badge/audit-0%20FAIL%20%2F%200%20PARTIAL-brightgreen)](./GOLD_STANDARD_AUDIT_2026-04-21.md) [![SOTA](https://img.shields.io/badge/SOTA-9.15%20Italian%20%2F%205.35%20International-blueviolet)](./SCORECARD_v2.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py)
+<!-- mcp-name: io.github.Whatsonyourmind/modelforge -->
+
+[![Status](https://img.shields.io/badge/version-0.9.3-blue)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-431%2F431-brightgreen)](./tests) [![Audit](https://img.shields.io/badge/audit-0%20FAIL%20%2F%200%20PARTIAL-brightgreen)](./GOLD_STANDARD_AUDIT_2026-04-21.md) [![SOTA](https://img.shields.io/badge/SOTA-9.40%20Italian%20%2F%207.42%20International-blueviolet)](./SCORECARD_v3.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py) [![Templates](https://img.shields.io/badge/templates-14-blue)](./modelforge/templates/) [![Public](https://img.shields.io/badge/repo-public-brightgreen)](https://github.com/Whatsonyourmind/modelforge)
 
 Bulge-tier Excel financial model factory for credit & structured finance. Every cell live-formulated. Every number traceable back to the source document page it came from.
 
