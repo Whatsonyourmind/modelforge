@@ -10,8 +10,10 @@ Built for Italian private capital (unitranche, minibond, project finance, RE, NP
 
 ## Use it inside Claude Code, Cursor, ChatGPT Enterprise (MCP-native)
 
+**PyPI name**: `modelforge-finance` (the unscoped `modelforge` was taken by source{d}'s ML library). **Import name** stays `modelforge`.
+
 ```bash
-pip install "modelforge[mcp,export]"
+pip install "modelforge-finance[mcp,export]"
 
 # wire into your MCP client config:
 {
