@@ -1,0 +1,26 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Whatsonyourmind/modelforge",
+  "description": "Deterministic bulge-tier financial model factory — every cell live-formulated, every number source-traced to doc page. LBO, DCF, M&A, project finance, NPL, structured credit, 3-statement. IFRS-9, US GAAP, Italian regulatory pack.",
+  "repository": {
+    "url": "https://github.com/Whatsonyourmind/modelforge",
+    "source": "github",
+    "subfolder": "modelforge"
+  },
+  "version": "0.9.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "modelforge",
+      "version": "0.9.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "description": "Anthropic API key — required only for data-room ingestion (PDF→YAML). Optional for build/qc/lineage tools.",
+          "isSecret": true,
+          "name": "ANTHROPIC_API_KEY"
+        }
+      ]
+    }
+  ]
+}

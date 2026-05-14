@@ -1,8 +1,30 @@
 # ModelForge
 
+[![Status](https://img.shields.io/badge/version-0.9.0-blue)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-431%2F431-brightgreen)](./tests) [![Audit](https://img.shields.io/badge/audit-0%20FAIL%20%2F%200%20PARTIAL-brightgreen)](./GOLD_STANDARD_AUDIT_2026-04-21.md) [![SOTA](https://img.shields.io/badge/SOTA-9.15%20Italian%20%2F%205.35%20International-blueviolet)](./SCORECARD_v2.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py)
+
 Bulge-tier Excel financial model factory for credit & structured finance. Every cell live-formulated. Every number traceable back to the source document page it came from.
 
 [redacted] (unitranche, minibond, project finance, RE, NPL, structured credit) — extensible to any asset class.
+
+## Use it inside Claude Code, Cursor, ChatGPT Enterprise (MCP-native)
+
+```bash
+pip install "modelforge[mcp,export]"
+
+# wire into your MCP client config:
+{
+  "mcpServers": {
+    "modelforge": { "command": "modelforge-mcp" }
+  }
+}
+```
+
+Then in your AI assistant:
+> *"Build me a unitranche LBO model from this YAML spec, export the committee deck."*
+
+Tools available: `list_templates` · `build_model` · `qc_workbook` · `list_sources` · `lineage_walk` · `ingest_dataroom` · `export_pptx` · `export_docx`.
+
+See [GTM_STRATEGY.md](./GTM_STRATEGY.md) and [SCORECARD_v2.md](./SCORECARD_v2.md) for the full GTM thesis and competitor comparison (vs Rogo / Hebbia / Macabacus / o11).
 
 ## The architectural principle
 
