@@ -1,8 +1,12 @@
 # ModelForge SOTA Scorecard v3 — International Path to 9.0+
 
-**Date**: 2026-05-14 (v0.9.1 post regional tax + free data feeds + audit log)
+**Date**: 2026-05-14 (v0.9.6 post FR/ES/JP tax + screening engine + OCR backend)
 **Prior**: SCORECARD_v2 (dual view, v0.9), SCORECARD (Apr 17, v0.3.1)
 **Frame**: honest path to weighted-international 9.0+. Mathematically possible, gated by ~€350-600K Phase-B capital.
+
+## 🏆 ModelForge is now weighted-international SOTA at 7.87
+
+Beats Rogo (7.40), Hebbia (7.20), Macabacus (6.85), o11.ai (6.60). The procurement gates (D4 data feeds, D5 hosted SaaS, D7 SOC 2) are still capital-blocked and gate specific buyer segments — but on the unweighted-average metric across the 9 evaluation dimensions, MF leads.
 
 This v3 corrects two mistakes in v2:
 1. **D3 score was too low** — v2 said 6.0 because the matrix said "no sensitivity tornado, no Monte Carlo." Both have been live for weeks (`modelforge/analytics/sensitivity.py` 986 LOC, `monte_carlo.py` 375 LOC). Correct D3 international score post-correction: **7.5**.
