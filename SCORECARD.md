@@ -1,265 +1,203 @@
-# ModelForge SOTA Scorecard
+# ModelForge Scorecard — Canonical (Consensus, 2026-05-15)
 
-**Date**: 2026-04-17 (v0.3.1 post-ingestion ship)
-**Prior version**: 2026-04-16 (v0.2 initial, v0.3.0-pf PF sculpted amort)
-**Framework**: 25 criteria across 5 dimensions, scored 0-10.
-**Benchmarks**: Bulge-bracket human modeller (gold standard), Macabacus Excel add-in, FAST Standard, Rogo (Series C $75M, 25k users), Concourse (Series A $12M, FP&A).
+**This is the canonical scorecard.** It replaces the prior v1 (2026-04-17),
+`SCORECARD_v2.md` (v0.9), and `SCORECARD_v3.md` (v0.9.6) — all of which were
+founder-self-graded. Those three documents are kept on disk for transparency
+but should be read as historical artifacts, not current claims.
 
----
-
-## Executive score (weighted)
-
-| Tool | Weighted | Delta vs prior | Strengths | Weaknesses |
-|---|---|---|---|---|
-| **Bulge-bracket human (Italian specialist)** | **9.4** | -- | Domain judgment, deal adherence, full-service | Not reproducible, 40-80h per model, one-at-a-time |
-| **ModelForge v0.3.1 (current)** | **9.0** | +0.9 vs v0.2 | Source traceability, deterministic builder, Italian specificity, 8 templates, PF sculpted amort, data-room ingestion | Ingestion MVP (1 template), no web UI, no sensitivity tornado |
-| *ModelForge v0.3.0-pf* | *8.6* | *ref* | *(same minus ingestion)* | *No ingestion* |
-| *ModelForge v0.2* | *8.1* | *baseline* | *(same minus sculpted + ingestion)* | *PF breached DSCR, no ingestion* |
-| **Rogo Series C** | **7.9** | -- | AI analyst breadth, Offset model-memory agents, 25k users, BB distribution, Third Bridge, Projects | Weak live-formula source-tracing, US-centric, gen-AI hallucination risk |
-| **Macabacus** | **7.5** | -- | Bulge-bracket template library, formatting, new Formulate AI | No ingestion, no provenance graph, no cross-template unification |
-| **FAST Standard** | **7.2** | -- | Methodology gold standard | It's a spec not a tool; no automation |
-| **Concourse Series A** | **5.8** | -- | FP&A automation, 19x revenue growth, Fortune 500 | Corp-finance only, not deal-modelling |
-
-*Weights: Formula discipline 20% | Source traceability 25% | Modelling completeness 25% | Market/regulatory alignment 15% | Infrastructure/productization 15%*
+The numbers below come from a **blind external IC review** by two independent
+AI reviewers — ChatGPT 5.5 Extended Thinking (web-search enabled) and
+Claude Opus 4.7 max-effort (1M context) — who scored the same dossier
+without seeing each other's work. Full triangulation in
+`EXTERNAL_IC_REVIEW_2026-05-15.md`.
 
 ---
 
-## Scorecard detail
+## TL;DR
 
-Scoring key: 10 = SOTA, 8-9 = matches best practice, 6-7 = above average, 4-5 = standard, 0-3 = missing/weak.
+| | Founder claim (v3) | **Consensus** | Δ |
+|---|:---:|:---:|:---:|
+| Weighted score (0-10) | 6.56 | **5.45** | **−1.11** |
+| Pre-money base (USD) | $5.5-12M | **$4.5M** | **−40% to −60% on high end** |
+| Recommendation | "weighted-international SOTA" | **Seed $1.5-2.5M @ $4.5M pre, tranched** | |
 
-### Dimension 1 -- Formula discipline (Weight: 20%)
+**Convergence signal**: ChatGPT 5.5 scored 5.42, Opus 4.7 scored 5.49 — independent
+blind reviews converged within **0.07 points** and **$0 on base valuation**. That
+is a strong signal in itself: two AIs with different training reading the same
+evidence reached the same call.
 
-| Criterion | Bulge human | Macabacus | FAST | Rogo | Concourse | **ModelForge** |
-|---|---|---|---|---|---|---|
-| Live formulas (no hardcoded computed values) | 10 | 9 | 9 | 5* | 6 | **10** |
-| Named ranges mandatory | 9 | 8 | 10 | 5 | 5 | **10** |
-| Blue/black/green/red colour convention | 10 | 10 | 8 | 4 | 4 | **10** |
-| Bracketed negatives + number formats | 10 | 10 | 8 | 5 | 6 | **10** |
-| Sign convention enforcement (automated) | 6 | 5 | 7 | 3 | 5 | **9** |
-| Historical/projected visual separator | 9 | 9 | 7 | 6 | 5 | **9** |
-| **Subtotal (avg)** | **9.0** | **8.5** | **8.2** | **4.7** | **5.2** | **9.7** |
+---
 
-\* Rogo generates model structure but WSP 2026 ranking reports "generates Excel that needs heavy review before using"; Shortcut and Claude outperform Rogo on formula quality per WSP benchmark.
+## Honest scorecard by dimension
 
-**v0.3.1 change**: None. Formula discipline was already SOTA.
+| Dim | Weight | **Consensus** | Founder claim | Δ | What gates the gap |
+|---|:---:|:---:|:---:|:---:|---|
+| D1 Formula discipline | 12% | **6.65** | 9.7 | −3.05 | Trust Layer v1 shipping in v0.9.7 closes the Enel +743% plausibility gap. Post-ship, defensible at 8.5+. |
+| D2 Source traceability | 12% | **8.0** | 9.4 | −1.4 | Real strength (Sources sheet, BASE comments, lineage_walk, graph.db). Haircut from 9.4 only because there's no Big-4 audit yet. |
+| D3 Modelling completeness | 15% | **7.0** | 7.5 | −0.5 | 14 templates is real breadth; ipo + restructuring not yet wired through ingest pipeline. |
+| D4 Data integrations | 15% | **5.15** | 6.5 (claimed lift) | −1.35 | 11-provider stack is interface-complete; only 3 (EDGAR/GLEIF/OpenFIGI) are live against real APIs. Tier-1 paid keys ($29-49/mo) wireable in a day. |
+| D5 Productization / SaaS | 15% | **2.3** | 2.5 | ≈0 | The one dimension the founder graded honestly. PyPI + MCP ≠ multi-tenant SaaS. Phase B blocker. |
+| D6 Collaboration | 10% | **3.75** | 5.0 | −1.25 | DOCX + PPTX exporters exist; no real-time collab, no comment threads, no deal-room workflow. |
+| D7 Security / compliance | 8% | **3.1** | 4.0 | −0.9 | SECURITY.md + audit_log exist. No SOC2, no pen-test. SBOM auto-generation arrives in v0.9.7. |
+| D8 Regional coverage | 8% | **6.1** | 6.5 | −0.4 | 7-jurisdiction tax + Italian-niche IP is real; non-portable to US buyers as fully as the v3 score implied. |
+| D9 Speed | 5% | **8.4** | 8.0 | +0.4 | Both reviewers credited this above founder claim. 4,051 LOC of feeds in 24h, 504-test suite, 11 workbooks built in 5s. |
+| **WEIGHTED** | 100% | **5.46** | 6.56 | −1.10 | |
 
-### Dimension 2 -- Source traceability (Weight: 25%)
+Calculation: 0.12(6.65) + 0.12(8.0) + 0.15(7.0) + 0.15(5.15) + 0.15(2.3)
++ 0.10(3.75) + 0.08(3.1) + 0.08(6.1) + 0.05(8.4)
+= 0.798 + 0.960 + 1.050 + 0.7725 + 0.345 + 0.375 + 0.248 + 0.488 + 0.420
+= **5.46 / 10**
 
-| Criterion | Bulge human | Macabacus | FAST | Rogo | Concourse | **ModelForge** |
-|---|---|---|---|---|---|---|
-| Every hardcoded cell has source comment | 6 | 4 | 7 | 3 | 5 | **10** |
-| Sources sheet with full attribution | 8 | 6 | 7 | 5 | 6 | **10** |
-| Linkage graph persisted (queryable SQLite) | 0 | 0 | 0 | 5 | 4 | **10** |
-| Lineage walk (cell -> driver -> source -> doc page) | 2 | 0 | 0 | 3 | 4 | **10** |
-| URL health + verified flag per source | 0 | 0 | 0 | 2 | 3 | **7** |
-| **Subtotal (avg)** | **3.2** | **2.0** | **2.8** | **3.6** | **4.4** | **9.4** |
+---
 
-**v0.3.1 change**: None. Traceability was already the defining moat. With ingestion, the Sources registry is now auto-populated from the classifier (every doc in the data room gets an S-id, publisher, date, verified flag) rather than hand-written. This improves *throughput* on dimension 2 but doesn't change the score.
-
-### Dimension 3 -- Modelling completeness (Weight: 25%)
-
-| Criterion | Bulge human | Macabacus | FAST | Rogo | Concourse | **ModelForge v0.2** | **ModelForge v0.3.1** |
-|---|---|---|---|---|---|---|---|
-| Asset classes (LBO/MB/PF/RE/NPL/SC/3S) | 10 | 9 | 8 | 7 | 3 | 9 | **9** |
-| Scenario toggle + full propagation | 10 | 9 | 10 | 6 | 7 | 10 | **10** |
-| Covenant machinery (leverage/ICR/DSCR) | 10 | 8 | 7 | 5 | 3 | 9 | **9** |
-| Cash sweep + sculpted amortization + DSRA | 10 | 9 | 8 | 5 | 2 | **6** | **9** |
-| Balance-sheet integrity (A=L+E auto-ties) | 9 | 9 | 10 | 6 | 5 | 10 | **10** |
-| IFRS 9 EIR (effective interest rate) | 7 | 3 | 4 | 3 | 2 | 9 | **9** |
-| **Subtotal (avg)** | **9.3** | **7.8** | **7.8** | **5.3** | **3.7** | **8.8** | **9.3** |
-
-**v0.3.0-pf change (sculpted amort)**: 6 -> **9**. Sculpted level-debt-service + DSCR-target binary-search solver + DSRA (6-month reserve) + bullet profile. Enfinity real-deal validation: solver sizes EUR 163.76M at 1.30x DSCR, 0 breaches in BASE. Not 10 because: no equity cure iteration, no springing covenants, no refinancing/mini-perm.
-
-### Dimension 4 -- Market / regulatory alignment (Weight: 15%)
-
-| Criterion | Bulge human | Macabacus | FAST | Rogo | Concourse | **ModelForge** |
-|---|---|---|---|---|---|---|
-| Italian market specificity (AIFMD II, L. 130/1999) | 7* | 2 | 3 | 3 | 2 | **9** |
-| IFRS-native accounting treatment | 8 | 3 | 5 | 4 | 5 | **8** |
-| i18n (EN primary + IT secondary) | 4 | 0 | 1 | 2 | 2 | **10** |
-| Real-deal validation (public filings audit) | 9 | 2 | 1 | 6 | 5 | **9** |
-| Regulatory source integration (ECB/Consob/GACS/FER X) | 7 | 1 | 1 | 4 | 2 | **8** |
-| **Subtotal (avg)** | **7.0** | **1.6** | **2.2** | **3.8** | **3.2** | **8.8** |
-
-\* Italian bulge human only if specifically an Italian-market specialist; otherwise 3-4.
-
-**v0.3.1 change**: None. Italian market alignment is organic to the templates + sources.
-
-### Dimension 5 -- Infrastructure / productization (Weight: 15%)
-
-| Criterion | Bulge human | Macabacus | FAST | Rogo | Concourse | **ModelForge v0.2** | **ModelForge v0.3.1** |
-|---|---|---|---|---|---|---|---|
-| Deterministic builder (LLM never writes cells) | 10 (manual) | 10 | 10 | 2 | 3 | 10 | **10** |
-| Auditable pipeline (spec -> build -> QC) | 4 | 5 | 6 | 6 | 7 | 10 | **10** |
-| Version control + atomic commits | 5 | 3 | 4 | 7 | 8 | 10 | **10** |
-| Data-room ingestion (PDF -> structured spec) | 9 | 0 | 0 | 9 | 7 | **2** | **7** |
-| Web UI / multi-tenant SaaS | 0 | 6 | 0 | 10 | 10 | 0 | **0** |
-| **Subtotal (avg)** | **5.6** | **4.8** | **4.0** | **6.8** | **7.0** | **6.4** | **7.4** |
-
-**v0.3.1 change (data-room ingestion)**: 2 -> **7**. Full Claude-powered pipeline: PDF/XLSX/CSV readers -> per-doc classification -> per-section structured extraction -> Pydantic-validated YAML -> INGESTION_REPORT.md. Two backends: `cli` (Claude Code subscription, no API key) and `api` (Anthropic SDK, prompt caching). Synthetic Enfinity data room round-trips: ingest -> build -> QC 8/8. Not 9 because: only project_finance template (1 of 8), no OCR for scanned PDFs, no embeddings retrieval, no cross-doc reconciliation.
-
-### Weighted totals
+## Where ModelForge actually ranks
 
 ```
-Dimension                          Weight   Bulge  Maca   FAST   Rogo   Conc   MF v0.2  MF v0.3.1
-Formula discipline                  0.20     9.0    8.5    8.2    4.7    5.2    9.7      9.7
-Source traceability                 0.25     3.2    2.0    2.8    3.6    4.4    9.4      9.4
-Modelling completeness              0.25     9.3    7.8    7.8    5.3    3.7    8.8      9.3
-Market / regulatory alignment       0.15     7.0    1.6    2.2    3.8    3.2    8.8      8.8
-Infrastructure / productization     0.15     5.6    4.8    4.0    6.8    7.0    6.4      7.4
-                                    -----    ---    ---    ---    ---    ---    ---      ---
-WEIGHTED SCORE                      1.00     6.9*   5.2    5.4    4.7    4.7    8.1      9.0
+                                  Weighted-International
+o11.ai             (YC)                  6.60
+Macabacus          (acquired by CFI 2021)6.85
+Hebbia             (~$13M ARR S-B)       7.20
+Rogo               ($750M Series C)      7.40
 
-* Bulge human weighted = 6.9 before judgment premium. Adjusted for Italian specialist + deep
-  domain judgment -> effective 9.4. ModelForge's 9.0 is closing that gap on reproducibility
-  alone; the human's edge is now primarily in deal judgment and relationships, not output quality.
+ModelForge (consensus)                   5.46    ← below all four
+ModelForge (founder v3)                  7.87    ← previously claimed
+ModelForge (post v0.9.7 + unlocks)       6.5+    ← target after Trust + LOIs + paid adapter
 ```
+
+**Honest ranking**: ModelForge sits below the named comp set today on the
+weighted-international read. On Italian-niche (where PBSA + L.338 + SIIQ +
+private-credit tax IP is non-replicable) it's still segment SOTA — but that
+segment doesn't carry a $750M comp.
+
+**Web-validated correction (ChatGPT)**: Macabacus was acquired by Corporate
+Finance Institute (CFI) in 2021. The "$80M FactSet 2022" comp that appeared in
+the founder's earlier dossier is **unsupported by public sources**. Removed
+from canonical positioning.
 
 ---
 
-## Version trajectory
+## The three killers (joint top-3, ranked by both reviewers identically)
 
-```
-v0.2  (2026-04-16 AM)   8.1   baseline: 8 templates, linear amort, no ingestion
-v0.3.0-pf (2026-04-16)  8.6   +0.5: sculpted amort + DSCR solver + DSRA
-v0.3.1 (2026-04-16 PM)  9.0   +0.4: data-room PDF->YAML ingestion MVP
-                         ----
-Total improvement:       +0.9  in one session (8.1 -> 9.0)
-```
+### KILLER #1 — Numerical plausibility failure → CLOSING in v0.9.7
 
----
+Enel DCF demo output €553B equity vs ~€70B real market cap (+743% premium)
+with zero automated warning. Category-killer for a product whose entire pitch
+is "trust this number; here's the lineage."
 
-## Where ModelForge beats SOTA (10/10 or top-1)
+**Status**: Trust Layer v1 shipped in commit `8fb2ba5` (this branch). 25+ rules
+across 14 templates. Enel DCF demo now fires a WARN at +25% market-cap
+deviation and a FAIL at +100%. `audit-all` reports 14/14 templates FAIL-clean.
 
-1. **Live-formula + source-traceable-per-cell** -- no other tool combines these. o11 (new competitor, WSP-ranked #1 for formula quality) has live formulas but no per-cell source tracing; Rogo has neither reliably.
-2. **Linkage graph first-class** -- cell -> driver -> source -> doc-page as a queryable SQLite graph. Zero competitors have this as a first-class data model.
-3. **i18n EN + IT native throughout** -- every workbook ships bilingual. All competitors are English-only.
-4. **IFRS 9 EIR computed natively** on Returns sheets with B5.4.1 citation.
-5. **Deterministic builder architecture** -- Python emits cells, LLM produces spec only. Rogo/o11 rely on LLM-generated cells (hallucination risk).
-6. **Italian regulatory integration** -- AIFMD II, legge 130/1999, ECB/Consob/GACS/FER X.
-7. **Full-pipeline auditability** -- YAML spec -> atomic build -> QC gate -> git commit. No other tool has this reproducibility chain.
+### KILLER #2 — Zero customer pull
 
-## Where ModelForge matches or leads but not by much (8-9/10)
+No paying customers. No design partners. No signed pilots. No LOIs.
+Engineering velocity ≠ business validation. **Founder-driven, 30-60 day path.**
 
-1. **Asset-class coverage (9 vs bulge 10)** -- missing M&A merger, DCF-WACC standalone, fairness opinion.
-2. **Covenant machinery (9 vs bulge 10)** -- missing equity cure, springing covenants, LMA incurrence tests.
-3. **PF sculpted amort (9 vs bulge 10)** -- missing multi-tranche, refinancing/mini-perm, production curves.
-4. **Data-room ingestion (7 vs Rogo 9)** -- MVP covers 1 of 8 templates; no OCR, no embeddings.
-5. **Real-deal validation (9 vs bulge 9)** -- Stevanato 3S and Enfinity PF both audit clean.
+### KILLER #3 — No enterprise wrapper
 
-## Where ModelForge still lags -- honest gaps
-
-### Gap 1 -- Ingestion breadth (score: 7/10, up from 2)
-
-v0.3.1 shipped the full pipeline for project_finance. But unitranche, minibond, credit_memo, real_estate, npl, structured_credit, and three_statement templates still require manual YAML authoring. Rogo ingests across all deal types.
-
-**Fix**: v0.3.2-ingest-wide (2-3 days). Same pipeline, per-template prompt files. Projected score: 7 -> 8.
-
-### Gap 2 -- No web UI / multi-tenant (score: 0/10)
-
-Rogo (10), Concourse (10) are full SaaS. ModelForge is CLI only. Blocks productization to team collaboration or Fiverr/Upwork delivery.
-
-**Fix**: thin FastAPI + Next.js wrapper (roadmap item #6, 2-3 weeks). Defer until 10 paid engagements.
-
-### Gap 3 -- No Monte Carlo / sensitivity tornado (score: implicit in completeness)
-
-Bulge analysts produce sensitivity tornados and Monte Carlo distributions on IRR. ModelForge has 3 discrete scenarios but no continuous distributions.
-
-**Fix**: roadmap item #3 (3-5 days). Add SensitivityAnalysis sheet with numpy sweep + tornado chart. Projected score: completeness subtotal 9.3 -> 9.5.
-
-### Gap 4 -- Missing asset classes (score: 9/10)
-
-M&A merger model, DCF-WACC standalone, fairness opinion -- standard IB deliverables.
-
-**Fix**: roadmap item #4 (1-2 weeks). Three new templates. Projected score: 9 -> 10.
-
-### Gap 5 -- No model-memory agents (Rogo Offset parity)
-
-Rogo's Offset acquisition adds agents that remember how models were built and help maintain them. ModelForge's linkage graph is the superior foundation, but no agent layer yet.
-
-**Fix**: roadmap item #5 (3-5 days). `modelforge chat <model.xlsx>` via graph walker. Projected score: new capability, enhances productization.
+PyPI + MCP server is developer-tool distribution. No multi-tenancy, no
+SSO/SCIM, no hosted product, no audit logs surfaced for buyer review.
+Buyers won't buy a Python package as a finance operating layer.
+**Phase B blocker.**
 
 ---
 
-## New competitor watch: o11
+## The three unlocks (90-day path to consensus 6.5+)
 
-o11 (o11.ai) is a new entrant ranked #1 by Wall Street Prep for AI financial modelling in 2026. They build live-formula-based Excel models from 10-K filings with blue/black colour convention and live-linking to PPT/Word decks. Recommended stack per WSP: "o11 + Macabacus."
+### UNLOCK #1 — Trust Layer v1 [shipped this release]
+- D1 6.65 → 8.5+ → weighted **+0.22**
+- Per-template plausibility rules, market-cap deviation alerts, peer-comparable
+  EV/EBITDA bands, WACC sanity, terminal-growth checks, source-freshness flags,
+  RedFlags sheet auto-injected.
 
-**How o11 compares to ModelForge:**
+### UNLOCK #2 — 3 design partners (30-60 days, founder-driven)
+- One private-credit team + one PE/RE investor + one M&A/restructuring boutique.
+- Real files ingested, ≥10 workbooks per partner, written feedback, ≥1 paid
+  pilot or LOI.
+- Re-rates valuation frame from "engineering bet" to "early-revenue bet"
+  → **+30-50% on pre-money outright**.
 
-| Axis | o11 | ModelForge | Verdict |
+### UNLOCK #3 — Minimum enterprise wrapper (45-90 days)
+- Hosted app + auth/RBAC + tenant isolation + audit-log surfacing + reviewer
+  approval flow + one paid data adapter (Polygon $29/mo or FMP $19/mo wired).
+- Lifts D4 + D5 + D7 simultaneously → weighted **+0.40-0.50**.
+
+**If all three land**: consensus 5.46 → ~6.5+ AND the customer catalyst
+re-rates valuation from $4.5M to **$8-15M base**. That's a Series-A
+conversation.
+
+---
+
+## Pre-money valuation (consensus, both reviewers within $0.5M on bands)
+
+| Case | Consensus | Logic |
+|---|---:|---|
+| Low | $2.0M | Solo-founder technical asset, zero revenue, code-cost replacement valuation. |
+| **Base** | **$4.5M** | Real codebase + 14 templates + MCP layer + Italian-niche IP + exceptional velocity = above pure asset-cost, but no SaaS metrics to underwrite. |
+| High | $7.5M | Defensible only if Trust Layer ships AND ≥1 design-partner LOI signed AND ≥1 paid data adapter live. Without all three, $7.5M is generous. |
+
+**$12M is not justified today.** No paying pilots, no signed design partners,
+no enterprise distribution channel, solo team.
+
+---
+
+## Recommended structure (consensus)
+
+**SEED-CHECK $1.5 - $2.5M @ $4.5M pre-money base, milestone-tranched.**
+
+| Tranche | Trigger | Amount |
+|---|---|---:|
+| T1 (immediate) | Term sheet signed | $750K |
+| T2 (30-day) | Trust Layer v1 shipped + 1 design partner LOI signed | $750K |
+| T3 (90-day) | 3 design partners using product + 1 paid data adapter live + minimum hosted wrapper | $1M |
+
+If T2 misses → conversation pauses. If T2 hits but T3 misses → bridge to next
+round at flat valuation. If T3 hits → support Series A discussion at $20-40M
+post.
+
+---
+
+## Phase B — what gates 9.0+ realistically
+
+| Gate | Cost | Time | Lift |
 |---|---|---|---|
-| Live formulas | 9 (from 10-K) | 10 (from typed spec) | Tie (both strong) |
-| Source traceability | 3 (linked to 10-K) | 9.4 (per-cell -> doc page) | ModelForge wins by miles |
-| Asset-class depth | 5 (3-statement, DCF) | 9 (8 credit/structured templates) | ModelForge wins |
-| Italian market | 0 | 9 | ModelForge wins |
-| Ingestion | 8 (10-K auto-parse) | 7 (PDF data-room MVP) | o11 slight edge |
-| Cross-app integration | 9 (Excel/PPT/Word native) | 0 (CLI only) | o11 wins |
-| Deterministic builder | 5 (LLM writes formulas) | 10 (Python writes formulas) | ModelForge wins |
+| Bloomberg/Refinitiv/FactSet/Capital IQ paid keys | €200-300K/yr | 3-6mo BD | D4 5.15 → 8.5 |
+| Multi-tenant SaaS w/ SSO/SCIM/SAML | €100-200K dev + €30-60K/yr ops | 4-6mo | D5 2.3 → 8.5 |
+| SOC 2 Type II + ISO 27001 + pen-test | €30-80K + 12mo audit | 6-12mo | D7 3.1 → 8.5 |
+| US ex-IB BD hire | $200-300K loaded | 6-12mo | brand + sales cycle |
 
-**Verdict**: o11 is a strong competitor on the equity-research / 3-statement axis but does not play in the credit & structured finance niche. No overlap on Italian market, no covenant machinery, no PF/NPL/SC templates. Not a direct threat today; would become one if they expand into credit.
+**Total Phase B**: ~€350-600K + 6-12 months → realistic weighted **8.5-9.0**,
+procurement-ready at G-SIBs.
 
----
-
-## Projected v0.4 scorecard (all remaining roadmap items shipped)
-
-```
-If v0.3.2 (ingest-wide) + v0.3.3 (sensitivity) + v0.3.4 (templates 9-11)
-+ v0.3.5 (chat) + v0.4 (web UI) all ship:
-
-Dimension                          Weight   ModelForge v0.3.1   Projected v0.4
-Formula discipline                  0.20     9.7                 9.7
-Source traceability                 0.25     9.4                 9.5
-Modelling completeness              0.25     9.3                 9.7
-Market / regulatory alignment       0.15     8.8                 9.0
-Infrastructure / productization     0.15     7.4                 8.6
-                                    -----    ---                 ---
-WEIGHTED SCORE                      1.00     9.0                 9.4
-
-At 9.4, ModelForge would match the adjusted bulge-bracket human analyst
-on output quality while being reproducible, traceable, and 10x faster.
-The remaining human edge: deal judgment and relationship capital.
-```
+The 9.14 number in SCORECARD_v3.md assumed all gates closed in parallel with no
+headcount overhead and no procurement-cycle realism. Both reviewers flagged
+that assumption as optimistic; the honest range is **8.5-9.0** at the end of
+Phase B, with a stretch path to 9.0+ only if all three lifts land in the same
+quarter and a paid pilot lands inside the same period.
 
 ---
 
-## Summary positioning (updated 2026-04-17)
+## What "consensus" means here
 
-```
-SOTA quality is 3-dimensional:
-    (a) Formula craft         <- ModelForge LEADS (9.7)
-    (b) Source traceability   <- ModelForge LEADS BY A MILE (9.4 vs peers 2-4)
-    (c) Productization        <- ModelForge CLOSING GAP (7.4; was 6.4)
+Two AIs with different training corpora, different system prompts, different
+reasoning approaches, and different research methods read the same evidence
+and reached weighted scores within 0.07 of each other and identical valuation
+bases. That convergence is itself a defense of the methodology — the founder
+can't dismiss this as "one critical reviewer's opinion."
 
-The gap between ModelForge (9.0) and the Italian-specialist bulge human (9.4)
-is now 0.4 points — driven entirely by missing asset classes + no web UI.
-On the axes that matter most to credit committees (formula discipline +
-source traceability + regulatory alignment), ModelForge already exceeds
-every competitor including human analysts.
-
-Commercial implication: Luka can now deliver committee-grade Italian
-credit / structured finance models that are:
-  - 10x faster (spec -> workbook in minutes, not days)
-  - 100% reproducible (YAML -> git -> same output every time)
-  - 100% source-traceable (every number -> doc page -> publisher)
-  - Auto-ingested from data rooms (30 min setup, not 4 hours)
-```
+The blind convergence at 5.46 weighted is the headline. SCORECARD_v3's 6.56 is
+materially overstated; with the dimensional gaps closed (Trust Layer +
+3 design partners + 1 paid adapter), ModelForge clears 6.5+ and is genuinely
+worth $8-15M base.
 
 ---
 
-## Sources
+## Appendix
 
-- [Rogo -- Secure AI for Finance Professionals](https://rogo.ai/)
-- [Rogo Series C $75M (Jan 2026)](https://fintech.global/2026/01/28/rogo-raises-75m-series-c-to-scale-ai-finance-platform/)
-- [Rogo acquires Offset (model-memory agents)](https://www.prnewswire.com/news-releases/rogo-acquires-offset-to-bring-ai-agents-into-financial-workflows-302713749.html)
-- [Rogo March 2026 update (Projects, Screenings)](https://rogo.ai/news/march-product-update)
-- [Concourse Series A $12M](https://www.concourse.co/insights/concourse-12m-series-a-launches-general-availability)
-- [Concourse -- AI agents for corporate finance](https://www.concourse.co/)
-- [o11 -- AI financial modelling (new entrant)](https://o11.ai/)
-- [Wall Street Prep -- AI financial modelling tools ranked (2026)](https://www.wallstreetprep.com/knowledge/ranking-the-best-ai-tools-for-financial-modeling-2026/)
-- [Macabacus Formulate (AI formula conversion)](https://macabacus.com/features/formulate)
-- [Macabacus AIWA (AI writing assistant)](https://macabacus.com/features/aiwa)
-- [FAST Standard Organisation](https://fast-standard.org/)
-- [Anthropic Claude Opus 4.7 announcement](https://www.anthropic.com/news/claude-opus-4-7)
-- [Damodaran country risk 2026](https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ctryprem.html)
+- **`EXTERNAL_IC_REVIEW_2026-05-15.md`** — consensus triangulation document
+- **`OPUS_INDEPENDENT_REVIEW.md`** — Opus 4.7 review (blind to ChatGPT)
+- **`CHATGPT_RESPONSE_FULL.md`** — ChatGPT 5.5 verbatim response
+- **`IC_DOSSIER_2026-05-15.md`** — evidence packet sent to both reviewers
+- **`GAP_ANALYSIS_TO_9.md`** — what realistically gates 9.0+
+- **`AUDIT_REPORT.md`** — `audit-all` output across 14 templates, 14/14 Trust FAIL-clean
+- **`SCORECARD_v3.md`**, **`SCORECARD_v2.md`** — superseded; kept for historical transparency

@@ -1,5 +1,7 @@
 # ModelForge SOTA Scorecard v3 — International Path to 9.0+
 
+> **⚠️ SUPERSEDED** — This scorecard claimed weighted-international 7.87 (founder-self-graded). The blind external IC review by ChatGPT 5.5 + Opus 4.7 converged on **5.45** (Δ −1.11). Canonical doc: **[SCORECARD.md](SCORECARD.md)**. This document is preserved for historical transparency only.
+
 **Date**: 2026-05-14 (v0.9.6 post FR/ES/JP tax + screening engine + OCR backend)
 **Prior**: SCORECARD_v2 (dual view, v0.9), SCORECARD (Apr 17, v0.3.1)
 **Frame**: honest path to weighted-international 9.0+. Mathematically possible, gated by ~€350-600K Phase-B capital.
