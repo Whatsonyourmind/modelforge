@@ -1,0 +1,64 @@
+# Render free-tier blueprint for ModelForge SaaS shell.
+#
+# Deploy by linking this repo to Render and pointing at this file.
+# Free-tier limits (as of 2026):
+#   - 512 MB RAM, 0.1 CPU sleeping web service
+#   - 750 hr/mo across all free instances
+#   - Spin down after 15 min idle (acceptable for early SaaS)
+#
+# Required env vars (set in Render dashboard or via render.yaml `envVars`):
+#   SUPABASE_URL              — public, fine to commit per environment
+#   SUPABASE_ANON_KEY         — public, fine to commit per environment
+#   SUPABASE_JWT_SECRET       — secret (Render env)
+#   STRIPE_SECRET_KEY         — secret (Render env)
+#   STRIPE_WEBHOOK_SECRET     — secret (Render env)
+#
+# Disable dev bypass in production:
+#   MODELFORGE_AUTH_DEV_BYPASS = (unset)
+
+services:
+  - type: web
+    name: modelforge-saas
+    runtime: python
+    pythonVersion: "3.12"
+    plan: free
+    branch: master
+    autoDeploy: true
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -e ".[web,data,export,mcp]"
+    startCommand: |
+      uvicorn modelforge.web.app:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: MODELFORGE_AUTH_DEV_BYPASS
+        value: ""   # explicitly empty — fail-closed on missing secrets
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+  # Optional: cron worker for the daily scheduled feeds refresh + audit harness
+  - type: cron
+    name: modelforge-audit-listed-cron
+    runtime: python
+    pythonVersion: "3.12"
+    plan: free
+    schedule: "0 6 * * *"   # 06:00 UTC daily
+    branch: master
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -e ".[data]"
+    startCommand: |
+      python scripts/audit_listed.py --sleep 2.0 --output AUDIT_RUN_LISTED.md
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
