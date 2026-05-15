@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package + test deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,data,export,mcp]"
+
+      - name: Run test suite
+        run: pytest --tb=short -q
+
+      - name: Verify build smoke
+        run: |
+          python -c "import modelforge; print('modelforge', modelforge.__version__ if hasattr(modelforge, '__version__') else '(no __version__)')"
+          modelforge --help > /dev/null
+
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install ruff
+        run: python -m pip install ruff
+
+      - name: Ruff check
+        run: ruff check modelforge tests scripts
+
+  sbom:
+    name: SBOM verification (CycloneDX 1.5)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Generate SBOM
+        run: python scripts/generate_sbom.py --out sbom.cdx.json
+
+      - name: Validate CycloneDX structure
+        run: |
+          python -c "
+          import json, sys
+          sbom = json.load(open('sbom.cdx.json'))
+          assert sbom['bomFormat'] == 'CycloneDX', f'wrong bomFormat: {sbom[\"bomFormat\"]}'
+          assert sbom['specVersion'] == '1.5', f'wrong specVersion: {sbom[\"specVersion\"]}'
+          assert 'serialNumber' in sbom
+          assert 'metadata' in sbom and 'component' in sbom['metadata']
+          assert len(sbom.get('components', [])) > 0, 'no components in SBOM'
+          print(f'SBOM valid: {len(sbom[\"components\"])} components')
+          "
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx-1.5
+          path: sbom.cdx.json
+          retention-days: 90
