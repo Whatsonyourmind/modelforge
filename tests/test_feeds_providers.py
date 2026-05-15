@@ -45,6 +45,7 @@ from modelforge.feeds.polygon import PolygonProvider
 from modelforge.feeds.refinitiv import RefinitivProvider
 from modelforge.feeds.spcapiq import SPCapitalIQProvider
 from modelforge.feeds.tiingo import TiingoProvider
+from modelforge.feeds.yahoo import YahooProvider
 
 
 # ─── helpers ────────────────────────────────────────────────────────────────
@@ -469,8 +470,20 @@ def test_registry_status_reports_tier_and_caps():
     assert bloomberg["tier"] == "bulge"
 
 
-def test_registry_quote_raises_when_nothing_available():
-    r = Registry()
+def test_registry_quote_raises_when_nothing_available(monkeypatch):
+    """When *every* registered provider is unavailable, registry raises.
+
+    YahooProvider is always-available (no auth), so we have to construct
+    a registry without it to exercise the failure path.
+    """
+    class _Unavail(Provider):
+        name = "fake_unavail"
+        tier = "bulge"
+        def is_available(self): return False
+        def quote(self, symbol):
+            return Quote(symbol=symbol, price=0.0)
+
+    r = Registry(providers=[_Unavail()])
     with pytest.raises(NoProviderAvailable):
         r.quote("AAPL")
 
@@ -565,3 +578,115 @@ def test_module_facade_status_returns_rows():
 
 def test_module_facade_registry_singleton():
     assert registry() is registry()
+
+
+# ─── YahooProvider — free no-auth quote/history/fundamentals ────────────────
+
+
+def test_yahoo_provider_metadata():
+    y = YahooProvider()
+    assert y.name == "yahoo"
+    assert y.tier == "free"
+    assert y.requires_auth is False
+    assert y.is_available() is True
+    for cap in ("quote", "history", "fundamentals", "entity_lookup"):
+        assert y.supports(cap), f"yahoo should support {cap}"
+
+
+def test_yahoo_quote_returns_normalised_quote(monkeypatch):
+    fake_chart = {
+        "chart": {
+            "result": [{
+                "meta": {
+                    "symbol": "AAPL",
+                    "regularMarketPrice": 250.0,
+                    "chartPreviousClose": 245.0,
+                    "currency": "USD",
+                    "exchangeName": "NMS",
+                    "exchangeTimezoneName": "America/New_York",
+                },
+                "timestamp": [],
+                "indicators": {"quote": [{}]},
+            }]
+        }
+    }
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda req, timeout=15: _http_mock(fake_chart),
+    )
+    y = YahooProvider()
+    q = y.quote("AAPL")
+    assert q.symbol == "AAPL"
+    assert q.price == 250.0
+    assert q.currency == "USD"
+    assert q.previous_close == 245.0
+    assert q.exchange == "NMS"
+    assert q.source == "yahoo"
+    assert abs(q.change_pct - 2.0408163265) < 1e-6
+
+
+def test_yahoo_history_filters_start_end_and_limit(monkeypatch):
+    from datetime import datetime, timezone
+    days = ["2026-05-10", "2026-05-11", "2026-05-12", "2026-05-13", "2026-05-14"]
+    timestamps = [
+        int(datetime.strptime(d, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+        for d in days
+    ]
+    fake_chart = {
+        "chart": {
+            "result": [{
+                "meta": {"symbol": "AAPL"},
+                "timestamp": timestamps,
+                "indicators": {
+                    "quote": [{
+                        "open": [100, 101, 102, 103, 104],
+                        "high": [105, 106, 107, 108, 109],
+                        "low": [99, 100, 101, 102, 103],
+                        "close": [104, 105, 106, 107, 108],
+                        "volume": [1000, 1100, 1200, 1300, 1400],
+                    }]
+                },
+            }]
+        }
+    }
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda req, timeout=15: _http_mock(fake_chart),
+    )
+    y = YahooProvider()
+    bars = y.history("AAPL", start="2026-05-12", end="2026-05-13", limit=10)
+    assert len(bars) == 2
+    assert bars[0].date == "2026-05-12"
+    assert bars[1].date == "2026-05-13"
+    assert bars[0].close == 106
+
+
+def test_yahoo_quote_raises_provider_error_on_missing_price(monkeypatch):
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda req, timeout=15: _http_mock({
+            "chart": {"result": [{"meta": {"symbol": "BAD"}, "timestamp": [],
+                                  "indicators": {"quote": [{}]}}]}
+        }),
+    )
+    y = YahooProvider()
+    with pytest.raises(ProviderError):
+        y.quote("BAD")
+
+
+def test_yahoo_entity_lookup_requires_ticker():
+    y = YahooProvider()
+    with pytest.raises(NotSupported):
+        y.entity_lookup(lei="ABC")
+
+
+def test_yahoo_provider_appears_in_default_registry():
+    """Real registry should list yahoo as available with quote+history+fund."""
+    rows = status()
+    yahoo_row = next((r for r in rows if r["name"] == "yahoo"), None)
+    assert yahoo_row is not None, "YahooProvider should be registered by default"
+    assert yahoo_row["tier"] == "free"
+    assert yahoo_row["available"] is True
+    assert "quote" in yahoo_row["supports"]
+    assert "history" in yahoo_row["supports"]
+    assert "fundamentals" in yahoo_row["supports"]

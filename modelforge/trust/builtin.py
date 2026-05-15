@@ -146,6 +146,78 @@ def _dcf_market_cap_deviation(probe, spec, rule) -> Iterable[TrustViolation]:
         )
 
 
+def _dcf_implied_equity_vs_market_cap(probe, spec, rule) -> Iterable[TrustViolation]:
+    """Live external check: DCF-implied equity value vs current market cap.
+
+    Requires ``spec.target.ticker`` to be set (e.g. "ENEL.MI", "AAPL").
+    Pulls market cap via the YahooProvider (free, no auth) and compares
+    to the workbook's implied equity (``Valuation!D21``, in millions).
+
+    Severity:
+        * WARN at ≥25% absolute deviation
+        * FAIL at ≥100% absolute deviation
+
+    This is the rule that catches "Enel DCF says €553B equity but real
+    market cap is €95B (+7x)" — exactly what ChatGPT round-2 IC review
+    flagged as the unresolved Killer #1.
+    """
+    ticker = getattr(getattr(spec, "target", None), "ticker", None)
+    if not ticker:
+        return
+    implied_equity_m = probe.get("Valuation!D21")
+    if implied_equity_m is None:
+        return
+    try:
+        from modelforge.feeds.yahoo import _market_cap as _live_market_cap
+        market_cap = _live_market_cap(ticker)
+    except Exception:
+        return  # Network down / rate-limited — never block the build
+    if market_cap is None or market_cap <= 0:
+        return
+    # Workbook is in spec.meta.unit_scale; default 'millions' → convert to absolute
+    unit_scale = getattr(getattr(spec, "meta", None), "unit_scale", "millions")
+    multiplier = {"actual": 1.0, "thousands": 1_000.0, "millions": 1_000_000.0}.get(
+        unit_scale, 1_000_000.0
+    )
+    implied_equity_abs = implied_equity_m * multiplier
+    deviation = (implied_equity_abs - market_cap) / market_cap
+    if abs(deviation) >= 1.0:
+        yield _violation(
+            rule,
+            f"DCF implied equity {implied_equity_abs/1e9:.1f}B vs live market cap "
+            f"{market_cap/1e9:.1f}B for {ticker} ({deviation:+.0%}). "
+            f">±100% deviation is a unit/scale or assumption error, not a valuation gap.",
+            template=spec.model_type,
+            cell="Valuation!D21",
+            actual=implied_equity_abs,
+            expected_low=market_cap * 0.5,
+            expected_high=market_cap * 2.0,
+            recommendation=(
+                f"Likely causes: (a) revenue/EBITDA units don't match meta.unit_scale, "
+                f"(b) WACC too low / terminal-growth too high, (c) exit multiple unrealistic. "
+                f"Cross-check against {ticker} on Yahoo Finance."
+            ),
+        )
+    elif abs(deviation) >= 0.25:
+        # Soft warn — within ±25% to ±100% is "valuation disagreement", not a bug
+        yield _violation(
+            rule,
+            f"DCF implied equity {implied_equity_abs/1e9:.1f}B vs live market cap "
+            f"{market_cap/1e9:.1f}B for {ticker} ({deviation:+.0%}). "
+            f"Above ±25%: defensible but flag for IC.",
+            template=spec.model_type,
+            cell="Valuation!D21",
+            actual=implied_equity_abs,
+            expected_low=market_cap * 0.75,
+            expected_high=market_cap * 1.25,
+            recommendation=(
+                f"Document the thesis explaining why {ticker} should re-rate "
+                f"by {deviation:+.0%} (e.g., catalyst, peer mispricing, "
+                f"forecast vs. consensus delta)."
+            ),
+        )
+
+
 # ─── LBO rules (sponsor_lbo) ────────────────────────────────────────────────
 
 
@@ -517,6 +589,10 @@ DEFAULT_RULES: list[TrustRule] = [
     _rule("dcf_market_cap_deviation", "DCF premium vs current price within ±100%",
           ("dcf", "fairness"), "warn",
           _dcf_market_cap_deviation),
+    _rule("dcf_implied_equity_vs_market_cap",
+          "Live: DCF-implied equity within ±100% of current market cap (Yahoo)",
+          ("dcf", "fairness"), "fail",
+          _dcf_implied_equity_vs_market_cap),
 
     # LBO
     _rule("lbo_leverage_in_band", "Entry leverage 2-8x EBITDA",
