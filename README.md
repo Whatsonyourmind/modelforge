@@ -2,7 +2,7 @@
 
 <!-- mcp-name: io.github.Whatsonyourmind/modelforge -->
 
-[![Status](https://img.shields.io/badge/version-0.9.3-blue)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-431%2F431-brightgreen)](./tests) [![Audit](https://img.shields.io/badge/audit-0%20FAIL%20%2F%200%20PARTIAL-brightgreen)](./GOLD_STANDARD_AUDIT_2026-04-21.md) [![SOTA](https://img.shields.io/badge/SOTA-9.40%20Italian%20%2F%207.42%20International-blueviolet)](./SCORECARD_v3.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py) [![Templates](https://img.shields.io/badge/templates-14-blue)](./modelforge/templates/) [![Public](https://img.shields.io/badge/repo-public-brightgreen)](https://github.com/Whatsonyourmind/modelforge)
+[![Version](https://img.shields.io/badge/version-0.9.7-blue)](https://pypi.org/project/modelforge-finance/) [![Tests](https://img.shields.io/badge/tests-504%2F504-brightgreen)](./tests) [![Trust](https://img.shields.io/badge/trust--layer-v1%20(14%2F14%20FAIL--clean)-brightgreen)](./AUDIT_REPORT.md) [![Scorecard](https://img.shields.io/badge/scorecard-5.45%20consensus-blue)](./SCORECARD.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py) [![Templates](https://img.shields.io/badge/templates-14-blue)](./modelforge/templates/) [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.5-purple)](./.github/workflows/ci.yml)
 
 Bulge-tier Excel financial model factory for credit & structured finance. Every cell live-formulated. Every number traceable back to the source document page it came from.
 
@@ -26,9 +26,9 @@ pip install "modelforge-finance[mcp,export]"
 Then in your AI assistant:
 > *"Build me a unitranche LBO model from this YAML spec, export the committee deck."*
 
-Tools available: `list_templates` · `build_model` · `qc_workbook` · `list_sources` · `lineage_walk` · `ingest_dataroom` · `export_pptx` · `export_docx`.
+Tools available: `list_templates` · `build_model` · `qc_workbook` · `list_sources` · `lineage_walk` · `ingest_dataroom` · `screen_deals` · `compute_tax` · `export_pptx` · `export_docx` · plus 7 unified-feed tools (`get_fundamentals`, `get_prices`, `lookup_lei`, etc.) across an 11-provider data stack.
 
-See [GTM_STRATEGY.md](./GTM_STRATEGY.md) and [SCORECARD_v2.md](./SCORECARD_v2.md) for the full GTM thesis and competitor comparison (vs Rogo / Hebbia / Macabacus / o11).
+**Where it actually stands**: see [SCORECARD.md](./SCORECARD.md) — the canonical scorecard reflects a blind external internal review (ChatGPT 5.5 + Opus 4.7) that converged on **5.45 weighted** vs the prior founder-graded 6.56. The killers, unlocks, and recommended seed structure are documented honestly. [SCORECARD_v1.md](./SCORECARD_v1.md) / [SCORECARD_v2.md](./SCORECARD_v2.md) / [SCORECARD_v3.md](./SCORECARD_v3.md) are kept for historical transparency only.
 
 ## The architectural principle
 
@@ -64,11 +64,40 @@ The LLM never writes a number into a cell. It writes a typed YAML spec with sour
 ## Quick start
 
 ```bash
-cd "C:/Users/lukep/Desktop/Projects AI/ModelForge"
-pip install -e .
+pip install "modelforge-finance[mcp,export,data]"
+
+# Build any of 14 templates from a YAML spec
 modelforge build examples/unitranche_cdmo.yaml
-modelforge qc output/unitranche_cdmo.xlsx
+
+# QC the workbook (12 checks + Trust Layer plausibility)
+modelforge qc output/unitranche_cdmo.xlsx --trust-strict
+
+# Audit every example (CI uses the same gate)
+modelforge audit-all examples/ --report AUDIT_REPORT.md
 ```
+
+## Trust Layer v1 (new in v0.9.7)
+
+> Why should a buyer trust the number in cell `B42`?
+
+The Trust Layer is a **semantic** gate (separate from the structural QC gate). It answers the question every IC asks in the first five minutes: *is this number plausible?* It catches issues like a DCF EV that's 8× the company's real market cap before the model ever leaves QA.
+
+25+ built-in rules cover all 14 templates:
+
+- **DCF**: WACC band (3-25%), terminal growth ≤ GDP + 1%, EV vs market-cap deviation, terminal-value share, sensitivity-table monotonicity
+- **Three-statement**: balance-sheet integrity, cash reconciliation, retained-earnings link
+- **NPL**: cumulative recovery ≤ 100%, vintage staircase monotone
+- **Project finance**: DSCR floor, wire degradation > 0, P90 < P50
+- **Sponsor LBO**: XIRR plausibility, multiple expansion vs entry
+- **M&A / fairness / structured credit / unitranche / credit memo**: per-template plausibility
+
+Each violation produces a `RedFlags` worksheet inside the built workbook with severity (`info` / `warn` / `fail`), the rule that fired, expected-vs-actual, and the recommended remediation.
+
+```bash
+modelforge audit-all examples/   # 14/14 templates, 0 FAIL violations in current ship
+```
+
+See [AUDIT_REPORT.md](./AUDIT_REPORT.md) for the current ship's audit.
 
 ## Data-room ingestion (v0.3.1)
 
@@ -110,7 +139,7 @@ modelforge/
 └── cli.py            # modelforge build|qc|sources|inspect
 ```
 
-## Templates (all shipped)
+## Templates (14, all shipped)
 
 1. ✅ **Unitranche LBO** — Italian mid-market direct lending (Cash sweep + IFRS 9 EIR)
 2. ✅ **Minibond** — a regional bank territory (Gross YTM + Net YTM + Italian WHT)
@@ -120,8 +149,44 @@ modelforge/
 6. ✅ **NPL Portfolio** — Collection curves, servicing fees, senior/mezz capital structure
 7. ✅ **Structured Credit** — Tranche waterfall with attachment/detachment points
 8. ✅ **3-Statement** — P&L + BS + CFS with BS balance integrity check
+9. ✅ **DCF** — WACC build, fade, terminal normalization, 2D sensitivity (Trust Layer protected)
+10. ✅ **Merger** — Accretion/dilution, breakeven, contribution, collar, PPA
+11. ✅ **Fairness Opinion** — Selected comps, regression, premium analysis
+12. ✅ **Sponsor LBO** — Returns waterfall, debt schedule, 14-story block
+13. ✅ **IPO** — Float build, lock-up, stabilization, fee schedule
+14. ✅ **Restructuring** — Going-concern recovery, plan-feasibility, creditor classes
 
-Run `modelforge list-templates` to see them all. Each ships with an anonymized Italian example YAML in `examples/`.
+Run `modelforge list-templates` to see them all. Each ships with an anonymized example YAML in `examples/`.
+
+## Tax jurisdictions (7)
+
+```
+IT  · IRES / IRAP / SIIQ / PEX
+US  · Federal CIT + state + NOL + R&D credit + GILTI + BEAT + ASC 740
+UK  · FRS 102 + main rate + marginal relief + RDEC + AIA + WDA + group relief
+DE  · KSt + SolZ + GewSt (Hebesatz + § 8 add-backs + min-tax loss CF)
+FR  · IS + small-profits + social surcharge + CVAE + CIR + 88% participation
+ES  · IS + SME 23% + newly-created 15% + 95% participation + R&D + min-tax 15%
+JP  · NCT + LCT + Enterprise Tax + Special Local Corp Tax + R&D credit
+```
+
+## Data providers (11, unified `Provider` Protocol)
+
+**Tier-0 (free, live today)**: EDGAR · OpenFIGI · GLEIF
+**Tier-1 (low-cost paid)**: Polygon ($29/mo) · FMP ($19/mo) · Finnhub · Tiingo
+**Tier-2 (institutional)**: Bloomberg · Refinitiv · FactSet · S&P Capital IQ
+
+Tier-1 and Tier-2 are interface-complete — paid keys activate them via env vars. Local TTL cache prevents rate-limit blow-ups.
+
+## Security & SBOM
+
+- **CycloneDX 1.5 SBOM** auto-generated by CI on every push and attached to every GitHub release (`scripts/generate_sbom.py`)
+- **CI gates**: pytest across Python 3.11 + 3.12, ruff lint, SBOM structure validation (`.github/workflows/ci.yml`)
+- **Audit log** with append-only SQLite (`modelforge/audit_log.py`)
+- **Trust Layer** semantic gates auto-injected into every built workbook
+- **Security policy**: see [SECURITY.md](./SECURITY.md)
+
+Procurement-grade controls (SOC 2 Type II, ISO 27001, pen-test, multi-tenant SaaS with SSO/SCIM) are Phase-B work — see [SCORECARD.md](./SCORECARD.md) for the honest path.
 
 ## The pitch
 
