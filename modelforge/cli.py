@@ -84,8 +84,18 @@ def _load_spec_class(model_type: str):
 @click.argument("spec_path", type=click.Path(exists=True, path_type=Path))
 @click.option("--out", "out_path", type=click.Path(path_type=Path), default=None,
               help="Output .xlsx path. Defaults to output/<spec_stem>.xlsx.")
-def build_cmd(spec_path: Path, out_path: Path | None) -> None:
-    """Build an Excel workbook from a YAML spec."""
+@click.option("--no-trust", is_flag=True, default=False,
+              help="Skip the Trust Layer plausibility pass (faster, less safe).")
+@click.option("--trust-strict", is_flag=True, default=False,
+              help="Exit non-zero if any FAIL-severity violation is found.")
+def build_cmd(spec_path: Path, out_path: Path | None,
+              no_trust: bool, trust_strict: bool) -> None:
+    """Build an Excel workbook from a YAML spec.
+
+    By default the Trust Layer runs after the build, injecting a `RedFlags`
+    sheet with any plausibility violations. Use --no-trust to skip it
+    or --trust-strict to fail the build on FAIL-severity issues.
+    """
     spec_bytes = spec_path.read_bytes()
     raw = yaml.safe_load(spec_bytes)
     model_type = raw.get("model_type", "unitranche")
@@ -108,6 +118,56 @@ def build_cmd(spec_path: Path, out_path: Path | None) -> None:
     )
     console.print(f"[green]Built:[/green] {xlsx}  [dim]({model_type})[/dim]")
     console.print(f"[green]Graph:[/green] {graph}")
+
+    if no_trust:
+        return
+
+    try:
+        from modelforge.trust import (
+            DEFAULT_RULES, TrustEngine, inject_red_flag_sheet,
+        )
+        engine = TrustEngine(rules=DEFAULT_RULES)
+        report = engine.evaluate(xlsx, spec)
+        inject_red_flag_sheet(xlsx, report)
+    except Exception as e:
+        console.print(f"[yellow]Trust Layer skipped:[/yellow] {e}")
+    else:
+        s = report.summary()
+        if report.has_failures():
+            console.print(
+                f"[red]Trust:[/red] FAIL={s['fail']} WARN={s['warn']} INFO={s['info']}  "
+                "(see RedFlags sheet)"
+            )
+            if trust_strict:
+                sys.exit(3)
+        elif report.has_warnings():
+            console.print(
+                f"[yellow]Trust:[/yellow] WARN={s['warn']} INFO={s['info']}  (see RedFlags sheet)"
+            )
+        else:
+            console.print(f"[green]Trust:[/green] all {s['rules_run']} rules pass")
+
+    # MoatGate — verifies the "fully-formulated live Excel outputs" moat
+    try:
+        from modelforge.moat import MoatGate, inject_moat_sheet
+        moat_report = MoatGate().evaluate(xlsx)
+        inject_moat_sheet(xlsx, moat_report)
+    except Exception as e:
+        console.print(f"[yellow]Moat gate skipped:[/yellow] {e}")
+        return
+
+    summary = moat_report.summary()
+    if moat_report.passes():
+        console.print(
+            f"[green]Moat:[/green] {summary['gates_passed']}/{summary['gates_total']} gates  "
+            f"core-output density {summary['core_output_density']*100:.1f}%"
+        )
+    else:
+        failed = [g.name for g in moat_report.gate_results if not g.passed]
+        console.print(
+            f"[red]Moat:[/red] FAIL on {','.join(failed)}  "
+            f"(core-output density {summary['core_output_density']*100:.1f}%; see MOAT sheet)"
+        )
 
 
 @main.command("list-templates")
@@ -1051,6 +1111,145 @@ def stats_cmd(graph_db: Path) -> None:
         for k, v in sorted(stats.items()):
             tbl.add_row(k, str(v))
         console.print(tbl)
+
+
+@main.command("moat")
+@click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--strict", is_flag=True, default=False,
+              help="Exit non-zero if any moat gate fails.")
+@click.option("--no-inject", is_flag=True, default=False,
+              help="Don't inject the MOAT sheet into the workbook.")
+def moat_cmd(xlsx_path: Path, strict: bool, no_inject: bool) -> None:
+    """Verify "fully-formulated live Excel outputs" moat gates.
+
+    Runs four gates and prints the verdict:
+      • formula_density   — output sheets ≥ 90% formulas
+      • reference_graph   — output formulas have no magic-number literals
+      • no_orphan_inputs  — every named range is referenced by a formula
+      • recalculation     — third-party engine recomputes identical values
+    """
+    from modelforge.moat import MoatGate, inject_moat_sheet
+    report = MoatGate().evaluate(xlsx_path)
+    if not no_inject:
+        inject_moat_sheet(xlsx_path, report)
+
+    tbl = Table(title=f"MOAT — {xlsx_path.name}")
+    tbl.add_column("Gate")
+    tbl.add_column("Verdict")
+    tbl.add_column("Metric", justify="right")
+    tbl.add_column("Detail")
+    for g in report.gate_results:
+        verdict = "[green]PASS[/green]" if g.passed else "[red]FAIL[/red]"
+        metric = (f"{g.metric:.4f}" if isinstance(g.metric, float) else
+                  (str(g.metric) if g.metric is not None else ""))
+        tbl.add_row(g.name, verdict, metric, g.detail[:80])
+    console.print(tbl)
+    console.print(
+        f"Core-output formula density: [bold]{report.core_output_density()*100:.1f}%[/bold]"
+    )
+    if strict and not report.passes():
+        sys.exit(4)
+
+
+@main.command("audit-all")
+@click.option("--examples-dir", "examples_dir", type=click.Path(path_type=Path),
+              default=Path("examples"),
+              help="Directory containing YAML specs to build.")
+@click.option("--out-dir", "out_dir", type=click.Path(path_type=Path),
+              default=Path("output/audit"),
+              help="Directory to write the built workbooks.")
+@click.option("--report", "report_path", type=click.Path(path_type=Path),
+              default=Path("AUDIT_REPORT.md"),
+              help="Markdown report path (default: AUDIT_REPORT.md).")
+def audit_all_cmd(examples_dir: Path, out_dir: Path, report_path: Path) -> None:
+    """Build every example, run Trust + Moat gates, write a markdown report.
+
+    The audit report is the evidence pack for design partners — proves
+    that every demo template builds, recalculates, and meets the moat
+    + plausibility gates.
+    """
+    from modelforge.moat import MoatGate
+    from modelforge.trust import DEFAULT_RULES, TrustEngine
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    specs = sorted(examples_dir.glob("*.yaml"))
+    if not specs:
+        console.print(f"[yellow]No specs found in {examples_dir}[/yellow]")
+        sys.exit(2)
+
+    console.print(f"Auditing {len(specs)} specs from {examples_dir}…")
+    rows = []
+    moat_engine = MoatGate()
+    trust_engine = TrustEngine(rules=DEFAULT_RULES)
+
+    for spec_path in specs:
+        try:
+            spec_bytes = spec_path.read_bytes()
+            raw = yaml.safe_load(spec_bytes)
+            mt = raw.get("model_type", "unitranche")
+            SpecClass = _load_spec_class(mt)
+            spec = SpecClass.model_validate(raw)
+            xlsx_out = out_dir / f"{spec_path.stem}.xlsx"
+            xlsx, _ = build_model(spec, xlsx_out,
+                                  spec_source_bytes=spec_bytes,
+                                  spec_source_path=spec_path)
+            tr = trust_engine.evaluate(xlsx, spec)
+            mr = moat_engine.evaluate(xlsx)
+            rows.append({
+                "spec": spec_path.name,
+                "template": mt,
+                "trust_fail": len(tr.by_severity("fail")),
+                "trust_warn": len(tr.by_severity("warn")),
+                "moat_passes": mr.passes(),
+                "core_output_density": mr.core_output_density(),
+                "moat_failed_gates": [g.name for g in mr.gate_results if not g.passed],
+                "error": None,
+            })
+        except Exception as e:
+            rows.append({
+                "spec": spec_path.name, "template": "?",
+                "trust_fail": 0, "trust_warn": 0,
+                "moat_passes": False,
+                "core_output_density": 0.0,
+                "moat_failed_gates": ["build_failed"],
+                "error": str(e)[:120],
+            })
+
+    # Write report
+    lines = ["# ModelForge Audit Report",
+             f"\n_Generated by `modelforge audit-all` against `{examples_dir}` — "
+             f"{len(rows)} specs._\n",
+             "## Summary\n"]
+    n_pass_trust = sum(1 for r in rows if r["trust_fail"] == 0 and r["error"] is None)
+    n_pass_moat = sum(1 for r in rows if r["moat_passes"] and r["error"] is None)
+    n_built = sum(1 for r in rows if r["error"] is None)
+    lines.append(
+        f"- Built: **{n_built}/{len(rows)}** templates compile end-to-end\n"
+        f"- Trust Layer FAIL-clean: **{n_pass_trust}/{len(rows)}**\n"
+        f"- Moat gates PASS: **{n_pass_moat}/{len(rows)}**\n"
+        f"- Avg core-output formula density: "
+        f"**{(sum(r['core_output_density'] for r in rows)/len(rows))*100:.1f}%**\n"
+    )
+    lines.append("\n## Per-spec\n")
+    lines.append("| Spec | Template | Built | Trust FAIL | Trust WARN | "
+                 "Moat | Core density | Failed gates / error |")
+    lines.append("|---|---|:-:|:-:|:-:|:-:|:-:|---|")
+    for r in rows:
+        built = "✓" if r["error"] is None else "✗"
+        moat = "✓" if r["moat_passes"] else "✗"
+        density = (f"{r['core_output_density']*100:.1f}%"
+                   if r["error"] is None else "—")
+        gates = (r["error"] if r["error"]
+                 else (", ".join(r["moat_failed_gates"]) or "—"))
+        lines.append(
+            f"| {r['spec']} | {r['template']} | {built} | "
+            f"{r['trust_fail']} | {r['trust_warn']} | {moat} | "
+            f"{density} | {gates} |"
+        )
+    report_path.write_text("\n".join(lines), encoding="utf-8")
+    console.print(f"[green]Wrote[/green] {report_path}")
+    console.print(f"  Built: {n_built}/{len(rows)}  Trust-clean: {n_pass_trust}  "
+                  f"Moat-PASS: {n_pass_moat}")
 
 
 if __name__ == "__main__":

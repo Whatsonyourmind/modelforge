@@ -50,6 +50,17 @@ def build_wacc(ws: Worksheet, spec) -> dict[str, str]:
     else:
         erp_formula = "equity_risk_premium"
 
+    # v0.9.7: Duff & Phelps / Kroll size premium + company-specific alpha
+    # (both optional). When supplied, append additively to cost of equity.
+    has_size_premium = spec.wacc.size_premium_pct is not None
+    has_alpha = spec.wacc.company_specific_alpha_bps is not None
+    coe_tail_terms: list[str] = []
+    if has_size_premium:
+        coe_tail_terms.append("size_premium_pct")
+    if has_alpha:
+        coe_tail_terms.append("company_specific_alpha_bps/10000")
+    coe_tail = ("+" + "+".join(coe_tail_terms)) if coe_tail_terms else ""
+
     rows = [
         ("Risk-free rate (10Y BTP)", "Tasso risk-free", "=risk_free_rate", styles.FMT_PCT_2DP),
     ]
@@ -77,7 +88,7 @@ def build_wacc(ws: Worksheet, spec) -> dict[str, str]:
         ("Beta (relevered via Hamada)" if has_comps else "Beta (levered — input)",
          "Beta", f"={beta_ref}", styles.FMT_MULTIPLE),
         ("Cost of equity", "Costo del capitale",
-         f"=risk_free_rate+{beta_ref}*({erp_formula})", styles.FMT_PCT_2DP),
+         f"=risk_free_rate+{beta_ref}*({erp_formula}){coe_tail}", styles.FMT_PCT_2DP),
         ("Pre-tax cost of debt", "Costo del debito pre-tax", "=pretax_cost_of_debt", styles.FMT_PCT_2DP),
         ("Effective tax rate", "Aliquota effettiva", "=effective_tax_rate", styles.FMT_PCT),
         ("After-tax cost of debt", "Costo del debito post-tax",
@@ -86,7 +97,7 @@ def build_wacc(ws: Worksheet, spec) -> dict[str, str]:
         ("Target E / (D+E)", "Target E / (D+E)", "=1-target_debt_weight", styles.FMT_PCT),
         ("WACC",
          "WACC",
-         f"=((risk_free_rate+{beta_ref}*({erp_formula}))*(1-target_debt_weight))+"
+         f"=((risk_free_rate+{beta_ref}*({erp_formula}){coe_tail})*(1-target_debt_weight))+"
          "(pretax_cost_of_debt*(1-effective_tax_rate)*target_debt_weight)",
          styles.FMT_PCT_2DP),
     ]
@@ -534,16 +545,16 @@ def build_valuation(ws: Worksheet, spec, fcf_refs: dict[str, int],
             )
 
     # Create workbook-level named range for the terminal method choice
-    # (1 = Gordon, 2 = Exit multiple). Defaulted to 1 via Cover/Assumption
-    # in later iterations; for v0.6 we just stamp a fixed workbook name.
+    # (1 = Gordon, 2 = Exit multiple). v0.9.7: honor spec.terminal.terminal_method_choice
+    # if set (default 1 = Gordon). User-overridable in the workbook itself.
     from openpyxl.workbook.defined_name import DefinedName
     if "terminal_method_choice" not in ws.parent.defined_names:
-        # Write constant to a hidden helper cell: column Z on this sheet
         helper_row = r + len(rows) + 4
         layout.write_row_label(ws, helper_row,
                                "Terminal method choice (1=Gordon, 2=Exit)",
                                "Metodo TV (1=Gordon, 2=Exit)")
-        ws.cell(row=helper_row, column=4, value=1)
+        method_choice = getattr(spec.terminal, "terminal_method_choice", 1) or 1
+        ws.cell(row=helper_row, column=4, value=int(method_choice))
         ws.parent.defined_names["terminal_method_choice"] = DefinedName(
             name="terminal_method_choice",
             attr_text=f"'{ws.title}'!$D${helper_row}",
