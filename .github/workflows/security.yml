@@ -1,0 +1,141 @@
+name: Security
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  schedule:
+    # Weekly Monday 06:00 UTC — catches new CVEs even when no code lands
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write   # for SARIF upload to GitHub Security tab
+
+jobs:
+  bandit:
+    name: Bandit static analysis (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true   # advisory until clean
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install Bandit + SARIF formatter
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "bandit[toml]" "bandit-sarif-formatter"
+
+      - name: Run Bandit (SARIF)
+        run: |
+          bandit -r modelforge -f sarif -o bandit.sarif --severity-level medium --confidence-level medium \
+            --skip B101 || true   # B101: assert (we use assert in tests)
+          echo "Bandit done."
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: bandit.sarif
+
+      - name: Bandit summary table
+        run: bandit -r modelforge --severity-level medium --confidence-level medium --skip B101 || true
+
+  safety:
+    name: Safety known-CVE scan (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true   # advisory; CVEs in transitive deps shouldn't block CI
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install package + safety
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install safety
+
+      - name: Freeze deps
+        run: pip freeze > runtime-deps.txt
+
+      - name: Run safety check
+        run: |
+          safety check --file runtime-deps.txt --output text --continue-on-error || true
+          safety check --file runtime-deps.txt --output json --save-as json safety-report.json --continue-on-error || true
+
+      - name: Upload safety report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: safety-report
+          path: |
+            safety-report.json
+            runtime-deps.txt
+          retention-days: 30
+
+  pip-audit:
+    name: pip-audit CVE scan (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install package + pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pip-audit
+
+      - name: Run pip-audit (text)
+        run: pip-audit --strict || true
+
+      - name: Run pip-audit (JSON for archival)
+        run: pip-audit --format json --output pip-audit.json || true
+
+      - name: Upload pip-audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pip-audit-report
+          path: pip-audit.json
+          retention-days: 30
+
+  semgrep:
+    name: Semgrep code scan (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep with Python rules
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/python
+            p/security-audit
+            p/secrets
+        env:
+          # No SEMGREP_APP_TOKEN — runs in OSS mode against public rule packs
+          SEMGREP_TIMEOUT: 60
