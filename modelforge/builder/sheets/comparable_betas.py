@@ -106,9 +106,11 @@ def build(ws: Worksheet, spec) -> dict[str, str]:
     r_sum += 1
 
     ws.cell(row=r_sum, column=1, value="Relevered β (target structure)").font = styles.font_subheader
+    # Use the unlevered_beta_median named range (not row arithmetic — the
+    # row offsets above leave E14 empty and would silently relever from 0).
     relev = ws.cell(
         row=r_sum, column=5,
-        value=f"=E{r_sum-3}*(1+(1-E{r_sum-1})*E{r_sum-2})",
+        value=f"=unlevered_beta_median*(1+(1-E{r_sum-1})*E{r_sum-2})",
     )
     styles.style_formula(relev, number_format=styles.FMT_MULTIPLE)
     relev.font = styles.font_subheader

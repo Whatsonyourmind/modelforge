@@ -467,18 +467,22 @@ terminal:
     name: terminal_growth_pct
     label: {en: Terminal growth, it: Crescita terminale}
     unit: pct
-    base: 0.020
+    base: 0.015
     worst: 0.010
-    best: 0.025
-    rationale: Long-run EU inflation + mild real growth
+    best: 0.020
+    rationale: ECB long-run inflation target ~2% capped at GDP growth — utilities can't outgrow the economy in perpetuity
     confidence: M
   exit_ev_ebitda_x:
     id: A-402
     name: exit_ev_ebitda_x
     label: {en: Exit EV/EBITDA, it: Exit EV/EBITDA}
     unit: x
-    base: 7.5
-    worst: 6.5
-    best: 9.0
-    rationale: EU utility multiple range
+    base: 7.0
+    worst: 6.0
+    best: 8.5
+    rationale: EU utility multiple range; recent Iberdrola/E.ON trade 6-8x EBITDA
     confidence: M
+  # v0.9.7: prefer Exit Multiple as default — Gordon is too sensitive to
+  # WACC-g spread for utility-style cash flows; exit-multiple disciplines
+  # the terminal value to peer-tradeable bands.
+  terminal_method_choice: 2  # 1=Gordon, 2=Exit multiple

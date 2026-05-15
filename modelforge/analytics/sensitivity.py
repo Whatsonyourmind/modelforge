@@ -279,6 +279,20 @@ _ELASTICITY_REGISTRY: dict[str, float] = {
     "tax_rate_pct": -0.30,
     "da_pct_revenue": -0.10,
     "dividend_payout_ratio": -0.05,
+    # IPO specifics — drivers of offer-price intrinsic value
+    "comp_pe_median": 0.90,           # higher peer P/E → higher offer price
+    "comp_ev_ebitda_median": 0.85,    # same logic, EV-based
+    "ipo_discount_pct": -0.30,        # bigger discount-to-FV reduces realized proceeds
+    "primary_secondary_split": 0.20,  # primary share affects use-of-proceeds calc
+    "greenshoe_pct": 0.15,            # over-allotment grows raise
+    # Restructuring specifics — recoveries are highly elastic to EV pool
+    "enterprise_value_recoverable": 1.00,   # 1:1 — bigger pie = bigger slice
+    "dip_facility_amount": -0.40,           # DIP repayment crowds out unsecured
+    "admin_priority_claims": -0.50,         # admin gets paid first, reducing pool
+    "senior_secured_recovery_pct": 0.85,    # primary equity-IRR driver for fulcrum holder
+    "unsecured_recovery_pct": 0.60,
+    "time_to_emergence_months": -0.25,      # longer tail erodes IRR via discounting
+    "exit_financing_rate": -0.30,           # higher exit rate compresses TEV
 }
 
 
