@@ -30,6 +30,7 @@ target:
   ebitda_last_fy_eur_m: 22500.0
   ebitda_source_id: S-001
   last_fy_end: 2025-12-31
+  ticker: ENEL.MI  # Live market-cap reference for Trust Layer
 
 sources:
   - id: S-001
