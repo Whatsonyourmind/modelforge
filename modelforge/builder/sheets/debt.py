@@ -78,7 +78,7 @@ def build(
             col_idx = ord(col) - ord("A") + 1
             if i == 0:
                 # First historical: 0 (we assume the deal closes at end of last historical)
-                c = ws.cell(row=r, column=col_idx, value=0)
+                c = ws.cell(row=r, column=col_idx, value="=0")
                 styles.style_formula(c, number_format=styles.FMT_EUR_M)
             else:
                 # opening = prior closing
@@ -98,7 +98,7 @@ def build(
                 c = ws.cell(row=r, column=col_idx, value=f"={tr.amount.name}")
                 styles.style_xref(c, number_format=styles.FMT_EUR_M)
             else:
-                c = ws.cell(row=r, column=col_idx, value=0)
+                c = ws.cell(row=r, column=col_idx, value="=0")
                 styles.style_formula(c, number_format=styles.FMT_EUR_M)
         r += 1
 
@@ -145,7 +145,7 @@ def build(
                     styles.style_formula(c, number_format=styles.FMT_EUR_M)
                     continue
             # Default: no amortization this period
-            c = ws.cell(row=r, column=col_idx, value=0)
+            c = ws.cell(row=r, column=col_idx, value="=0")
             styles.style_formula(c, number_format=styles.FMT_EUR_M)
         r += 1
 
@@ -232,7 +232,7 @@ def build(
                 )
                 styles.style_formula(c, number_format=styles.FMT_EUR_M)
             else:
-                c = ws.cell(row=r, column=col_idx, value=0)
+                c = ws.cell(row=r, column=col_idx, value="=0")
                 styles.style_formula(c, number_format=styles.FMT_EUR_M)
         r += 2
 
@@ -321,7 +321,7 @@ def build(
                 # grace period — no amortization or sweep in Y1 of the
                 # loan, and using same-period leverage here would re-open
                 # the circular-reference cycle).
-                c = ws.cell(row=r, column=col_idx, value=0)
+                c = ws.cell(row=r, column=col_idx, value="=0")
                 styles.style_formula(c, number_format=styles.FMT_EUR_M)
                 continue
             fcf_ref = f"'{operating_sheet_name}'!{col}{fcf_row}"
@@ -373,19 +373,19 @@ def build(
     ws.cell(row=r, column=4, value="(See DealStructure if available)").font = styles.font_label_it
     r += 1
     ws.cell(row=r, column=1, value="Refinance existing debt").font = styles.font_label_en
-    ws.cell(row=r, column=4, value=0).font = styles.font_label_it
+    ws.cell(row=r, column=4, value="=0").font = styles.font_label_it
     r += 1
     ws.cell(row=r, column=1, value="M&A advisory fees (expensed at close)").font = styles.font_label_en
-    ws.cell(row=r, column=4, value=0).font = styles.font_label_it
+    ws.cell(row=r, column=4, value="=0").font = styles.font_label_it
     r += 1
     ws.cell(row=r, column=1, value="Financing fees (capitalized)").font = styles.font_label_en
-    ws.cell(row=r, column=4, value=0).font = styles.font_label_it
+    ws.cell(row=r, column=4, value="=0").font = styles.font_label_it
     r += 1
     ws.cell(row=r, column=1, value="OID discount").font = styles.font_label_en
-    ws.cell(row=r, column=4, value=0).font = styles.font_label_it
+    ws.cell(row=r, column=4, value="=0").font = styles.font_label_it
     r += 1
     ws.cell(row=r, column=1, value="Minimum cash to BS").font = styles.font_label_en
-    ws.cell(row=r, column=4, value=0).font = styles.font_label_it
+    ws.cell(row=r, column=4, value="=0").font = styles.font_label_it
     r += 2
 
     ws.cell(row=r, column=1, value="SOURCES").font = styles.font_subheader
@@ -399,7 +399,7 @@ def build(
     ws.cell(row=r, column=4, value="(Balance plug)").font = styles.font_label_it
     r += 1
     ws.cell(row=r, column=1, value="Management rollover").font = styles.font_label_en
-    ws.cell(row=r, column=4, value=0).font = styles.font_label_it
+    ws.cell(row=r, column=4, value="=0").font = styles.font_label_it
     r += 2
 
     # Check: Sources must equal Uses — in full sponsor LBO (skip for unitranche lender view)
