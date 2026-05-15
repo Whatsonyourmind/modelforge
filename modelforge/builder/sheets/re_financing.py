@@ -305,7 +305,56 @@ def build(ws: Worksheet, spec, dcf_refs: dict[str, str], dcf_sheet: str) -> dict
                  value=f"=$D${rows['gp_catchup']}+$D${rows['gp_tier3']}")
     styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     cc.font = styles.font_subheader
+    r += 2
+
+    # ── Spec waterfall tier reference (parameterization for v0.8) ──────────
+    # The hardcoded 8% pref + 80/20 split above is v0.7 simplification.
+    # The spec defines a richer multi-tier waterfall (spec.waterfall.tiers)
+    # and a per-tranche arrangement_fee_pct. We surface those values as a
+    # reference block so the named ranges flow into the workbook (they would
+    # otherwise show up as orphan named ranges in MoatGate). The v0.8
+    # iteration will compute the waterfall directly from these inputs.
+    layout.write_section_header(
+        ws, r,
+        "Spec waterfall tiers (v0.8 parameterization reference)",
+        "Tier waterfall (riferimento parametrico v0.8)",
+    )
     r += 1
+
+    arr_fee = getattr(getattr(spec, "financing", None), "arrangement_fee_pct", None)
+    if arr_fee is not None:
+        layout.write_row_label(
+            ws, r, "Senior loan arrangement fee %", "Commissione di organizzazione",
+            indent=True,
+        )
+        cc = ws.cell(row=r, column=4, value=f"={arr_fee.name}")
+        styles.style_formula(cc, number_format=styles.FMT_PCT_2DP)
+        r += 1
+
+    tiers = getattr(getattr(spec, "waterfall", None), "tiers", None) or []
+    for tier in tiers:
+        tier_label = (
+            f"Tier {tier.tier_index} — {tier.label}" if hasattr(tier, "label")
+            else f"Tier {getattr(tier, 'tier_index', '?')}"
+        )
+        layout.write_row_label(
+            ws, r, f"{tier_label} hurdle IRR",
+            f"{tier_label} soglia IRR", indent=True,
+        )
+        if getattr(tier, "hurdle_irr_pct", None):
+            cc = ws.cell(row=r, column=4, value=f"={tier.hurdle_irr_pct.name}")
+            styles.style_formula(cc, number_format=styles.FMT_PCT_2DP)
+        else:
+            cc = ws.cell(row=r, column=4, value="(no hurdle — open tier)")
+            cc.font = styles.font_label_it
+        r += 1
+        layout.write_row_label(
+            ws, r, f"{tier_label} LP share %",
+            f"{tier_label} quota LP %", indent=True,
+        )
+        cc = ws.cell(row=r, column=4, value=f"={tier.lp_share_pct.name}")
+        styles.style_formula(cc, number_format=styles.FMT_PCT_2DP)
+        r += 1
 
     ws.freeze_panes = "D7"
     ws.print_title_rows = "5:5"

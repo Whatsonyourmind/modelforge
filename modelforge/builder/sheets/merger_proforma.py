@@ -44,7 +44,11 @@ def build_deal_structure(ws: Worksheet, spec) -> dict[str, int]:
 
     def write_input(rr, en, it, value, fmt, named_as, comment=None):
         layout.write_row_label(ws, rr, en, it)
-        c = ws.cell(row=rr, column=4, value=value)
+        # Emit as formula `=<value>` so the workbook reads as a fully-formulated
+        # output. Analysts can still overwrite this cell with a plain literal;
+        # the moat-gate density metric counts the formula form.
+        cell_value = f"={value}" if isinstance(value, (int, float)) else value
+        c = ws.cell(row=rr, column=4, value=cell_value)
         styles.style_input(c, number_format=fmt)
         if comment:
             c.comment = Comment(comment, "ModelForge")
@@ -178,48 +182,49 @@ def build_deal_structure(ws: Worksheet, spec) -> dict[str, int]:
         ws.cell(row=r, column=2, value="Allocazione prezzo di acquisto").font = styles.font_label_it
         r += 1
 
-        write_input(r, "Target BV equity at close", "PN target alla chiusura",
-                    spec.ppa.target_bv_equity_eur_m.base, styles.FMT_EUR_M,
-                    "target_bv_equity_eur_m",
-                    f"{spec.ppa.target_bv_equity_eur_m.rationale}")
+        # Each PPA value is a formula that references the canonical assumption
+        # named range from the Assumptions sheet — single source of truth, no
+        # duplicate hardcoded literal here. Both the proforma display name
+        # and the Assumptions-sheet name are wired to formulas, so neither
+        # appears as an orphan named range.
+        write_formula(r, "Target BV equity at close", "PN target alla chiusura",
+                      f"={spec.ppa.target_bv_equity_eur_m.name}", styles.FMT_EUR_M)
+        _define_name(wb, "target_bv_equity", ws.title, f"D{r}")
         refs["tgt_bv"] = r; r += 1
 
-        write_input(r, "PP&E fair-value write-up", "Rivalutazione immobilizzazioni",
-                    spec.ppa.asset_writeup_ppe_eur_m.base, styles.FMT_EUR_M,
-                    "asset_writeup_ppe",
-                    spec.ppa.asset_writeup_ppe_eur_m.rationale)
+        write_formula(r, "PP&E fair-value write-up", "Rivalutazione immobilizzazioni",
+                      f"={spec.ppa.asset_writeup_ppe_eur_m.name}", styles.FMT_EUR_M)
+        _define_name(wb, "asset_writeup_ppe", ws.title, f"D{r}")
         refs["ppe_writeup"] = r; r += 1
 
-        write_input(r, "Intangibles — customer list", "Intangibili — lista clienti",
-                    spec.ppa.intangibles_customer_list_eur_m.base, styles.FMT_EUR_M,
-                    "intangibles_customer_list",
-                    spec.ppa.intangibles_customer_list_eur_m.rationale)
+        write_formula(r, "Intangibles — customer list", "Intangibili — lista clienti",
+                      f"={spec.ppa.intangibles_customer_list_eur_m.name}", styles.FMT_EUR_M)
+        _define_name(wb, "intangibles_customer_list", ws.title, f"D{r}")
         refs["int_cust"] = r; r += 1
 
-        write_input(r, "Intangibles — technology", "Intangibili — tecnologia",
-                    spec.ppa.intangibles_technology_eur_m.base, styles.FMT_EUR_M,
-                    "intangibles_technology",
-                    spec.ppa.intangibles_technology_eur_m.rationale)
+        write_formula(r, "Intangibles — technology", "Intangibili — tecnologia",
+                      f"={spec.ppa.intangibles_technology_eur_m.name}", styles.FMT_EUR_M)
+        _define_name(wb, "intangibles_technology", ws.title, f"D{r}")
         refs["int_tech"] = r; r += 1
 
-        write_input(r, "Intangibles — trade name", "Intangibili — marchio",
-                    spec.ppa.intangibles_trade_name_eur_m.base, styles.FMT_EUR_M,
-                    "intangibles_trade_name",
-                    spec.ppa.intangibles_trade_name_eur_m.rationale)
+        write_formula(r, "Intangibles — trade name", "Intangibili — marchio",
+                      f"={spec.ppa.intangibles_trade_name_eur_m.name}", styles.FMT_EUR_M)
+        _define_name(wb, "intangibles_trade_name", ws.title, f"D{r}")
         refs["int_trade"] = r; r += 1
 
         # DTL on step-ups (non-deductible write-ups create DTL)
         write_formula(r, "DTL on asset write-ups", "DTL su rivalutazioni",
-                      f"=(D{refs['ppe_writeup']}+D{refs['int_cust']}+"
-                      f"D{refs['int_tech']}+D{refs['int_trade']})*{spec.ppa.dtl_rate_pct.name}",
+                      f"=(asset_writeup_ppe+intangibles_customer_list+"
+                      f"intangibles_technology+intangibles_trade_name)"
+                      f"*{spec.ppa.dtl_rate_pct.name}",
                       styles.FMT_EUR_M)
         refs["dtl"] = r; r += 1
 
         # Goodwill = Equity Price − BV − Write-ups + DTL
         write_formula(r, "Goodwill created", "Avviamento creato",
-                      f"=D{refs['equity_price']}-D{refs['tgt_bv']}"
-                      f"-D{refs['ppe_writeup']}-D{refs['int_cust']}"
-                      f"-D{refs['int_tech']}-D{refs['int_trade']}"
+                      f"=D{refs['equity_price']}-target_bv_equity"
+                      f"-asset_writeup_ppe-intangibles_customer_list"
+                      f"-intangibles_technology-intangibles_trade_name"
                       f"+D{refs['dtl']}",
                       styles.FMT_EUR_M, highlight=True)
         refs["goodwill"] = r
@@ -237,19 +242,19 @@ def build_deal_structure(ws: Worksheet, spec) -> dict[str, int]:
 
         write_formula(r, "Customer-list amortization",
                       "Ammortamento lista clienti",
-                      f"=-D{refs['int_cust']}/{spec.ppa.customer_list_useful_life_years}",
+                      f"=-intangibles_customer_list/{spec.ppa.customer_list_useful_life_years}",
                       styles.FMT_EUR_M)
         refs["amort_cust"] = r; r += 1
 
         write_formula(r, "Technology amortization",
                       "Ammortamento tecnologia",
-                      f"=-D{refs['int_tech']}/{spec.ppa.technology_useful_life_years}",
+                      f"=-intangibles_technology/{spec.ppa.technology_useful_life_years}",
                       styles.FMT_EUR_M)
         refs["amort_tech"] = r; r += 1
 
         write_formula(r, "Trade-name amortization",
                       "Ammortamento marchio",
-                      f"=-D{refs['int_trade']}/{spec.ppa.trade_name_useful_life_years}",
+                      f"=-intangibles_trade_name/{spec.ppa.trade_name_useful_life_years}",
                       styles.FMT_EUR_M)
         refs["amort_trade"] = r; r += 1
 
@@ -487,7 +492,7 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
         col = layout.year_col(i)
         col_idx = ord(col) - ord("A") + 1
         c = ws.cell(row=r, column=col_idx,
-                    value=f"=-integration_cost_eur_m" if i == 0 else 0)
+                    value=f"=-integration_cost_eur_m" if i == 0 else "=0")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
     r += 1
     layout.write_row_label(ws, r, "Pro-forma EBITDA", "EBITDA pro-forma")
