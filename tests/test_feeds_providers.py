@@ -690,3 +690,174 @@ def test_yahoo_provider_appears_in_default_registry():
     assert "quote" in yahoo_row["supports"]
     assert "history" in yahoo_row["supports"]
     assert "fundamentals" in yahoo_row["supports"]
+
+
+# ─── FREDProvider — free macro time series, no key required ─────────────────
+
+
+from modelforge.feeds.fred import FREDProvider, _fredgraph_csv
+
+
+def test_fred_provider_metadata():
+    p = FREDProvider()
+    assert p.name == "fred"
+    assert p.tier == "free"
+    assert p.requires_auth is False
+    assert p.is_available() is True
+    assert p.supports("history")
+    assert not p.supports("quote")
+    assert not p.supports("fundamentals")
+
+
+def test_fred_history_csv_path_no_key(monkeypatch):
+    """Default no-key path uses fredgraph CSV endpoint."""
+    monkeypatch.delenv("FRED_API_KEY", raising=False)
+    monkeypatch.setenv("MODELFORGE_FEEDS_NOCACHE", "1")
+    csv_payload = b"DATE,DGS10\n2026-05-13,4.46\n2026-05-14,4.48\n2026-05-15,.\n"
+    with patch("urllib.request.urlopen", return_value=_http_mock(csv_payload)):
+        p = FREDProvider()
+        bars = p.history("DGS10", limit=10)
+    # 2 valid rows (third has "." sentinel for missing)
+    assert len(bars) == 2
+    assert bars[0].date == "2026-05-13"
+    assert bars[0].close == 4.46
+    assert bars[1].close == 4.48
+
+
+def test_fred_history_with_key_uses_json_path(monkeypatch):
+    monkeypatch.setenv("FRED_API_KEY", "test-key")
+    monkeypatch.setenv("MODELFORGE_FEEDS_NOCACHE", "1")
+    json_payload = {"observations": [
+        {"date": "2026-05-15", "value": "4.46"},
+        {"date": "2026-05-14", "value": "4.48"},
+    ]}
+    with patch("urllib.request.urlopen", return_value=_http_mock(json_payload)):
+        p = FREDProvider()
+        bars = p.history("DGS10", limit=10)
+    assert len(bars) == 2
+    # JSON path returns desc; provider reverses to chronological
+    assert bars[0].date == "2026-05-14"
+
+
+def test_fred_history_skips_missing_observations(monkeypatch):
+    monkeypatch.delenv("FRED_API_KEY", raising=False)
+    monkeypatch.setenv("MODELFORGE_FEEDS_NOCACHE", "1")
+    csv = b"DATE,X\n2026-01-01,.\n2026-01-02,1.0\n2026-01-03,2.0\n"
+    with patch("urllib.request.urlopen", return_value=_http_mock(csv)):
+        p = FREDProvider()
+        bars = p.history("X", limit=10)
+    assert len(bars) == 2
+    assert bars[0].date == "2026-01-02"
+
+
+def test_fred_provider_appears_in_default_registry():
+    rows = status()
+    fred_row = next((r for r in rows if r["name"] == "fred"), None)
+    assert fred_row is not None
+    assert fred_row["tier"] == "free"
+    assert fred_row["available"] is True
+    assert "history" in fred_row["supports"]
+
+
+# ─── AlphaVantageProvider — free key (25/day), institutional tier ───────────
+
+
+from modelforge.feeds.alphavantage import AlphaVantageProvider
+
+
+def test_av_provider_unavailable_without_key(monkeypatch):
+    monkeypatch.delenv("ALPHAVANTAGE_API_KEY", raising=False)
+    p = AlphaVantageProvider()
+    assert p.is_available() is False
+    assert p.tier == "institutional"
+    assert p.requires_auth is True
+
+
+def test_av_quote_normalizes_from_daily_payload(monkeypatch):
+    monkeypatch.setenv("ALPHAVANTAGE_API_KEY", "test-key")
+    monkeypatch.setenv("MODELFORGE_FEEDS_NOCACHE", "1")
+    payload = {
+        "Time Series (Daily)": {
+            "2026-05-15": {
+                "1. open": "200.0", "2. high": "205.0", "3. low": "199.0",
+                "4. close": "204.0", "5. adjusted close": "204.0",
+                "6. volume": "1000000", "7. dividend amount": "0",
+                "8. split coefficient": "1",
+            },
+            "2026-05-14": {
+                "1. open": "195.0", "2. high": "201.0", "3. low": "194.0",
+                "4. close": "200.0", "5. adjusted close": "200.0",
+                "6. volume": "900000", "7. dividend amount": "0",
+                "8. split coefficient": "1",
+            },
+        }
+    }
+    p = AlphaVantageProvider()
+    with patch("urllib.request.urlopen", return_value=_http_mock(payload)):
+        q = p.quote("AAPL")
+    assert q.symbol == "AAPL"
+    assert q.price == 204.0
+    assert q.previous_close == 200.0
+    assert abs(q.change_pct - 2.0) < 0.001
+    assert q.source == "alphavantage"
+
+
+def test_av_history_returns_chronological_bars(monkeypatch):
+    monkeypatch.setenv("ALPHAVANTAGE_API_KEY", "test-key")
+    monkeypatch.setenv("MODELFORGE_FEEDS_NOCACHE", "1")
+    payload = {
+        "Time Series (Daily)": {
+            "2026-05-13": {"1. open":"1","2. high":"2","3. low":"0.5","4. close":"1.5",
+                            "5. adjusted close":"1.5","6. volume":"100",
+                            "7. dividend amount":"0","8. split coefficient":"1"},
+            "2026-05-14": {"1. open":"1.5","2. high":"3","3. low":"1.4","4. close":"2.5",
+                            "5. adjusted close":"2.5","6. volume":"200",
+                            "7. dividend amount":"0","8. split coefficient":"1"},
+        }
+    }
+    p = AlphaVantageProvider()
+    with patch("urllib.request.urlopen", return_value=_http_mock(payload)):
+        bars = p.history("AAPL", limit=10)
+    assert len(bars) == 2
+    assert bars[0].date == "2026-05-13"  # chronological
+    assert bars[1].close == 2.5
+
+
+def test_av_fundamentals_from_overview(monkeypatch):
+    monkeypatch.setenv("ALPHAVANTAGE_API_KEY", "test-key")
+    monkeypatch.setenv("MODELFORGE_FEEDS_NOCACHE", "1")
+    payload = {
+        "Symbol": "AAPL", "LatestQuarter": "2025-12-31", "Currency": "USD",
+        "RevenueTTM": "390000000000", "EBITDA": "130000000000",
+        "OperatingIncomeTTM": "115000000000", "NetIncomeTTM": "100000000000",
+        "EPS": "6.50", "OperatingCashflowTTM": "120000000000",
+        "FreeCashflowTTM": "100000000000", "SharesOutstanding": "15000000000",
+    }
+    p = AlphaVantageProvider()
+    with patch("urllib.request.urlopen", return_value=_http_mock(payload)):
+        fs = p.fundamentals("AAPL")
+    assert len(fs) == 1
+    f = fs[0]
+    assert f.symbol == "AAPL"
+    assert f.revenue == 390_000_000_000
+    assert f.ebitda == 130_000_000_000
+    assert f.eps == 6.50
+    assert f.source == "alphavantage"
+
+
+def test_av_quote_raises_auth_required_without_key(monkeypatch):
+    monkeypatch.delenv("ALPHAVANTAGE_API_KEY", raising=False)
+    p = AlphaVantageProvider()
+    with pytest.raises(AuthRequired):
+        p.quote("AAPL")
+
+
+def test_av_provider_appears_in_default_registry():
+    rows = status()
+    av_row = next((r for r in rows if r["name"] == "alphavantage"), None)
+    assert av_row is not None
+    assert av_row["tier"] == "institutional"
+    # available depends on env (CI: no key); just check capability set
+    assert "quote" in av_row["supports"]
+    assert "history" in av_row["supports"]
+    assert "fundamentals" in av_row["supports"]

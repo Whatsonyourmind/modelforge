@@ -120,6 +120,16 @@ def _build_default() -> list[Provider]:
         out.append(YahooProvider())
     except Exception:
         pass
+    try:
+        from modelforge.feeds.fred import FREDProvider
+        out.append(FREDProvider())
+    except Exception:
+        pass
+    try:
+        from modelforge.feeds.alphavantage import AlphaVantageProvider
+        out.append(AlphaVantageProvider())
+    except Exception:
+        pass
     return out
 
 
