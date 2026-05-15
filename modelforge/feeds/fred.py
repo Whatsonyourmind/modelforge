@@ -135,3 +135,128 @@ def us_cpi_yoy(*, api_key: Optional[str] = None) -> float:
     if yago is None or yago == 0:
         raise RuntimeError("CPI YoY undefined")
     return (latest / yago - 1) * 100
+
+
+# ─── Provider class (registry-routable, free public + free key) ─────────────
+
+
+import os as _os  # noqa: E402  (kept local to avoid touching top-of-file imports)
+from typing import Any as _Any  # noqa: E402
+
+from modelforge.feeds.provider import (  # noqa: E402
+    AuthRequired,
+    Bar,
+    NotSupported,
+    Provider,
+    ProviderError,
+)
+
+
+FREDGRAPH_CSV_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+
+
+def _fredgraph_csv(series_id: str, *, cache_ttl_seconds: int = 86400) -> list[dict]:
+    """Fallback: hit FRED's public CSV endpoint that works WITHOUT an API key.
+
+    https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10 returns the
+    full series as CSV. No auth, no key, no rate limit beyond UA-throttling.
+    Used as the no-key path for FREDProvider.
+    """
+    cache = get_cache()
+    cache_key = f"fred:csv:{series_id}"
+    cached = cache.get(cache_key, ttl_seconds=cache_ttl_seconds)
+    if cached is not None:
+        return cached
+    url = f"{FREDGRAPH_CSV_URL}?id={series_id}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            csv_text = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"FRED CSV HTTP {e.code} on {series_id}: {e.reason}") from e
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"FRED CSV network error: {e.reason}") from e
+    rows: list[dict] = []
+    lines = csv_text.strip().split("\n")
+    if len(lines) < 2:
+        return []
+    # Header line: "DATE,DGS10" (or similar)
+    for line in lines[1:]:
+        parts = line.split(",")
+        if len(parts) < 2:
+            continue
+        date, val = parts[0].strip(), parts[1].strip()
+        if val in (".", "", None):
+            continue
+        try:
+            rows.append({"date": date, "value": float(val)})
+        except ValueError:
+            continue
+    cache.set(cache_key, rows)
+    return rows
+
+
+class FREDProvider(Provider):
+    """Federal Reserve Economic Data — free macro time series.
+
+    No API key required by default — uses FRED's public CSV endpoint
+    (`fredgraph.csv?id=...`). When ``FRED_API_KEY`` is set, switches to
+    the JSON API for richer metadata (realtime_start/end fields).
+
+    Capability map:
+        - ``history(symbol)`` returns macro series as Bars (open=high=low=close=value).
+          ``symbol`` is a FRED series id (DGS10, SOFR, CPIAUCSL, etc.).
+
+    Free key signup: https://fred.stlouisfed.org/docs/api/api_key.html
+    """
+
+    name = "fred"
+    tier = "free"
+    requires_auth = False
+
+    def is_available(self) -> bool:
+        return True  # CSV endpoint works without a key
+
+    def has_key(self) -> bool:
+        return bool(_os.environ.get("FRED_API_KEY"))
+
+    def history(
+        self,
+        symbol: str,
+        *,
+        interval: str = "1d",
+        start: str | None = None,
+        end: str | None = None,
+        limit: int = 250,
+    ) -> list[Bar]:
+        try:
+            api_key = _os.environ.get("FRED_API_KEY")
+            if api_key:
+                obs = fetch_series(symbol, api_key=api_key, limit=limit,
+                                   sort_order="desc")
+                rows = list(reversed(obs))   # chronological
+            else:
+                # No key → CSV path (returns chronological by default)
+                rows = _fredgraph_csv(symbol)
+        except RuntimeError as e:
+            msg = str(e)
+            if "429" in msg or "rate" in msg.lower():
+                raise AuthRequired(
+                    "FRED rate-limited. Get a free key at "
+                    "https://fred.stlouisfed.org/docs/api/api_key.html "
+                    "and set FRED_API_KEY."
+                ) from e
+            raise ProviderError(msg) from e
+        if start:
+            rows = [r for r in rows if r["date"] >= start]
+        if end:
+            rows = [r for r in rows if r["date"] <= end]
+        bars: list[Bar] = []
+        for r in rows[-limit:]:
+            v = r.get("value")
+            if v is None:
+                continue
+            bars.append(Bar(
+                date=r["date"], open=v, high=v, low=v, close=v, volume=None,
+            ))
+        return bars
