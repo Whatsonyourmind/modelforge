@@ -44,13 +44,17 @@ def build_model(
     graph_db_path=None,
     with_sensitivity: bool = True,
     with_reproducibility: bool = True,
+    with_manifest: bool = True,
     spec_source_bytes: bytes | None = None,
     spec_source_path: Path | str | None = None,
 ):
     """Dispatch to the right template builder based on spec.model_type.
 
-    After the core template build, applies the sensitivity tornado and
-    reproducibility post-processors (each can be disabled).
+    After the core template build, applies the sensitivity tornado,
+    reproducibility, and manifest post-processors (each can be disabled).
+    The manifest sidecar (``<workbook>.manifest.json``) is the audit-grade
+    extension that records spec_sha256 + sources_sha256 + workbook_sha256
+    + build_chain — verifiable via ``verify_manifest``.
     """
     mt = spec.model_type
     if mt not in REGISTRY:
@@ -109,5 +113,20 @@ def build_model(
         _wb.save(xlsx_path)
     except Exception:
         pass
+
+    # D2: write the per-build manifest sidecar (spec + sources + workbook
+    # hashes + build chain) AFTER all post-processors have run, so the
+    # workbook_sha256 reflects the FINAL bytes auditors will receive.
+    if with_manifest:
+        try:
+            from modelforge.analytics.manifest import write_manifest
+            write_manifest(
+                xlsx_path, spec,
+                spec_source_bytes=spec_source_bytes,
+                spec_source_path=spec_source_path,
+            )
+        except Exception:
+            # Manifest is auditing infrastructure; never block the build.
+            pass
 
     return Path(xlsx_path), Path(graph_path)
