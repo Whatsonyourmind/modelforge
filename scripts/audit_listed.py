@@ -62,6 +62,7 @@ class TickerSpec:
 
 
 UNIVERSE: list[TickerSpec] = [
+    # ─── US universe (20) ────────────────────────────────────────────────────
     # US Tech (5) — high growth, high margins, low capex
     TickerSpec("AAPL", "Apple Inc.",       "tech", "Tecnologia"),
     TickerSpec("MSFT", "Microsoft Corp.",  "tech", "Tecnologia"),
@@ -86,6 +87,23 @@ UNIVERSE: list[TickerSpec] = [
     TickerSpec("GE",   "GE Aerospace",     "industrial", "Industria"),
     TickerSpec("HON",  "Honeywell",        "industrial", "Industria"),
     TickerSpec("UNP",  "Union Pacific",    "industrial", "Industria"),
+
+    # ─── International universe (10) — D8 international coverage ─────────────
+    # Italian (3) — FTSE MIB blue chips, EUR-denominated
+    TickerSpec("ENEL.MI",  "Enel S.p.A.",            "industrial", "Industria",   country="IT", currency="EUR"),
+    TickerSpec("ENI.MI",   "Eni S.p.A.",             "industrial", "Industria",   country="IT", currency="EUR"),
+    TickerSpec("ISP.MI",   "Intesa Sanpaolo",        "bank",       "Banche",      country="IT", currency="EUR"),
+    # German (2) — DAX, EUR
+    TickerSpec("SAP.DE",   "SAP SE",                 "tech",       "Tecnologia",  country="DE", currency="EUR"),
+    TickerSpec("DBK.DE",   "Deutsche Bank",          "bank",       "Banche",      country="DE", currency="EUR"),
+    # French (2) — CAC 40, EUR
+    TickerSpec("MC.PA",    "LVMH Moet Hennessy",     "industrial", "Industria",   country="FR", currency="EUR"),
+    TickerSpec("BNP.PA",   "BNP Paribas",            "bank",       "Banche",      country="FR", currency="EUR"),
+    # UK (2) — FTSE 100, GBP
+    TickerSpec("HSBA.L",   "HSBC Holdings",          "bank",       "Banche",      country="GB", currency="GBP"),
+    TickerSpec("AZN.L",    "AstraZeneca",            "pharma",     "Farmaceutica",country="GB", currency="GBP"),
+    # Swiss (1) — SIX, CHF
+    TickerSpec("NESN.SW",  "Nestle S.A.",            "industrial", "Industria",   country="CH", currency="CHF"),
 ]
 
 
@@ -104,6 +122,23 @@ class SectorDefaults:
     pretax_kd: float             # pre-tax cost of debt
     terminal_g: float
     exit_ev_ebitda: float
+
+
+# Country defaults — risk-free + ERP + effective tax rate.
+# Risk-free: 10Y sovereign benchmark (May 2026 approx; for harness only).
+# ERP: Damodaran 2026-01 country totals.
+# Tax: Effective corporate income tax rate (combined federal+state where relevant).
+COUNTRY_DEFAULTS: dict[str, dict[str, float]] = {
+    "US": {"risk_free": 0.039, "erp": 0.0423, "tax": 0.21},
+    "IT": {"risk_free": 0.038, "erp": 0.0670, "tax": 0.24},   # IRES 24% (no IRAP in proxy)
+    "DE": {"risk_free": 0.024, "erp": 0.0423, "tax": 0.30},   # KStG + Gewerbesteuer
+    "FR": {"risk_free": 0.030, "erp": 0.0489, "tax": 0.25},   # Standard CIT
+    "GB": {"risk_free": 0.040, "erp": 0.0464, "tax": 0.25},   # CT main rate
+    "CH": {"risk_free": 0.005, "erp": 0.0423, "tax": 0.18},   # Federal+canton avg
+    "ES": {"risk_free": 0.033, "erp": 0.0588, "tax": 0.25},
+    "NL": {"risk_free": 0.024, "erp": 0.0423, "tax": 0.258},
+    "JP": {"risk_free": 0.014, "erp": 0.0423, "tax": 0.30},
+}
 
 
 SECTORS: dict[str, SectorDefaults] = {
@@ -234,11 +269,13 @@ def _spec_for(ticker: TickerSpec, fundamentals_revenue_m: float, fundamentals_eb
         revision_log=[],
     )
     horizon = DCFHorizon(historical_years=3, projection_years=5)
+    cd = COUNTRY_DEFAULTS.get(ticker.country, COUNTRY_DEFAULTS["US"])
     wacc = WACCInputs(
-        risk_free_rate=_assum("risk_free_rate", 0.039,
-                              label_en="10Y Treasury", id_="A-001", unit="pct"),
-        equity_risk_premium=_assum("equity_risk_premium", 0.0423,
-                                   label_en="ERP US (Damodaran 2026)",
+        risk_free_rate=_assum("risk_free_rate", cd["risk_free"],
+                              label_en=f"10Y sovereign ({ticker.country})",
+                              id_="A-001", unit="pct"),
+        equity_risk_premium=_assum("equity_risk_premium", cd["erp"],
+                                   label_en=f"ERP {ticker.country} (Damodaran 2026)",
                                    id_="A-002", unit="pct"),
         beta_levered=_assum("beta_levered", sd.beta,
                             label_en="Beta levered (Damodaran sector)",
@@ -249,8 +286,8 @@ def _spec_for(ticker: TickerSpec, fundamentals_revenue_m: float, fundamentals_eb
         target_debt_weight=_assum("target_debt_weight", sd.target_debt_weight,
                                   label_en="Target D/(D+E)",
                                   id_="A-005", unit="ratio"),
-        effective_tax_rate=_assum("effective_tax_rate", 0.21,
-                                  label_en="US effective tax",
+        effective_tax_rate=_assum("effective_tax_rate", cd["tax"],
+                                  label_en=f"Effective tax ({ticker.country})",
                                   id_="A-006", unit="pct"),
     )
     fcf = FCFInputs(
@@ -325,16 +362,18 @@ def _python_dcf_equity(ts: TickerSpec, last_fy_revenue_m: float,
     """Compute DCF-implied equity in Python, bypassing the Excel formula engine.
 
     Mirrors the workbook math at the level of accuracy the live market-cap
-    deviation check needs. Uses the SAME sector defaults the workbook does.
-    Returns equity value in millions, in the ticker's currency.
+    deviation check needs. Uses the SAME sector + country defaults the
+    workbook does. Returns equity value in millions, in the ticker's currency.
     """
     sd = SECTORS[ts.sector]
+    cd = COUNTRY_DEFAULTS.get(ts.country, COUNTRY_DEFAULTS["US"])
 
     # Build WACC: rf + beta × ERP, then weight with cost of debt × (1-t)
-    rf = 0.039
-    erp = 0.0423   # US Damodaran 2026
+    rf = cd["risk_free"]
+    erp = cd["erp"]
+    tax = cd["tax"]
     cost_of_equity = rf + sd.beta * erp
-    after_tax_kd = sd.pretax_kd * (1 - 0.21)
+    after_tax_kd = sd.pretax_kd * (1 - tax)
     wacc = (
         sd.target_debt_weight * after_tax_kd
         + (1 - sd.target_debt_weight) * cost_of_equity
