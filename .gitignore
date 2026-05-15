@@ -10,6 +10,7 @@ dist/
 output/*.xlsx
 output/*.pdf
 output/audit/
+sbom.cdx.json
 *.db
 .env
 .DS_Store
