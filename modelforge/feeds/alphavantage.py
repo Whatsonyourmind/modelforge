@@ -135,3 +135,150 @@ def company_overview(symbol: str, *, api_key: Optional[str] = None) -> dict:
     key = _api_key(api_key)
     params = {"function": "OVERVIEW", "symbol": symbol, "apikey": key}
     return _get(params, cache_ttl=86400)
+
+
+# ─── Provider class (registry-routable, free key required) ──────────────────
+
+
+from modelforge.feeds.provider import (  # noqa: E402
+    AuthRequired,
+    Bar,
+    Fundamentals,
+    NotSupported,
+    Provider,
+    ProviderError,
+    Quote,
+)
+
+
+class AlphaVantageProvider(Provider):
+    """Alpha Vantage — free key (25 calls/day) → quote, history, fundamentals.
+
+    Free key signup: https://www.alphavantage.co/support/#api-key
+    Set ALPHAVANTAGE_API_KEY env var (or pass via constructor).
+
+    Free tier rate limit (25 req/day) makes this best-suited as a
+    *fallback* provider when Yahoo's anti-bot is acting up. For
+    production-grade equity data, prefer Polygon/FMP (paid) or
+    Bloomberg/FactSet/Refinitiv (Phase-B).
+
+    Capability map:
+        - ``quote(symbol)``        → most-recent close from daily series
+        - ``history(symbol)``      → daily OHLCV bars (full or compact)
+        - ``fundamentals(symbol)`` → company overview snapshot (1 row)
+    """
+
+    name = "alphavantage"
+    tier = "institutional"  # free-tier, but quant-grade reliability with key
+    requires_auth = True
+
+    def is_available(self) -> bool:
+        return bool(os.environ.get("ALPHAVANTAGE_API_KEY"))
+
+    def quote(self, symbol: str) -> Quote:
+        if not self.is_available():
+            raise AuthRequired(
+                "AlphaVantageProvider needs ALPHAVANTAGE_API_KEY (free at "
+                "https://www.alphavantage.co/support/#api-key)"
+            )
+        try:
+            rows = daily_prices(symbol)
+        except RuntimeError as e:
+            raise ProviderError(str(e)) from e
+        if not rows:
+            raise ProviderError(f"AlphaVantage: no daily data for {symbol}")
+        latest = rows[0]
+        prev = rows[1] if len(rows) > 1 else None
+        change_pct = None
+        if prev and prev.get("close"):
+            change_pct = (latest["close"] / prev["close"] - 1) * 100
+        return Quote(
+            symbol=symbol,
+            price=float(latest["close"]),
+            previous_close=float(prev["close"]) if prev else None,
+            change_pct=change_pct,
+            volume=latest.get("volume"),
+            as_of=latest.get("date"),
+            source="alphavantage",
+        )
+
+    def history(
+        self,
+        symbol: str,
+        *,
+        interval: str = "1d",
+        start: Optional[str] = None,
+        end: Optional[str] = None,
+        limit: int = 250,
+    ) -> list[Bar]:
+        if not self.is_available():
+            raise AuthRequired("AlphaVantageProvider needs ALPHAVANTAGE_API_KEY")
+        try:
+            full = limit > 100
+            rows = daily_prices(symbol, full=full)
+        except RuntimeError as e:
+            raise ProviderError(str(e)) from e
+        bars = [
+            Bar(
+                date=r["date"],
+                open=r["open"], high=r["high"], low=r["low"],
+                close=r.get("adjusted_close") or r["close"],
+                volume=r.get("volume"),
+            )
+            for r in rows
+        ]
+        bars.reverse()  # chronological
+        if start:
+            bars = [b for b in bars if b.date >= start]
+        if end:
+            bars = [b for b in bars if b.date <= end]
+        return bars[-limit:]
+
+    def fundamentals(
+        self,
+        symbol: str,
+        *,
+        statement: Literal["income", "balance", "cashflow"] = "income",
+        period: Literal["annual", "quarter"] = "annual",
+        limit: int = 5,
+    ) -> list[Fundamentals]:
+        if not self.is_available():
+            raise AuthRequired("AlphaVantageProvider needs ALPHAVANTAGE_API_KEY")
+        try:
+            ov = company_overview(symbol)
+        except RuntimeError as e:
+            raise ProviderError(str(e)) from e
+        if not ov or "Symbol" not in ov:
+            raise ProviderError(f"AlphaVantage OVERVIEW empty for {symbol}")
+
+        def _f(k: str) -> Optional[float]:
+            v = ov.get(k)
+            if v in (None, "", "None", "-"):
+                return None
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+
+        # AlphaVantage OVERVIEW gives company-level TTM snapshot — one Fundamentals row
+        return [
+            Fundamentals(
+                symbol=symbol,
+                period=ov.get("LatestQuarter", "TTM"),
+                period_end=ov.get("LatestQuarter"),
+                currency=ov.get("Currency"),
+                revenue=_f("RevenueTTM"),
+                ebit=_f("OperatingIncomeTTM") or _f("EBIT"),
+                ebitda=_f("EBITDA"),
+                net_income=_f("NetIncomeTTM"),
+                eps=_f("EPS"),
+                total_assets=None,  # OVERVIEW doesn't include
+                total_debt=None,
+                cash=None,
+                operating_cash_flow=_f("OperatingCashflowTTM"),
+                capex=None,
+                free_cash_flow=_f("FreeCashflowTTM"),
+                shares_diluted=_f("SharesOutstanding"),
+                source="alphavantage",
+            )
+        ][:limit]

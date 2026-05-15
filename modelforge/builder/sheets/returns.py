@@ -51,7 +51,72 @@ def build(
 
     tranche_blocks = debt_refs["tranche_blocks"]
 
+    # ─── Transaction-cost block (consumes orphan-fee assumptions) ───────────
+    # These fees were defined in spec.fees but had no formula references,
+    # so they showed up as "orphan named ranges" in MoatGate. Wire each
+    # into the Net Proceeds calc at t=0 so the Returns sheet correctly
+    # accounts for the all-in lender outflow at close.
     r = 7
+    fees = getattr(spec, "fees", None)
+    fee_assumption_names: list[str] = []
+    if fees is not None:
+        layout.write_section_header(
+            ws, r, "Transaction costs (at close)", "Costi della transazione (al closing)",
+        )
+        r += 1
+        for attr_name, label_en, label_it in (
+            ("legal", "Legal fees", "Spese legali"),
+            ("advisory", "Advisory fees", "Spese di consulenza"),
+            ("other", "Other transaction fees", "Altre spese di transazione"),
+        ):
+            fee_obj = getattr(fees, attr_name, None)
+            if fee_obj is None:
+                continue
+            ref_name = fee_obj.name
+            fee_assumption_names.append(ref_name)
+            layout.write_row_label(ws, r, label_en, label_it, indent=True)
+            ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
+            c = ws.cell(row=r, column=4, value=f"={ref_name}")
+            styles.style_formula(c, number_format=styles.FMT_EUR_M)
+            r += 1
+        if fee_assumption_names:
+            layout.write_row_label(
+                ws, r, "Total transaction costs", "Costi totali",
+            )
+            c = ws.cell(
+                row=r, column=4,
+                value="=" + "+".join(fee_assumption_names),
+            )
+            styles.style_formula(c, number_format=styles.FMT_EUR_M)
+            c.font = styles.font_subheader
+            total_costs_row = r
+            r += 2
+        else:
+            total_costs_row = None
+    else:
+        total_costs_row = None
+
+    # Exit assumption surfacing: expected hold + make-whole rate become
+    # display formulas on this sheet. Both flow into IRR-period framing.
+    exit_assum = getattr(spec, "exit", None)
+    if exit_assum is not None:
+        layout.write_section_header(
+            ws, r, "Exit assumptions", "Ipotesi di uscita",
+        )
+        r += 1
+        for attr_name, label_en, label_it, fmt in (
+            ("expected_hold_years", "Expected hold (years)", "Holding atteso (anni)", "0.0"),
+            ("make_whole_pct", "Make-whole call rate", "Tasso make-whole", styles.FMT_PCT_2DP),
+        ):
+            assum = getattr(exit_assum, attr_name, None)
+            if assum is None:
+                continue
+            layout.write_row_label(ws, r, label_en, label_it, indent=True)
+            c = ws.cell(row=r, column=4, value=f"={assum.name}")
+            styles.style_formula(c, number_format=fmt)
+            r += 1
+        r += 1
+
     # For each tranche, emit a lender cashflow row
     tranche_cashflow_rows: list[tuple[str, int]] = []
     for tb in tranche_blocks:

@@ -8,7 +8,7 @@
 
 | File | Template | All Pass | Density | Magic# | No Orphans | Recalc | Avg core density | Failing sheets | # orphans |
 |---|---|:-:|:-:|:-:|:-:|:-:|:-:|---|:-:|
-| credit_memo_cdmo | credit_memo | n | n | Y | n | Y | 94% | DebtSchedule: 74% | 8 |
+| credit_memo_cdmo | credit_memo | n | n | Y | Y | Y | 94% | DebtSchedule: 74% | 3 |
 | dcf_enel | dcf | Y | Y | Y | Y | Y | 96% | — | 0 |
 | fairness_amplifon | fairness | Y | Y | Y | Y | Y | — | — | 4 |
 | merger_tim_iliad | merger | n | n | Y | n | Y | 79% | DealStructure: 69%; ProForma: 89% | 9 |
@@ -18,16 +18,16 @@
 | real_enfinity_solar_pf | project_finance | Y | Y | Y | Y | Y | 100% | — | 3 |
 | real_estate_pbsa | real_estate | n | Y | Y | n | Y | — | — | 8 |
 | real_stevanato_3statement | three_statement | Y | Y | Y | Y | Y | — | — | 0 |
-| sponsor_lbo_techco | sponsor_lbo | n | n | Y | n | Y | 91% | DebtSchedule: 71% | 10 |
+| sponsor_lbo_techco | sponsor_lbo | n | n | Y | Y | Y | 91% | DebtSchedule: 71% | 5 |
 | structured_credit_pmi | structured_credit | Y | Y | Y | Y | Y | — | — | 5 |
 | three_statement_cdmo | three_statement | Y | Y | Y | Y | Y | — | — | 0 |
-| unitranche_cdmo | unitranche | n | n | Y | n | Y | 92% | DebtSchedule: 74% | 7 |
+| unitranche_cdmo | unitranche | n | n | Y | Y | Y | 92% | DebtSchedule: 74% | 2 |
 
 ## Per-template gap details
 
 ### credit_memo_cdmo (credit_memo)
 - **Density gaps**: DebtSchedule: 74%
-- **Orphan named ranges** (8): `advisory_fees_eur_m`, `expected_hold_years`, `legal_fees_eur_m`, `make_whole_pct`, `other_fees_eur_m`, `recovery_timeline_years`, `senior_unitranche_commitment_fee`, `senior_unitranche_oid`
+- **Orphan named ranges** (3): `recovery_timeline_years`, `senior_unitranche_commitment_fee`, `senior_unitranche_oid`
 
 ### merger_tim_iliad (merger)
 - **Density gaps**: DealStructure: 69%, ProForma: 89%
@@ -42,11 +42,11 @@
 
 ### sponsor_lbo_techco (sponsor_lbo)
 - **Density gaps**: DebtSchedule: 71%
-- **Orphan named ranges** (10): `advisory_fees_eur_m`, `cash_sweep_trigger`, `exit_year_input`, `expected_hold_years`, `legal_fees_eur_m`, `make_whole_pct`, `other_fees_eur_m`, `purchase_price_eur_m`, `senior_unitranche_commitment_fee`, `senior_unitranche_oid`
+- **Orphan named ranges** (5): `cash_sweep_trigger`, `exit_year_input`, `purchase_price_eur_m`, `senior_unitranche_commitment_fee`, `senior_unitranche_oid`
 
 ### unitranche_cdmo (unitranche)
 - **Density gaps**: DebtSchedule: 74%
-- **Orphan named ranges** (7): `advisory_fees_eur_m`, `expected_hold_years`, `legal_fees_eur_m`, `make_whole_pct`, `other_fees_eur_m`, `senior_unitranche_commitment_fee`, `senior_unitranche_oid`
+- **Orphan named ranges** (2): `senior_unitranche_commitment_fee`, `senior_unitranche_oid`
 
 ---
 
