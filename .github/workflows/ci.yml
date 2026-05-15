@@ -33,6 +33,14 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev,data,export,mcp,web,ingest]"
 
+      - name: Materialize example workbooks (test fixtures)
+        run: |
+          mkdir -p output
+          for f in examples/*.yaml; do
+            modelforge build "$f" --no-trust || echo "skip: $f"
+          done
+          ls -la output/ | head -30
+
       - name: Run test suite
         run: pytest --tb=short -q
 
