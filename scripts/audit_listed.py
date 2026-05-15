@@ -136,8 +136,17 @@ COUNTRY_DEFAULTS: dict[str, dict[str, float]] = {
     "GB": {"risk_free": 0.040, "erp": 0.0464, "tax": 0.25},   # CT main rate
     "CH": {"risk_free": 0.005, "erp": 0.0423, "tax": 0.18},   # Federal+canton avg
     "ES": {"risk_free": 0.033, "erp": 0.0588, "tax": 0.25},
-    "NL": {"risk_free": 0.024, "erp": 0.0423, "tax": 0.258},
+    "NL": {"risk_free": 0.024, "erp": 0.0423, "tax": 0.258},  # NL CIT 25.8% top rate
     "JP": {"risk_free": 0.014, "erp": 0.0423, "tax": 0.30},
+    # Round-4 D8 quality push: add 4 more European + APAC jurisdictions
+    "BE": {"risk_free": 0.026, "erp": 0.0464, "tax": 0.25},   # Belgian CIT 25%
+    "LU": {"risk_free": 0.024, "erp": 0.0423, "tax": 0.2494}, # Luxembourg combined CIT+municipal
+    "IE": {"risk_free": 0.028, "erp": 0.0464, "tax": 0.125},  # Ireland 12.5% trading rate
+    "SG": {"risk_free": 0.030, "erp": 0.0423, "tax": 0.17},   # Singapore CIT 17%
+    "AU": {"risk_free": 0.041, "erp": 0.0464, "tax": 0.30},   # Australia CT 30%
+    "CA": {"risk_free": 0.034, "erp": 0.0423, "tax": 0.265},  # Canada federal+provincial avg
+    "SE": {"risk_free": 0.024, "erp": 0.0423, "tax": 0.206},  # Sweden CT 20.6%
+    "NO": {"risk_free": 0.034, "erp": 0.0423, "tax": 0.22},   # Norway CT 22%
 }
 
 

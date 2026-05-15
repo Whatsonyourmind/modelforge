@@ -2,51 +2,28 @@
 
 **Generated**: 2026-05-15  
 **Tool**: `scripts/moat_sweep.py`  
-**Pass rate**: **8/14** templates pass all 4 moat gates
+**Pass rate**: **14/14** templates pass all 4 moat gates
 
 ## Per-template scoreboard
 
 | File | Template | All Pass | Density | Magic# | No Orphans | Recalc | Avg core density | Failing sheets | # orphans |
 |---|---|:-:|:-:|:-:|:-:|:-:|:-:|---|:-:|
-| credit_memo_cdmo | credit_memo | n | n | Y | Y | Y | 94% | DebtSchedule: 74% | 3 |
+| credit_memo_cdmo | credit_memo | Y | Y | Y | Y | Y | 99% | — | 3 |
 | dcf_enel | dcf | Y | Y | Y | Y | Y | 96% | — | 0 |
 | fairness_amplifon | fairness | Y | Y | Y | Y | Y | — | — | 4 |
-| merger_tim_iliad | merger | n | n | Y | n | Y | 79% | DealStructure: 69%; ProForma: 89% | 9 |
+| merger_tim_iliad | merger | Y | Y | Y | Y | Y | 96% | — | 0 |
 | minibond_logistics | minibond | Y | Y | Y | Y | Y | 98% | — | 0 |
-| npl_mixed_portfolio | npl | n | n | Y | Y | Y | 84% | CollectionWaterfall: 84% | 5 |
+| npl_mixed_portfolio | npl | Y | Y | Y | Y | Y | 100% | — | 5 |
 | project_finance_solar | project_finance | Y | Y | Y | Y | Y | 100% | — | 2 |
 | real_enfinity_solar_pf | project_finance | Y | Y | Y | Y | Y | 100% | — | 3 |
-| real_estate_pbsa | real_estate | n | Y | Y | n | Y | — | — | 8 |
+| real_estate_pbsa | real_estate | Y | Y | Y | Y | Y | — | — | 0 |
 | real_stevanato_3statement | three_statement | Y | Y | Y | Y | Y | — | — | 0 |
-| sponsor_lbo_techco | sponsor_lbo | n | n | Y | Y | Y | 91% | DebtSchedule: 71% | 5 |
+| sponsor_lbo_techco | sponsor_lbo | Y | Y | Y | Y | Y | 97% | — | 5 |
 | structured_credit_pmi | structured_credit | Y | Y | Y | Y | Y | — | — | 5 |
 | three_statement_cdmo | three_statement | Y | Y | Y | Y | Y | — | — | 0 |
-| unitranche_cdmo | unitranche | n | n | Y | Y | Y | 92% | DebtSchedule: 74% | 2 |
+| unitranche_cdmo | unitranche | Y | Y | Y | Y | Y | 98% | — | 2 |
 
 ## Per-template gap details
-
-### credit_memo_cdmo (credit_memo)
-- **Density gaps**: DebtSchedule: 74%
-- **Orphan named ranges** (3): `recovery_timeline_years`, `senior_unitranche_commitment_fee`, `senior_unitranche_oid`
-
-### merger_tim_iliad (merger)
-- **Density gaps**: DealStructure: 69%, ProForma: 89%
-- **Orphan named ranges** (9): `asset_writeup_ppe`, `asset_writeup_ppe_eur_m`, `intangibles_customer_list`, `intangibles_customer_list_eur_m`, `intangibles_technology`, `intangibles_technology_eur_m`, `intangibles_trade_name`, `intangibles_trade_name_eur_m`, `target_bv_equity_eur_m`
-
-### npl_mixed_portfolio (npl)
-- **Density gaps**: CollectionWaterfall: 84%
-- **Orphan named ranges** (5): `ecl_gdp_growth_base`, `ecl_gdp_growth_downside`, `ecl_gdp_growth_upside`, `effective_tax_rate`, `unsecured_pct_gbv`
-
-### real_estate_pbsa (real_estate)
-- **Orphan named ranges** (8): `arrangement_fee_pct`, `tier1_hurdle`, `tier1_lp_share`, `tier2_hurdle`, `tier2_lp_share`, `tier3_hurdle`, `tier3_lp_share`, `tier4_lp_share`
-
-### sponsor_lbo_techco (sponsor_lbo)
-- **Density gaps**: DebtSchedule: 71%
-- **Orphan named ranges** (5): `cash_sweep_trigger`, `exit_year_input`, `purchase_price_eur_m`, `senior_unitranche_commitment_fee`, `senior_unitranche_oid`
-
-### unitranche_cdmo (unitranche)
-- **Density gaps**: DebtSchedule: 74%
-- **Orphan named ranges** (2): `senior_unitranche_commitment_fee`, `senior_unitranche_oid`
 
 ---
 

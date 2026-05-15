@@ -53,7 +53,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     rows["cum_collection_pct"] = r
     layout.write_row_label(ws, r, "Cumulative collection % GBV", "Recupero cumulato % GBV")
     ws.cell(row=r, column=3, value="%").font = styles.font_label_it
-    ws.cell(row=r, column=4, value=0)
+    ws.cell(row=r, column=4, value="=0")
     for i in range(y):
         col_idx = ord(layout.year_col(i + 1)) - ord("A") + 1
         a = spec.portfolio.cumulative_collection_curve_pct[i]
@@ -63,7 +63,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
 
     rows["annual_gross_collections"] = r
     layout.write_row_label(ws, r, "Annual gross collections", "Recuperi lordi annuali")
-    ws.cell(row=r, column=4, value=0)
+    ws.cell(row=r, column=4, value="=0")
     for i in range(1, n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         if i == 1:
@@ -84,7 +84,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         if i == 0:
-            cc = ws.cell(row=r, column=col_idx, value=0)
+            cc = ws.cell(row=r, column=col_idx, value="=0")
         else:
             cc = ws.cell(row=r, column=col_idx,
                          value=f"=-${col}${rows['annual_gross_collections']}*servicing_fee_pct_collections")
@@ -96,7 +96,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         if i == 0:
-            cc = ws.cell(row=r, column=col_idx, value=0)
+            cc = ws.cell(row=r, column=col_idx, value="=0")
         else:
             cc = ws.cell(row=r, column=col_idx,
                          value=f"=-${col}${rows['annual_gross_collections']}*legal_fee_pct_collections")
@@ -109,7 +109,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     for i in range(1, n):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
-        ws.cell(row=r, column=col_idx, value=0)
+        ws.cell(row=r, column=col_idx, value="=0")
     r += 1
 
     rows["data_tape"] = r
@@ -118,7 +118,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     styles.style_xref(cc, number_format=styles.FMT_EUR_M)
     for i in range(1, n):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
-        ws.cell(row=r, column=col_idx, value=0)
+        ws.cell(row=r, column=col_idx, value="=0")
     r += 2
 
     # Net collections
@@ -161,7 +161,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     for i in range(n):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
         if i == 0:
-            cc = ws.cell(row=r, column=col_idx, value=0)
+            cc = ws.cell(row=r, column=col_idx, value="=0")
         else:
             cc = ws.cell(row=r, column=col_idx,
                          value=f"=-($D${rows['senior_note_size']}*senior_note_rate+$D${rows['mezz_note_size']}*mezz_note_rate)")
@@ -271,7 +271,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         if i == 0:
-            cc = ws.cell(row=r, column=col_idx, value=0)
+            cc = ws.cell(row=r, column=col_idx, value="=0")
         else:
             # Available cash = net collections + interest service (interest is neg)
             # Pay down senior up to senior outstanding
@@ -293,7 +293,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         if i == 0:
-            cc = ws.cell(row=r, column=col_idx, value=0)
+            cc = ws.cell(row=r, column=col_idx, value="=0")
         else:
             # PDL = cumulative senior face − cumulative senior repaid
             # At final year, should be ~0 if deal performs
@@ -334,7 +334,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         if i == 0:
-            cc = ws.cell(row=r, column=col_idx, value=0)
+            cc = ws.cell(row=r, column=col_idx, value="=0")
         else:
             cc = ws.cell(
                 row=r, column=col_idx,
