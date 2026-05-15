@@ -1,5 +1,7 @@
 # ModelForge SOTA Scorecard v2 — Dual View
 
+> **⚠️ SUPERSEDED** — This was a founder-self-graded scorecard. The canonical, externally-validated scorecard is now **[SCORECARD.md](SCORECARD.md)** (consensus 5.45, dated 2026-05-15). This document is preserved for historical transparency only.
+
 **Date**: 2026-05-14 (v0.8.9 post-themes-1-6 + v0.9 GTM prep)
 **Prior version**: SCORECARD.md (2026-04-17, v0.3.1)
 **Framework**: 9 dimensions weighted differently for Italian-niche vs International views
