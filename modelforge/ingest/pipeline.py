@@ -179,6 +179,30 @@ def _fairness_sections():
     return FairnessSpec, [("target", Target)]
 
 
+def _ipo_sections():
+    # IPO uses CompTradingMultiple / PrecedentTransaction lists + DCFInputs.
+    # We register the template-name + DCFInputs section so ingest at least
+    # accepts the type and extracts the DCF inputs; comp/precedent tables
+    # are LLM-table tasks similar to fairness.
+    from modelforge.spec.ipo import DCFInputs, IPOSpec
+    from modelforge.spec.base import Target
+    return IPOSpec, [("target", Target), ("dcf", DCFInputs)]
+
+
+def _restructuring_sections():
+    # Restructuring extracts ClaimClass list + DIPFacility + PlanRecovery.
+    # Like fairness/ipo, the claim-class table is LLM-table free-form.
+    from modelforge.spec.restructuring import (
+        DIPFacility, PlanRecovery, RestructuringSpec,
+    )
+    from modelforge.spec.base import Target
+    return RestructuringSpec, [
+        ("target", Target),
+        ("dip", DIPFacility),
+        ("plan", PlanRecovery),
+    ]
+
+
 TEMPLATE_SECTIONS = {
     "project_finance": _pf_sections,
     "unitranche": _unitranche_sections,
@@ -191,6 +215,8 @@ TEMPLATE_SECTIONS = {
     "dcf": _dcf_sections,
     "merger": _merger_sections,
     "fairness": _fairness_sections,
+    "ipo": _ipo_sections,
+    "restructuring": _restructuring_sections,
     # v0.8: sponsor_lbo reuses unitranche's section layout (same spec shape)
     "sponsor_lbo": _unitranche_sections,
 }

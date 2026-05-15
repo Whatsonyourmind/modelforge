@@ -418,6 +418,157 @@ def export_docx(xlsx_path: str, output_path: str | None = None) -> dict[str, Any
     return {"xlsx": str(xlsx), "docx": str(out), "ok": True}
 
 
+# ---- Market data tools ------------------------------------------------------
+
+
+@server.tool()
+def data_providers_status() -> dict[str, Any]:
+    """List every registered market data provider and its availability.
+
+    Returns adapter name, tier (bulge/institutional/free), required-auth
+    flag, capability list, and an `available` flag (True if creds + SDK
+    are present). Use this first to see what's wired up before calling
+    `quote`/`fundamentals`/`filings`.
+    """
+    from modelforge.feeds import status
+    rows = status()
+    return {
+        "providers": rows,
+        "available_count": sum(1 for r in rows if r["available"]),
+        "total_count": len(rows),
+    }
+
+
+@server.tool()
+def quote(symbol: str, prefer: str | None = None) -> dict[str, Any]:
+    """Latest quote for a symbol, auto-routed to the best available provider.
+
+    Args:
+        symbol: Vendor-native ticker (e.g. ``AAPL``, ``BNP.PA``, ``IBM US Equity``).
+        prefer: Optional provider name to try first (``bloomberg``, ``polygon``,
+                ``fmp``, ``finnhub``, ``tiingo``, ``refinitiv``, ``factset``).
+    """
+    from dataclasses import asdict
+    from modelforge.feeds import quote as _quote, NoProviderAvailable
+    try:
+        q = _quote(symbol, prefer=prefer)
+    except NoProviderAvailable as e:
+        return {"error": str(e), "hint": "Set provider env vars (POLYGON_API_KEY, FMP_API_KEY, etc.)."}
+    return asdict(q)
+
+
+@server.tool()
+def history(
+    symbol: str,
+    interval: str = "1d",
+    start: str | None = None,
+    end: str | None = None,
+    limit: int = 250,
+    prefer: str | None = None,
+) -> dict[str, Any]:
+    """OHLCV bars for a symbol over a date range.
+
+    Args:
+        symbol: Ticker.
+        interval: ``1m``, ``5m``, ``1h``, ``1d``, ``1wk``, ``1mo``.
+        start: ISO date inclusive (default: limit-derived).
+        end: ISO date inclusive (default: today).
+        limit: Max bars returned.
+        prefer: Optional provider override.
+    """
+    from dataclasses import asdict
+    from modelforge.feeds import history as _history, NoProviderAvailable
+    try:
+        bars = _history(symbol, interval=interval, start=start, end=end, limit=limit, prefer=prefer)
+    except NoProviderAvailable as e:
+        return {"error": str(e)}
+    return {"symbol": symbol, "interval": interval, "bars": [asdict(b) for b in bars]}
+
+
+@server.tool()
+def fundamentals(
+    symbol: str,
+    statement: str = "income",
+    period: str = "annual",
+    limit: int = 5,
+    prefer: str | None = None,
+) -> dict[str, Any]:
+    """Income / balance / cashflow fundamentals for a ticker.
+
+    Args:
+        symbol: Ticker (vendor-native).
+        statement: ``income``, ``balance``, or ``cashflow``.
+        period: ``annual`` or ``quarter``.
+        limit: How many periods back, newest first.
+        prefer: Optional provider override.
+    """
+    from dataclasses import asdict
+    from modelforge.feeds import fundamentals as _fund, NoProviderAvailable
+    try:
+        rows = _fund(symbol, statement=statement, period=period, limit=limit, prefer=prefer)  # type: ignore[arg-type]
+    except NoProviderAvailable as e:
+        return {"error": str(e)}
+    return {
+        "symbol": symbol,
+        "statement": statement,
+        "period": period,
+        "data": [asdict(r) for r in rows],
+    }
+
+
+@server.tool()
+def search_filings(ticker: str, form: str | None = None, limit: int = 20) -> dict[str, Any]:
+    """List recent SEC filings (10-K, 10-Q, 8-K) for a US ticker.
+
+    Args:
+        ticker: US ticker (resolved to CIK via the SEC ticker file).
+        form: Optional form filter, e.g. ``10-K``.
+        limit: Max filings.
+    """
+    from dataclasses import asdict
+    from modelforge.feeds import filings as _filings, NoProviderAvailable
+    try:
+        rows = _filings(ticker, form=form, limit=limit, prefer="edgar")
+    except NoProviderAvailable as e:
+        return {"error": str(e)}
+    return {"ticker": ticker.upper(), "filings": [asdict(r) for r in rows]}
+
+
+@server.tool()
+def entity_lookup(
+    lei: str | None = None,
+    figi: str | None = None,
+    ticker: str | None = None,
+) -> dict[str, Any]:
+    """Cross-reference an entity by LEI (GLEIF), FIGI (OpenFIGI), or ticker.
+
+    Resolves the canonical legal name and any other available IDs.
+    Use this before any model spec to disambiguate counterparties.
+    """
+    from dataclasses import asdict
+    from modelforge.feeds import entity_lookup as _entity, NoProviderAvailable
+    try:
+        e = _entity(lei=lei, figi=figi, ticker=ticker)
+    except NoProviderAvailable as err:
+        return {"error": str(err)}
+    return asdict(e)
+
+
+@server.tool()
+def search_securities(query: str, limit: int = 20) -> dict[str, Any]:
+    """Free-text search across the available reference universes.
+
+    Tries every available provider's search() (FMP, EDGAR, OpenFIGI,
+    GLEIF) and returns the first non-empty result set.
+    """
+    from modelforge.feeds import search as _search, NoProviderAvailable
+    try:
+        rows = _search(query, limit=limit)
+    except NoProviderAvailable as e:
+        return {"error": str(e)}
+    return {"query": query, "results": rows}
+
+
 # ---- Entry point ------------------------------------------------------------
 
 
