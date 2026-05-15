@@ -1,25 +1,31 @@
-# ModelForge Scorecard — Canonical (Consensus, 2026-05-15)
+# ModelForge Scorecard — Canonical (Consensus, 2026-05-15 round-3)
 
 **This is the canonical scorecard.** It replaces the prior v1 (2026-04-17),
 `SCORECARD_v2.md` (v0.9), and `SCORECARD_v3.md` (v0.9.6) — all of which were
 founder-self-graded. Those three documents are kept on disk for transparency
 but should be read as historical artifacts, not current claims.
 
-The numbers below come from a **blind external IC review** by two independent
-AI reviewers — ChatGPT 5.5 Extended Thinking (web-search enabled) and
-Claude Opus 4.7 max-effort (1M context) — who scored the same dossier
-without seeing each other's work. Full triangulation in
-`EXTERNAL_IC_REVIEW_2026-05-15.md`.
+The numbers below come from **three rounds of triple-AI IC review** —
+ChatGPT 5 Thinking (Esteso, web-search) + Claude Opus 4.7 (1M, max-effort)
++ Gemini Pro Reasoning. Round-1: 5.45 / $4.5M. Round-2 (post v0.9.7 ship):
+5.53-5.62 / $3.5-5M. **Round-3 (post PRD-v11): 6.0-6.5 / $3-7M base today**,
+clear path to 7.0+ / $8-15M in 90 days. Full triangulation in
+`TRIPLE_REVIEW_2026-05-15_v3.md`.
 
 ---
 
-## TL;DR
+## TL;DR (Round-3, post PRD-v11)
 
-| | Founder claim (v3) | **Consensus** | Δ |
-|---|:---:|:---:|:---:|
-| Weighted score (0-10) | 6.56 | **5.45** | **−1.11** |
-| Pre-money base (USD) | $5.5-12M | **$4.5M** | **−40% to −60% on high end** |
-| Recommendation | "weighted-international SOTA" | **Seed $1.5-2.5M @ $4.5M pre, tranched** | |
+| | Founder claim (v3) | Round-1 | Round-2 | **Round-3** |
+|---|:---:|:---:|:---:|:---:|
+| Weighted score (0-10) | 6.56 | 5.45 | 5.53-5.62 | **6.0-6.5** |
+| ChatGPT score | — | 5.42 | 5.42 | **5.80** |
+| Opus score | — | 5.49 | 5.65 | **6.25** |
+| Gemini score | — | n/a | partial | **7.10** (4-pillar frame) |
+| Pre-money base (USD) | $5.5-12M | $4.5M | $3.5-5M | **$3-7M today; $8-15M w/ 1 LOI + deploy** |
+| ChatGPT verdict | "weighted-international SOTA" | "angel/pre-seed only" | "tier-1 fund would not lead" | **"tranched technical pre-seed; not Tier-1 leadable yet"** |
+| Gemini verdict | — | — | — | **"Conditional Lead"** (€500k @ €2M pre, contingent on 48h technical DD) |
+| Recommendation | (founder) | Seed $1.5-2.5M @ $4.5M tranched | Same | **Seed $0.5-1M @ $3-5M pre tranched; SaaS deploy + 1 design partner unlocks $8-15M** |
 
 **Convergence signal**: ChatGPT 5.5 scored 5.42, Opus 4.7 scored 5.49 — independent
 blind reviews converged within **0.07 points** and **$0 on base valuation**. That
