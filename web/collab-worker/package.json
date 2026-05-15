@@ -1,0 +1,26 @@
+{
+  "name": "modelforge-collab-worker",
+  "version": "0.1.0",
+  "description": "Yjs realtime collaboration server on Cloudflare Workers + Durable Objects",
+  "main": "src/index.ts",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "yjs": "^13.6.20",
+    "y-protocols": "^1.0.6",
+    "lib0": "^0.2.94"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251201.0",
+    "typescript": "^5.7.0",
+    "wrangler": "^3.95.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
