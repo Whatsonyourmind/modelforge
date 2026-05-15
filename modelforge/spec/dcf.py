@@ -86,6 +86,12 @@ class FCFInputs(BaseModel):
 class TerminalValue(BaseModel):
     terminal_growth_pct: Assumption
     exit_ev_ebitda_x: Assumption
+    # v0.9.7: spec-driven choice of terminal value method.
+    # 1 = Gordon growth (default for stable cash flows)
+    # 2 = Exit multiple (recommended when peer EV/EBITDA bands are tight,
+    #     e.g. utilities, mature industries — disciplines TV to peer-tradable
+    #     range rather than to the 1/(WACC-g) lever).
+    terminal_method_choice: Literal[1, 2] = 1
 
 
 class DCFSpec(BaseModel):

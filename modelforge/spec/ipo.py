@@ -64,6 +64,7 @@ class IPOSpec(BaseModel):
     """Top-level IPO model spec."""
     model_config = ConfigDict(extra="forbid")
 
+    model_type: Literal["ipo"] = "ipo"
     # Identification
     company_name: str
     ticker_proposed: Optional[str] = None

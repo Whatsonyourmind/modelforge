@@ -78,6 +78,7 @@ class RestructuringSpec(BaseModel):
     """Top-level restructuring model spec."""
     model_config = ConfigDict(extra="forbid")
 
+    model_type: Literal["restructuring"] = "restructuring"
     # Identification
     debtor_name: str
     case_number: Optional[str] = None  # bankruptcy case identifier

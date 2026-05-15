@@ -302,6 +302,56 @@ _FAIRNESS = [
 ]
 
 
+_IPO = [
+    SensitivityFactor(driver_name="revenue_growth_y1",
+                      label="Revenue growth Y1 ±20%",
+                      low_shock=-0.20, high_shock=+0.20),
+    SensitivityFactor(driver_name="ebitda_margin_y1",
+                      label="EBITDA margin Y1 ±25%",
+                      low_shock=-0.25, high_shock=+0.25),
+    SensitivityFactor(driver_name="comp_pe_median",
+                      label="Comp P/E median ±20%",
+                      low_shock=-0.20, high_shock=+0.20),
+    SensitivityFactor(driver_name="comp_ev_ebitda_median",
+                      label="Comp EV/EBITDA median ±15%",
+                      low_shock=-0.15, high_shock=+0.15),
+    SensitivityFactor(driver_name="ipo_discount_pct",
+                      label="IPO discount to fair value ±5pp",
+                      low_shock=-0.30, high_shock=+0.30),
+    SensitivityFactor(driver_name="primary_secondary_split",
+                      label="Primary/secondary split ±10pp",
+                      low_shock=-0.20, high_shock=+0.20),
+    SensitivityFactor(driver_name="greenshoe_pct",
+                      label="Greenshoe (over-allotment) ±50%",
+                      low_shock=-0.50, high_shock=+0.50),
+]
+
+
+_RESTRUCTURING = [
+    SensitivityFactor(driver_name="enterprise_value_recoverable",
+                      label="Recoverable EV ±25%",
+                      low_shock=-0.25, high_shock=+0.25),
+    SensitivityFactor(driver_name="dip_facility_amount",
+                      label="DIP facility size ±30%",
+                      low_shock=-0.30, high_shock=+0.30),
+    SensitivityFactor(driver_name="admin_priority_claims",
+                      label="Admin/priority claims ±50%",
+                      low_shock=-0.50, high_shock=+0.50),
+    SensitivityFactor(driver_name="senior_secured_recovery_pct",
+                      label="Senior secured recovery ±20pp",
+                      low_shock=-0.40, high_shock=+0.40),
+    SensitivityFactor(driver_name="unsecured_recovery_pct",
+                      label="Unsecured recovery ±20pp",
+                      low_shock=-0.50, high_shock=+0.50),
+    SensitivityFactor(driver_name="time_to_emergence_months",
+                      label="Time to emergence ±6mo",
+                      low_shock=-0.30, high_shock=+0.30),
+    SensitivityFactor(driver_name="exit_financing_rate",
+                      label="Exit financing rate ±100bps",
+                      low_shock=-0.20, high_shock=+0.20),
+]
+
+
 DEFAULT_FACTORS_BY_TYPE: dict[str, list[SensitivityFactor]] = {
     "unitranche": _UNITRANCHE_CREDIT,
     "credit_memo": _UNITRANCHE_CREDIT,
@@ -314,6 +364,8 @@ DEFAULT_FACTORS_BY_TYPE: dict[str, list[SensitivityFactor]] = {
     "dcf": _DCF,
     "merger": _MERGER,
     "fairness": _FAIRNESS,
+    "ipo": _IPO,
+    "restructuring": _RESTRUCTURING,
     # v0.8: sponsor_lbo shares unitranche-style operating drivers plus
     # debt structure; default factor list mirrors unitranche credit.
     "sponsor_lbo": _UNITRANCHE_CREDIT,

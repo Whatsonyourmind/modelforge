@@ -9,6 +9,7 @@ dist/
 .ruff_cache/
 output/*.xlsx
 output/*.pdf
+output/audit/
 *.db
 .env
 .DS_Store
