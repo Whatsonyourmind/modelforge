@@ -38,6 +38,11 @@ from modelforge.collab.review import (
     InvalidStateTransition,
 )
 from modelforge.collab.diff import WorkbookDiff, CellChange, diff_workbooks
+from modelforge.collab.realtime import (
+    RealtimeClient,
+    RealtimeError,
+    sync_store_to_remote,
+)
 
 __all__ = [
     "Comment",
@@ -52,4 +57,7 @@ __all__ = [
     "WorkbookDiff",
     "CellChange",
     "diff_workbooks",
+    "RealtimeClient",
+    "RealtimeError",
+    "sync_store_to_remote",
 ]

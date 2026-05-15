@@ -1,0 +1,40 @@
+# Cloudflare Workers config — free tier blueprint for the Yjs collab server.
+#
+# Free-tier limits (2026):
+#   - 100,000 Worker requests/day
+#   - 30s CPU time/request
+#   - Durable Objects: 1M req/mo, 50ms wall-clock per request
+#   - WebSocket connections: ~100 concurrent (per Worker instance)
+# These limits are sufficient for tens of concurrent design-partner
+# users; cap is hit only at multi-tenant production scale.
+#
+# Deploy: `wrangler deploy` (after `wrangler login`)
+# Local dev: `wrangler dev` (binds to http://localhost:8787)
+
+name = "modelforge-collab"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+# Durable Objects — one DO instance per workbook id; holds the Y.Doc state
+# in memory + persists CRDT updates to DO storage. Eviction is automatic
+# when no active WebSocket connections.
+[[durable_objects.bindings]]
+name = "COLLAB_DOC"
+class_name = "CollabDoc"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["CollabDoc"]
+
+# Optional: KV namespace for ephemeral comment-thread mirror (so the
+# Python CommentStore can sync without an active WS connection).
+# [[kv_namespaces]]
+# binding = "COMMENTS_KV"
+# id = "<paste-from-wrangler-kv-namespace-create-COMMENTS_KV>"
+
+# Vars — non-secret config
+[vars]
+ENV = "production"
+ALLOWED_ORIGINS = "*"   # tighten in production to your hosted domain
