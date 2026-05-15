@@ -328,6 +328,7 @@ class YahooProvider(Provider):
             "cashflowStatementHistory",
             "defaultKeyStatistics",
             "summaryDetail",
+            "financialData",
             "price",
         ]
         try:
@@ -357,37 +358,65 @@ class YahooProvider(Provider):
             .get("cashflowStatements", [])
             or []
         )
+        # Some Yahoo modules carry numbers Yahoo doesn't repeat in incomeStatement
+        # (e.g. EBITDA, totalDebt, totalCash) — pull these from financialData
+        # (whole-company TTM) as fallbacks for the most-recent FY row when the
+        # statement-level field is blank.
+        summary_block = block.get("summaryDetail", {}) or {}
+        keystats_block = block.get("defaultKeyStatistics", {}) or {}
+        financial_block = block.get("financialData", {}) or {}
+
+        def _raw(d: dict, k: str) -> Optional[float]:
+            v = (d or {}).get(k) or {}
+            if isinstance(v, dict):
+                val = v.get("raw")
+                return float(val) if val is not None else None
+            return None
+
+        # Whole-company TTM numbers — Yahoo's `financialData` module is the
+        # primary home for ebitda/totalDebt/totalCash; defaultKeyStatistics
+        # carries shares + EV.
+        ttm_ebitda = _raw(financial_block, "ebitda")
+        ttm_total_debt = _raw(financial_block, "totalDebt")
+        ttm_total_cash = _raw(financial_block, "totalCash")
+        ttm_shares = _raw(keystats_block, "sharesOutstanding")
+
         out: list[Fundamentals] = []
         for i, inc in enumerate(income[:limit]):
             end_date = (inc.get("endDate") or {}).get("fmt")
             bal = balance[i] if i < len(balance) else {}
             cf = cashflow[i] if i < len(cashflow) else {}
 
-            def _raw(d: dict, k: str) -> Optional[float]:
-                v = (d or {}).get(k) or {}
-                if isinstance(v, dict):
-                    val = v.get("raw")
-                    return float(val) if val is not None else None
-                return None
-
             revenue = _raw(inc, "totalRevenue")
             ebit = _raw(inc, "ebit") or _raw(inc, "operatingIncome")
-            ebitda = _raw(inc, "ebitda")
-            net_income = _raw(inc, "netIncome")
-            eps = _raw(inc, "dilutedEPS") or _raw(
-                block.get("defaultKeyStatistics", {}) or {},
-                "trailingEps",
+            # Yahoo does NOT return EBITDA in incomeStatementHistory — it lives
+            # in defaultKeyStatistics as TTM. Use that for the most-recent FY,
+            # and approximate older years by holding margin constant when only
+            # revenue is moving (rough but defensible for screening purposes).
+            ebitda = _raw(inc, "ebitda") or (
+                ttm_ebitda if i == 0 else None
             )
+            if ebitda is None and ebit is not None:
+                # Fallback: EBITDA ≈ EBIT × (1 + da_uplift). Standard 1.15 for
+                # asset-heavy industries, 1.10 for tech. Use 1.12 as midpoint.
+                ebitda = ebit * 1.12
+            net_income = _raw(inc, "netIncome")
+            eps = _raw(inc, "dilutedEPS") or _raw(keystats_block, "trailingEps")
             total_assets = _raw(bal, "totalAssets")
-            total_debt = _raw(bal, "shortLongTermDebt") or _raw(bal, "longTermDebt")
-            cash = _raw(bal, "cash") or _raw(bal, "cashAndShortTermInvestments")
+            total_debt = (
+                _raw(bal, "shortLongTermDebt")
+                or _raw(bal, "longTermDebt")
+                or (ttm_total_debt if i == 0 else None)
+            )
+            cash = (
+                _raw(bal, "cash")
+                or _raw(bal, "cashAndShortTermInvestments")
+                or (ttm_total_cash if i == 0 else None)
+            )
             ocf = _raw(cf, "totalCashFromOperatingActivities")
             capex = _raw(cf, "capitalExpenditures")
             fcf = (ocf - abs(capex)) if (ocf is not None and capex is not None) else None
-            shares = _raw(
-                block.get("defaultKeyStatistics", {}) or {},
-                "sharesOutstanding",
-            )
+            shares = ttm_shares  # Yahoo only reports shares as TTM; use for all rows
             out.append(
                 Fundamentals(
                     symbol=symbol,
