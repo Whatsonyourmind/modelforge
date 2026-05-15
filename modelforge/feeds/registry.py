@@ -115,6 +115,11 @@ def _build_default() -> list[Provider]:
         out.append(GLEIFProvider())
     except Exception:
         pass
+    try:
+        from modelforge.feeds.yahoo import YahooProvider
+        out.append(YahooProvider())
+    except Exception:
+        pass
     return out
 
 

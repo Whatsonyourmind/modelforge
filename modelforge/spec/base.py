@@ -108,6 +108,11 @@ class Target(BaseModel):
     ebitda_source_id: str = Field(pattern=r"^S-\d{3,}$")
     last_fy_end: date
 
+    # Optional listed-co reference for live Trust Layer market-cap deviation
+    # check. When set, the Trust Layer compares DCF-implied equity to the
+    # current market cap fetched via the YahooProvider (free, no auth).
+    ticker: Optional[str] = None  # e.g. "ENEL.MI", "AAPL", "BNP.PA"
+
 
 class RevisionEntry(BaseModel):
     version: str  # v0.1, v1.0, ...
