@@ -14,18 +14,18 @@ clear path to 7.0+ / $8-15M in 90 days. Full triangulation in
 
 ---
 
-## TL;DR (Round-3, post PRD-v11)
+## TL;DR (Round-4, post 14/14 moat-clean — 2026-05-16)
 
-| | Founder claim (v3) | Round-1 | Round-2 | **Round-3** |
-|---|:---:|:---:|:---:|:---:|
-| Weighted score (0-10) | 6.56 | 5.45 | 5.53-5.62 | **6.0-6.5** |
-| ChatGPT score | — | 5.42 | 5.42 | **5.80** |
-| Opus score | — | 5.49 | 5.65 | **6.25** |
-| Gemini score | — | n/a | partial | **7.10** (4-pillar frame) |
-| Pre-money base (USD) | $5.5-12M | $4.5M | $3.5-5M | **$3-7M today; $8-15M w/ 1 LOI + deploy** |
-| ChatGPT verdict | "weighted-international SOTA" | "angel/pre-seed only" | "tier-1 fund would not lead" | **"tranched technical pre-seed; not Tier-1 leadable yet"** |
-| Gemini verdict | — | — | — | **"Conditional Lead"** (€500k @ €2M pre, contingent on 48h technical DD) |
-| Recommendation | (founder) | Seed $1.5-2.5M @ $4.5M tranched | Same | **Seed $0.5-1M @ $3-5M pre tranched; SaaS deploy + 1 design partner unlocks $8-15M** |
+| | Round-1 | Round-2 | Round-3 | **Round-4 q-only** | **Round-4 investability** |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Weighted score (0-10) | 5.45 | 5.53-5.62 | 6.0-6.5 | **8.0-8.2 (Opus 7.95 / Gemini 8.45)** | **6.0-6.5 (UNCHANGED)** |
+| ChatGPT score | 5.42 | 5.42 | 5.80 | **n/a** (refused quality-only re-score; held 5.80) | **5.80 (UNCHANGED)** |
+| Opus score | 5.49 | 5.65 | 6.25 | **7.95 quality-only / 6.25 investability** | held |
+| Gemini score | n/a | partial | 7.10 (4-pillar) | **8.45 quality-only / 7.10 investability** | held |
+| Pre-money base (USD) | $4.5M | $3.5-5M | $3-7M | — | **$5-7M (UNCHANGED)** |
+| Verdict | "angel/pre-seed only" | "tier-1 would not lead" | "tranched pre-seed; not Tier-1 leadable" | quality met 8.0 bar | **HOLD round-3 terms — unanimous: next dollar must buy customer proof, not more features** |
+
+**Unanimous round-4 finding**: quality lift is real, **but no reviewer re-rated the deal**. The work was excellent; it was the wrong work for the round. ChatGPT explicit: "product progress alone should not move the valuation much." Gemini explicit: "comfort-zone bias — retreating to code because confronting the market is harder."
 
 **Convergence signal**: ChatGPT 5.5 scored 5.42, Opus 4.7 scored 5.49 — independent
 blind reviews converged within **0.07 points** and **$0 on base valuation**. That
