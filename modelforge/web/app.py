@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -116,6 +117,28 @@ def create_app(session_dir: Optional[Path] = None) -> FastAPI:
         version="0.5.8",
     )
     store = WorkbookStore(session_dir=session_dir)
+
+    # D5: SaaS API surface — tenant management, auth, billing, tenant-scoped
+    # workbooks. Mounted under /api/v1/*. Existing demo routes (/, /upload,
+    # /workbook/{id}/...) stay intact — production deploys can disable them
+    # by setting MODELFORGE_DISABLE_DEMO=1 (handled below).
+    from modelforge.web.saas_routes import build_saas_router
+    app.include_router(build_saas_router())
+
+    @app.get("/healthz", include_in_schema=False)
+    def root_healthz() -> dict:
+        return {"status": "ok", "service": "modelforge-web"}
+
+    if os.environ.get("MODELFORGE_DISABLE_DEMO") == "1":
+        # Production: don't expose the unauthenticated demo upload UI.
+        # SaaS callers use /api/v1/* exclusively.
+        @app.get("/", response_class=HTMLResponse)
+        def _root_prod() -> str:
+            return (
+                "<h1>ModelForge SaaS</h1><p>API at <code>/api/v1/*</code>. "
+                "See <code>/docs</code> for OpenAPI.</p>"
+            )
+        return app
 
     # ── Index
     @app.get("/", response_class=HTMLResponse)
@@ -461,3 +484,7 @@ _VIEW_HTML = """<!doctype html>
 </footer>
 </body></html>
 """
+
+
+# Module-level app instance for ASGI servers (uvicorn modelforge.web.app:app)
+app = create_app()
