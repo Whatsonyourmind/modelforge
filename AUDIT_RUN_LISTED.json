@@ -4,12 +4,12 @@
     "name": "Apple Inc.",
     "sector": "tech",
     "success": true,
-    "market_cap_b": 4379.91636992,
+    "market_cap_b": 4426.915905536,
     "revenue_b": 416.161,
     "ebitda_b": 159.97599744000001,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": -35.84238869978804,
+    "market_cap_dev_pct": -36.523535123547965,
     "error": null
   },
   {
@@ -17,12 +17,12 @@
     "name": "Microsoft Corp.",
     "sector": "tech",
     "success": true,
-    "market_cap_b": 3041.424048128,
+    "market_cap_b": 3127.742562304,
     "revenue_b": 281.724,
     "ebitda_b": 184.457003008,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": -38.645374459622204,
+    "market_cap_dev_pct": -40.338621269093956,
     "error": null
   },
   {
@@ -30,12 +30,12 @@
     "name": "Alphabet Inc.",
     "sector": "tech",
     "success": true,
-    "market_cap_b": 4811.891146752,
+    "market_cap_b": 4752.040525824,
     "revenue_b": 402.836,
     "ebitda_b": 161.315995648,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": -42.50235064073063,
+    "market_cap_dev_pct": -41.77818383336613,
     "error": null
   },
   {
@@ -43,12 +43,12 @@
     "name": "Meta Platforms",
     "sector": "tech",
     "success": true,
-    "market_cap_b": 1569.837154304,
+    "market_cap_b": 1555.495124992,
     "revenue_b": 200.966,
     "ebitda_b": 109.308002304,
     "fail_count": 0,
     "warn_count": 0,
-    "market_cap_dev_pct": -13.4164011265655,
+    "market_cap_dev_pct": -12.618080069154514,
     "error": null
   },
   {
@@ -56,12 +56,12 @@
     "name": "NVIDIA Corp.",
     "sector": "tech",
     "success": true,
-    "market_cap_b": 5709.746405376,
+    "market_cap_b": 5528.819335168,
     "revenue_b": 215.938,
     "ebitda_b": 133.230002176,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": -73.42030618652872,
+    "market_cap_dev_pct": -72.5505027371543,
     "error": null
   },
   {
@@ -69,12 +69,12 @@
     "name": "JPMorgan Chase",
     "sector": "bank",
     "success": true,
-    "market_cap_b": 803.6122624,
+    "market_cap_b": 796.819652608,
     "revenue_b": 182.447,
     "ebitda_b": 82.10115,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": 61.805323338296084,
+    "market_cap_dev_pct": 63.18465731946501,
     "error": null
   },
   {
@@ -82,12 +82,12 @@
     "name": "Bank of America",
     "sector": "bank",
     "success": true,
-    "market_cap_b": 353.765031936,
+    "market_cap_b": 351.068356608,
     "revenue_b": 113.097,
     "ebitda_b": 50.89365,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": 96.61072870253675,
+    "market_cap_dev_pct": 98.1209625112313,
     "error": null
   },
   {
@@ -95,12 +95,12 @@
     "name": "Wells Fargo",
     "sector": "bank",
     "success": true,
-    "market_cap_b": 225.811382272,
+    "market_cap_b": 223.7763584,
     "revenue_b": 83.699,
     "ebitda_b": 37.664550000000006,
     "fail_count": 1,
     "warn_count": 0,
-    "market_cap_dev_pct": 107.55933308120615,
+    "market_cap_dev_pct": 109.44687920402596,
     "error": null
   },
   {
@@ -108,12 +108,12 @@
     "name": "Goldman Sachs",
     "sector": "bank",
     "success": true,
-    "market_cap_b": 285.850402816,
+    "market_cap_b": 281.0978304,
     "revenue_b": 58.283,
     "ebitda_b": 26.22735,
     "fail_count": 1,
     "warn_count": 0,
-    "market_cap_dev_pct": 121.96574394806005,
+    "market_cap_dev_pct": 125.71855936639089,
     "error": null
   },
   {
@@ -121,12 +121,12 @@
     "name": "Morgan Stanley",
     "sector": "bank",
     "success": true,
-    "market_cap_b": 306.82923008,
+    "market_cap_b": 305.15871744,
     "revenue_b": 70.645,
     "ebitda_b": 31.79025,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": 58.44617036491124,
+    "market_cap_dev_pct": 59.31354303109182,
     "error": null
   },
   {
@@ -134,12 +134,12 @@
     "name": "Pfizer",
     "sector": "pharma",
     "success": true,
-    "market_cap_b": 146.760695808,
+    "market_cap_b": 144.167436288,
     "revenue_b": 62.579,
     "ebitda_b": 25.460000768,
     "fail_count": 1,
     "warn_count": 0,
-    "market_cap_dev_pct": 116.22436740512762,
+    "market_cap_dev_pct": 120.11377484460778,
     "error": null
   },
   {
@@ -147,12 +147,12 @@
     "name": "Johnson & Johnson",
     "sector": "pharma",
     "success": true,
-    "market_cap_b": 555.585634304,
+    "market_cap_b": 549.579620352,
     "revenue_b": 94.193,
     "ebitda_b": 34.325000192,
     "fail_count": 0,
     "warn_count": 0,
-    "market_cap_dev_pct": -5.963926205220552,
+    "market_cap_dev_pct": -4.9362644246745235,
     "error": null
   },
   {
@@ -160,12 +160,12 @@
     "name": "Merck & Co.",
     "sector": "pharma",
     "success": true,
-    "market_cap_b": 280.102797312,
+    "market_cap_b": 274.15052288,
     "revenue_b": 65.011,
     "ebitda_b": 29.517000703999997,
     "fail_count": 0,
     "warn_count": 0,
-    "market_cap_dev_pct": 21.350842603756846,
+    "market_cap_dev_pct": 23.985575925232823,
     "error": null
   },
   {
@@ -173,12 +173,12 @@
     "name": "AbbVie",
     "sector": "pharma",
     "success": true,
-    "market_cap_b": 372.386922496,
+    "market_cap_b": 371.12365056,
     "revenue_b": 61.16,
     "ebitda_b": 29.915000832,
     "fail_count": 0,
     "warn_count": 0,
-    "market_cap_dev_pct": -20.218846296725424,
+    "market_cap_dev_pct": -19.947278337251618,
     "error": null
   },
   {
@@ -186,12 +186,12 @@
     "name": "Eli Lilly",
     "sector": "pharma",
     "success": true,
-    "market_cap_b": 897.71606016,
+    "market_cap_b": 897.296891904,
     "revenue_b": 65.179,
     "ebitda_b": 36.215001087999994,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": -61.43271891051626,
+    "market_cap_dev_pct": -61.414702376525334,
     "error": null
   },
   {
@@ -199,12 +199,12 @@
     "name": "Caterpillar",
     "sector": "industrial",
     "success": true,
-    "market_cap_b": 423.845920768,
+    "market_cap_b": 407.573233664,
     "revenue_b": 67.589,
     "ebitda_b": 14.55699968,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": -65.48896622943512,
+    "market_cap_dev_pct": -64.11108562345072,
     "error": null
   },
   {
@@ -212,12 +212,12 @@
     "name": "Boeing",
     "sector": "industrial",
     "success": true,
-    "market_cap_b": 180.686782464,
+    "market_cap_b": 175.215968256,
     "revenue_b": 89.463,
     "ebitda_b": -3.259000064,
     "fail_count": 0,
     "warn_count": 0,
-    "market_cap_dev_pct": 19.981604920622715,
+    "market_cap_dev_pct": 23.727822091533497,
     "error": null
   },
   {
@@ -225,12 +225,12 @@
     "name": "GE Aerospace",
     "sector": "industrial",
     "success": true,
-    "market_cap_b": 304.609624064,
+    "market_cap_b": 296.538308608,
     "revenue_b": 42.322,
     "ebitda_b": 11.036999680000001,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": -65.28611317239866,
+    "market_cap_dev_pct": -64.34125470670938,
     "error": null
   },
   {
@@ -238,12 +238,12 @@
     "name": "Honeywell",
     "sector": "industrial",
     "success": true,
-    "market_cap_b": 137.958965248,
+    "market_cap_b": 134.36297216,
     "revenue_b": 37.442,
     "ebitda_b": 8.526000128,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": -43.68634862683253,
+    "market_cap_dev_pct": -42.1792109248114,
     "error": null
   },
   {
@@ -251,12 +251,12 @@
     "name": "Union Pacific",
     "sector": "industrial",
     "success": true,
-    "market_cap_b": 159.910723584,
+    "market_cap_b": 160.053198848,
     "revenue_b": 24.51,
     "ebitda_b": 12.586000384,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": -76.869410141112,
+    "market_cap_dev_pct": -76.89000040060286,
     "error": null
   },
   {
@@ -264,12 +264,12 @@
     "name": "Enel S.p.A.",
     "sector": "industrial",
     "success": true,
-    "market_cap_b": 94.846550016,
+    "market_cap_b": 94.102306816,
     "revenue_b": 80.346,
     "ebitda_b": 20.298999808,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": 49.59285755914537,
+    "market_cap_dev_pct": 50.77596848143823,
     "error": null
   },
   {
@@ -277,12 +277,12 @@
     "name": "Eni S.p.A.",
     "sector": "industrial",
     "success": true,
-    "market_cap_b": 69.537579008,
+    "market_cap_b": 69.816909824,
     "revenue_b": 82.151,
     "ebitda_b": 12.028000255999999,
     "fail_count": 1,
     "warn_count": 0,
-    "market_cap_dev_pct": 174.09073873063835,
+    "market_cap_dev_pct": 172.99412775343131,
     "error": null
   },
   {
@@ -290,12 +290,12 @@
     "name": "Intesa Sanpaolo",
     "sector": "bank",
     "success": true,
-    "market_cap_b": 98.655043584,
+    "market_cap_b": 99.106471936,
     "revenue_b": 27.27,
     "ebitda_b": 12.2715,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": -61.561046658991756,
+    "market_cap_dev_pct": -61.73613546016048,
     "error": null
   },
   {
@@ -303,12 +303,12 @@
     "name": "SAP SE",
     "sector": "tech",
     "success": true,
-    "market_cap_b": 166.77412864,
+    "market_cap_b": 168.245264384,
     "revenue_b": 36.8,
     "ebitda_b": 11.603999744000001,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": 59.443608685906135,
+    "market_cap_dev_pct": 58.049434574979465,
     "error": null
   },
   {
@@ -316,12 +316,12 @@
     "name": "Deutsche Bank",
     "sector": "bank",
     "success": true,
-    "market_cap_b": 51.234525184,
+    "market_cap_b": 51.224956928,
     "revenue_b": 32.096,
     "ebitda_b": 14.443200000000001,
     "fail_count": 1,
     "warn_count": 0,
-    "market_cap_dev_pct": 472.0400606785251,
+    "market_cap_dev_pct": 472.1469114417287,
     "error": null
   },
   {
@@ -329,12 +329,12 @@
     "name": "LVMH Moet Hennessy",
     "sector": "industrial",
     "success": true,
-    "market_cap_b": 224.360464384,
+    "market_cap_b": 224.286359552,
     "revenue_b": 80.807,
     "ebitda_b": 20.586999808,
     "fail_count": 0,
     "warn_count": 0,
-    "market_cap_dev_pct": -10.568968828366689,
+    "market_cap_dev_pct": -10.539420568928183,
     "error": null
   },
   {
@@ -342,12 +342,12 @@
     "name": "BNP Paribas",
     "sector": "bank",
     "success": true,
-    "market_cap_b": 98.681389056,
+    "market_cap_b": 98.439036928,
     "revenue_b": 51.223,
     "ebitda_b": 23.05035,
     "fail_count": 1,
     "warn_count": 0,
-    "market_cap_dev_pct": 694.0822177813901,
+    "market_cap_dev_pct": 696.0372096351508,
     "error": null
   },
   {
@@ -355,12 +355,12 @@
     "name": "HSBC Holdings",
     "sector": "bank",
     "success": true,
-    "market_cap_b": 226.184855552,
+    "market_cap_b": 226.287714304,
     "revenue_b": 71.02,
     "ebitda_b": 31.959,
     "fail_count": 1,
     "warn_count": 0,
-    "market_cap_dev_pct": 249.39722383087536,
+    "market_cap_dev_pct": 249.23840583005702,
     "error": null
   },
   {
@@ -368,12 +368,12 @@
     "name": "AstraZeneca",
     "sector": "pharma",
     "success": true,
-    "market_cap_b": 211.84585728,
+    "market_cap_b": 210.357026816,
     "revenue_b": 58.739,
     "ebitda_b": 19.99399936,
     "fail_count": 0,
     "warn_count": 1,
-    "market_cap_dev_pct": 49.42446396868594,
+    "market_cap_dev_pct": 50.48203593284022,
     "error": null
   },
   {
@@ -381,12 +381,12 @@
     "name": "Nestle S.A.",
     "sector": "industrial",
     "success": true,
-    "market_cap_b": 199.141261312,
+    "market_cap_b": 200.81319936,
     "revenue_b": 89.49,
     "ebitda_b": 16.652000256,
     "fail_count": 0,
     "warn_count": 0,
-    "market_cap_dev_pct": 8.56264153159046,
+    "market_cap_dev_pct": 7.658766629210881,
     "error": null
   }
 ]
