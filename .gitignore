@@ -16,3 +16,5 @@ sbom.cdx.json
 .DS_Store
 .pytest_cache
 site/
+output/
+*.manifest.json
