@@ -248,7 +248,7 @@ def build(
     # (drawdown / last-historical EBITDA).
     cash_sweep_row: int | None = None
     if spec.debt.cash_sweep.enabled and spec.debt.cash_sweep.sweep_pct and spec.debt.cash_sweep.trigger_leverage:
-        layout.write_section_header(ws, r, "Cash sweep", "Rimborso automatico (cash sweep)")
+        layout.write_section_header(ws, r, L("debt_cash_sweep").en, L("debt_cash_sweep").secondary)
         r += 1
 
         # v0.8.9 US-582: for sponsor_lbo, register the 6 tier named ranges
@@ -432,12 +432,12 @@ def build(
     r += 2
 
     # ─── Totals block ──────────────────────────────────────────────────────
-    layout.write_section_header(ws, r, "Totals across tranches", "Totali (tutte le tranche)")
+    layout.write_section_header(ws, r, L("debt_totals_tranches").en, L("debt_totals_tranches").secondary)
     r += 1
 
     # Total closing debt
     total_closing_row = r
-    layout.write_row_label(ws, r, "Total debt outstanding", "Debito totale")
+    layout.write_row_label(ws, r, L("debt_total_debt").en, L("debt_total_debt").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)
@@ -451,7 +451,7 @@ def build(
 
     # Total interest
     total_interest_row = r
-    layout.write_row_label(ws, r, "Total cash interest", "Interessi totali")
+    layout.write_row_label(ws, r, L("debt_total_interest").en, L("debt_total_interest").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)

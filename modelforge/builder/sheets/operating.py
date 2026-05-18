@@ -93,7 +93,7 @@ def build(
     r = 7  # content starts row 7
 
     # Subheader: Revenue build
-    layout.write_section_header(ws, r, "Revenue build", "Costruzione ricavi")
+    layout.write_section_header(ws, r, L("op_revenue_build").en, L("op_revenue_build").secondary)
     r += 1
 
     # Revenue growth row
@@ -147,7 +147,7 @@ def build(
     r += 2
 
     # Subheader: Margin & opex
-    layout.write_section_header(ws, r, "Margin & opex", "Margini e opex")
+    layout.write_section_header(ws, r, L("op_margin_opex").en, L("op_margin_opex").secondary)
     r += 1
 
     # EBITDA margin row
@@ -279,7 +279,7 @@ def build(
     r += 2
 
     # ── Cash flow block ───────────────────────────────────────────────────
-    layout.write_section_header(ws, r, "Cash flow to debt", "Flusso di cassa al debito")
+    layout.write_section_header(ws, r, L("op_fcf_to_debt").en, L("op_fcf_to_debt").secondary)
     r += 1
 
     # Maintenance capex
