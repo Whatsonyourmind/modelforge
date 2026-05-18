@@ -46,7 +46,7 @@ def build(ws: Worksheet, spec, graph: LinkageGraph, driver_refs: dict[str, str])
     layout.write_section_header(ws, r, "Revenue build", "Costruzione ricavi")
     r += 1
     rows["revenue_growth"] = r
-    layout.write_row_label(ws, r, L("revenue_growth").en, L("revenue_growth").it)
+    layout.write_row_label(ws, r, L("revenue_growth").en, L("revenue_growth").secondary)
     ws.cell(row=r, column=3, value="%").font = styles.font_label_it
     for i in range(p):
         a = spec.operating.revenue_growth_by_year[i]
@@ -57,7 +57,7 @@ def build(ws: Worksheet, spec, graph: LinkageGraph, driver_refs: dict[str, str])
 
     # Revenue
     rows["revenue"] = r
-    layout.write_row_label(ws, r, L("revenue").en, L("revenue").it)
+    layout.write_row_label(ws, r, L("revenue").en, L("revenue").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(h):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
@@ -84,7 +84,7 @@ def build(ws: Worksheet, spec, graph: LinkageGraph, driver_refs: dict[str, str])
     layout.write_section_header(ws, r, "Profitability", "Redditività")
     r += 1
     rows["ebitda_margin"] = r
-    layout.write_row_label(ws, r, L("ebitda_margin").en, L("ebitda_margin").it)
+    layout.write_row_label(ws, r, L("ebitda_margin").en, L("ebitda_margin").secondary)
     ws.cell(row=r, column=3, value="%").font = styles.font_label_it
     for i in range(h):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
@@ -100,7 +100,7 @@ def build(ws: Worksheet, spec, graph: LinkageGraph, driver_refs: dict[str, str])
     r += 1
 
     rows["ebitda"] = r
-    layout.write_row_label(ws, r, L("ebitda").en, L("ebitda").it)
+    layout.write_row_label(ws, r, L("ebitda").en, L("ebitda").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(h):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
@@ -116,7 +116,7 @@ def build(ws: Worksheet, spec, graph: LinkageGraph, driver_refs: dict[str, str])
 
     # D&A, EBIT
     rows["da"] = r
-    layout.write_row_label(ws, r, L("da").en, L("da").it, indent=True)
+    layout.write_row_label(ws, r, L("da").en, L("da").secondary, indent=True)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
@@ -125,7 +125,7 @@ def build(ws: Worksheet, spec, graph: LinkageGraph, driver_refs: dict[str, str])
     r += 1
 
     rows["ebit"] = r
-    layout.write_row_label(ws, r, L("ebit").en, L("ebit").it)
+    layout.write_row_label(ws, r, L("ebit").en, L("ebit").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
@@ -136,7 +136,7 @@ def build(ws: Worksheet, spec, graph: LinkageGraph, driver_refs: dict[str, str])
 
     # Interest — cross-sheet patched by bond_structure.py
     rows["interest"] = r
-    layout.write_row_label(ws, r, L("interest_expense").en, L("interest_expense").it, indent=True)
+    layout.write_row_label(ws, r, L("interest_expense").en, L("interest_expense").secondary, indent=True)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
@@ -145,7 +145,7 @@ def build(ws: Worksheet, spec, graph: LinkageGraph, driver_refs: dict[str, str])
 
     # EBT, tax, NI
     rows["ebt"] = r
-    layout.write_row_label(ws, r, L("ebt").en, L("ebt").it)
+    layout.write_row_label(ws, r, L("ebt").en, L("ebt").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         c = ws.cell(row=r, column=col_idx,
@@ -154,7 +154,7 @@ def build(ws: Worksheet, spec, graph: LinkageGraph, driver_refs: dict[str, str])
     r += 1
 
     rows["tax"] = r
-    layout.write_row_label(ws, r, L("tax").en, L("tax").it, indent=True)
+    layout.write_row_label(ws, r, L("tax").en, L("tax").secondary, indent=True)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         c = ws.cell(row=r, column=col_idx,
@@ -163,7 +163,7 @@ def build(ws: Worksheet, spec, graph: LinkageGraph, driver_refs: dict[str, str])
     r += 1
 
     rows["net_income"] = r
-    layout.write_row_label(ws, r, L("net_income").en, L("net_income").it)
+    layout.write_row_label(ws, r, L("net_income").en, L("net_income").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         c = ws.cell(row=r, column=col_idx,
@@ -176,14 +176,14 @@ def build(ws: Worksheet, spec, graph: LinkageGraph, driver_refs: dict[str, str])
     layout.write_section_header(ws, r, "Cash flow (FCF for debt service)", "FCF a servizio del debito")
     r += 1
     rows["capex"] = r
-    layout.write_row_label(ws, r, L("capex_total").en, L("capex_total").it, indent=True)
+    layout.write_row_label(ws, r, L("capex_total").en, L("capex_total").secondary, indent=True)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         c = ws.cell(row=r, column=col_idx, value=f"=-${col}${rows['revenue']}*capex_pct_revenue")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
     r += 1
     rows["nwc"] = r
-    layout.write_row_label(ws, r, L("nwc_change").en, L("nwc_change").it, indent=True)
+    layout.write_row_label(ws, r, L("nwc_change").en, L("nwc_change").secondary, indent=True)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         if i == 0:
@@ -197,7 +197,7 @@ def build(ws: Worksheet, spec, graph: LinkageGraph, driver_refs: dict[str, str])
     r += 1
 
     rows["fcf"] = r
-    layout.write_row_label(ws, r, L("fcf_to_debt").en, L("fcf_to_debt").it)
+    layout.write_row_label(ws, r, L("fcf_to_debt").en, L("fcf_to_debt").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         parts = [f"${col}${rows['ebitda']}", f"${col}${rows['tax']}",

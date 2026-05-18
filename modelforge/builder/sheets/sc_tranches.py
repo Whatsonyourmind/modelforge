@@ -66,7 +66,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     tranche_rows: list[dict] = []
     for tr in spec.tranches:
         layout.write_section_header(ws, r, f"Tranche: {tr.name.en} ({tr.rating})",
-                                    f"Tranche: {tr.name.it} ({tr.rating})")
+                                    f"Tranche: {tr.name.secondary} ({tr.rating})")
         r += 1
 
         # Size = (detachment - attachment) × face
@@ -151,7 +151,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         # Investor cash flow (from investor perspective)
         inv_cf_row = r
         layout.write_row_label(ws, r, f"Investor CF — {tr.name.en}",
-                               f"CF investitore — {tr.name.it}")
+                               f"CF investitore — {tr.name.secondary}")
         for i in range(n):
             col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
             if i == 0:
@@ -168,7 +168,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         first_col = layout.year_col(0); last_col = layout.year_col(n - 1)
         irr_row = r
         layout.write_row_label(ws, r, f"Tranche IRR — {tr.name.en}",
-                               f"IRR tranche — {tr.name.it}", indent=True)
+                               f"IRR tranche — {tr.name.secondary}", indent=True)
         cc = ws.cell(row=r, column=4,
                      value=f"=IRR(${first_col}${inv_cf_row}:${last_col}${inv_cf_row},{tr.coupon_pct.name})")
         styles.style_formula(cc, number_format=styles.FMT_PCT_2DP)

@@ -454,6 +454,113 @@ LABELS: dict[str, Label] = {
         nl="Aannames",
     ),
 
+    # ---------- 3-Statement sheet — section headers + BS/CFS rows (v0.11.1) ----------
+    "ts_pnl_header": Label(
+        en="Profit & Loss", it="Conto economico", de="Gewinn- und Verlustrechnung",
+        es="Cuenta de pérdidas y ganancias", sv="Resultaträkning",
+        no="Resultatregnskap", da="Resultatopgørelse", nl="Winst- en verliesrekening",
+    ),
+    "ts_bs_header": Label(
+        en="Balance Sheet", it="Stato patrimoniale", de="Bilanz",
+        es="Balance de situación", sv="Balansräkning",
+        no="Balanse", da="Balance", nl="Balans",
+    ),
+    "ts_cfs_header": Label(
+        en="Cash Flow Statement", it="Rendiconto finanziario", de="Kapitalflussrechnung",
+        es="Estado de flujos de efectivo", sv="Kassaflödesanalys",
+        no="Kontantstrømoppstilling", da="Pengestrømsopgørelse", nl="Kasstroomoverzicht",
+    ),
+    "ts_cash": Label(
+        en="Cash", it="Cassa", de="Bargeld",
+        es="Efectivo", sv="Likvida medel",
+        no="Kontanter", da="Kontanter", nl="Kasmiddelen",
+    ),
+    "ts_ar": Label(
+        en="Accounts receivable", it="Crediti", de="Forderungen",
+        es="Cuentas por cobrar", sv="Kundfordringar",
+        no="Kundefordringer", da="Tilgodehavender", nl="Debiteuren",
+    ),
+    "ts_inventory": Label(
+        en="Inventory", it="Magazzino", de="Vorräte",
+        es="Inventario", sv="Lager",
+        no="Varelager", da="Varelager", nl="Voorraden",
+    ),
+    "ts_net_ppe": Label(
+        en="Net PP&E", it="Immobilizzazioni nette", de="Sachanlagen (netto)",
+        es="Inmovilizado material neto", sv="Materiella anläggningstillgångar (netto)",
+        no="Varige driftsmidler (netto)", da="Materielle anlægsaktiver (netto)",
+        nl="Materiële vaste activa (netto)",
+    ),
+    "ts_total_assets": Label(
+        en="TOTAL ASSETS", it="TOTALE ATTIVO", de="AKTIVA INSGESAMT",
+        es="TOTAL ACTIVO", sv="SUMMA TILLGÅNGAR",
+        no="SUM EIENDELER", da="AKTIVER I ALT", nl="TOTAAL ACTIVA",
+    ),
+    "ts_ap": Label(
+        en="Accounts payable", it="Debiti v/fornitori", de="Verbindlichkeiten aus L+L",
+        es="Cuentas por pagar", sv="Leverantörsskulder",
+        no="Leverandørgjeld", da="Leverandørgæld", nl="Crediteuren",
+    ),
+    "ts_debt": Label(
+        en="Debt", it="Debito finanziario", de="Finanzschulden",
+        es="Deuda financiera", sv="Räntebärande skulder",
+        no="Rentebærende gjeld", da="Rentebærende gæld", nl="Financiële schulden",
+    ),
+    "ts_equity": Label(
+        en="Equity (retained earnings)", it="Patrimonio netto",
+        de="Eigenkapital (Gewinnrücklagen)", es="Patrimonio (reservas)",
+        sv="Eget kapital (balanserade vinstmedel)",
+        no="Egenkapital (opptjent egenkapital)",
+        da="Egenkapital (overført resultat)",
+        nl="Eigen vermogen (winstreserves)",
+    ),
+    "ts_total_le": Label(
+        en="TOTAL L & E", it="TOTALE PASSIVO + PN", de="PASSIVA INSGESAMT",
+        es="TOTAL PASIVO + PN", sv="SUMMA SKULDER + EK",
+        no="SUM GJELD + EK", da="PASSIVER I ALT", nl="TOTAAL PASSIVA + EV",
+    ),
+    "ts_bs_check": Label(
+        en="BS check (A - L - E)", it="Check BS (A - P - PN)",
+        de="Bilanzkontrolle (A - P - EK)", es="Comprob. Balance (A - P - PN)",
+        sv="Balanskontroll (T - S - EK)", no="Balansekontroll",
+        da="Balancekontrol", nl="Balanscontrole",
+    ),
+    "ts_ni_from_pl": Label(
+        en="Net income (from P&L)", it="Utile netto (da CE)",
+        de="Jahresüberschuss (aus GuV)", es="Beneficio neto (de PyG)",
+        sv="Nettoresultat (från RR)", no="Nettoresultat (fra RR)",
+        da="Nettoresultat (fra RES)", nl="Nettowinst (uit WenV)",
+    ),
+    "ts_cfo": Label(
+        en="CFO (operating)", it="CFO", de="Operativer Cashflow (CFO)",
+        es="Flujo operativo (CFO)", sv="Operativt kassaflöde (CFO)",
+        no="Operasjonell kontantstrøm (CFO)", da="Pengestrøm fra drift (CFO)",
+        nl="Operationele kasstroom (CFO)",
+    ),
+    "ts_capex": Label(
+        en="Capex", it="Capex", de="Investitionen",
+        es="Capex", sv="Investeringar",
+        no="Investeringer", da="Investeringer", nl="Investeringen",
+    ),
+    "ts_cfi": Label(
+        en="CFI (investing)", it="CFI", de="Investitions-Cashflow (CFI)",
+        es="Flujo de inversión (CFI)", sv="Investerings-kassaflöde (CFI)",
+        no="Investerings-kontantstrøm (CFI)", da="Pengestrøm fra investering (CFI)",
+        nl="Investerings-kasstroom (CFI)",
+    ),
+    "ts_cff": Label(
+        en="CFF (financing)", it="CFF", de="Finanzierungs-Cashflow (CFF)",
+        es="Flujo de financiación (CFF)", sv="Finansierings-kassaflöde (CFF)",
+        no="Finansierings-kontantstrøm (CFF)", da="Pengestrøm fra finansiering (CFF)",
+        nl="Financierings-kasstroom (CFF)",
+    ),
+    "ts_net_change_cash": Label(
+        en="Net change in cash", it="Variazione di cassa",
+        de="Nettoveränderung Liquidität", es="Variación neta de efectivo",
+        sv="Nettoförändring i likvida medel", no="Netto endring i kontanter",
+        da="Nettoændring i likvider", nl="Netto mutatie kasmiddelen",
+    ),
+
     # ---------- QC ----------
     "qc_check": Label(
         en="QC check", it="Controllo QC", de="QC-Prüfung",
@@ -504,22 +611,44 @@ def label_in(key: str, lang: str) -> str:
     return L(key).get(lang)
 
 
-# ---- v0.10 runtime-secondary-language swap ----
+# ---- v0.11.1 contextvars-based secondary-language rendering ----
 #
-# Most sheet renderers in modelforge/builder/sheets/*.py read `label.it` directly
-# (~30 call sites). Refactoring all of them to a runtime lang parameter is a v0.11
-# scope item. As a v0.10 shim, callers can apply_runtime_secondary_lang("de")
-# at the top of build_workbook(); this mutates every Label's `.it` slot to point
-# at the requested secondary language. Existing code reading `.it` then renders
-# in the requested language without modification.
+# Replaces the v0.10 global-mutation shim (`apply_runtime_secondary_lang`
+# mutated every Label.it field). The contextvar approach is:
 #
-# Limitations:
-#   - Process-global state (sequential builds in different langs overwrite each
-#     other). Build_workbook resets to "it" on exit (see workbook.py).
-#   - Hardcoded Italian strings outside the Label-class system (e.g. monte_carlo
-#     sheet titles) are NOT affected. These ship as v0.11 cleanup.
+#   - Multi-tenant safe: each build has its own ContextVar value, no bleed
+#   - Reentrant: nested or concurrent (async) builds are independent
+#   - Pure: no global state mutation — Label.it stays literal Italian forever
+#
+# Sheet renderers call `label.secondary` (property on Label) which reads
+# this contextvar and returns the appropriate field.
 
-_ORIGINAL_IT_VALUES: dict[str, str] = {k: lbl.it for k, lbl in LABELS.items()}
+import contextvars
+
+_current_secondary_lang: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "modelforge_current_secondary_lang", default="it",
+)
+
+
+def current_secondary_lang() -> str:
+    """Return the currently active secondary language for rendering."""
+    return _current_secondary_lang.get()
+
+
+def set_secondary_lang(lang: str) -> contextvars.Token:
+    """Set the active secondary language for rendering. Returns a token that
+    can be passed to `reset_secondary_lang()` to restore the previous value."""
+    if lang not in SECONDARY_LANGS and lang != "it" and lang != "en":
+        raise ValueError(
+            f"Unknown secondary language '{lang}'. "
+            f"Supported: {SECONDARY_LANGS} (or 'en' / 'it')."
+        )
+    return _current_secondary_lang.set(lang)
+
+
+def reset_secondary_lang(token: contextvars.Token) -> None:
+    """Restore the previous secondary-language value via the returned token."""
+    _current_secondary_lang.reset(token)
 
 
 # Sanity check: every label populated for every secondary language.
@@ -542,27 +671,35 @@ def _validate_coverage() -> None:
 _validate_coverage()
 
 
-def apply_runtime_secondary_lang(lang: str) -> None:
-    """Mutate every Label's `.it` field to the requested secondary language.
+# ---- v0.10 compatibility shim (DEPRECATED — kept for one minor release) ----
+#
+# v0.10 templates called `apply_runtime_secondary_lang("de")` to mutate the
+# global Label dictionary. v0.11.1 keeps these as no-ops that set the
+# contextvar instead, so existing template code (hgb_carveout uses these)
+# continues to work without modification. New code should use
+# `set_secondary_lang()` + `reset_secondary_lang(token)` for explicit context.
 
-    Pass `lang="it"` to restore the default Italian secondary.
-    Pass `lang="en"` to make secondary identical to primary (effectively monolingual).
+
+def apply_runtime_secondary_lang(lang: str) -> None:
+    """DEPRECATED: use `set_secondary_lang()` instead.
+
+    Compatibility shim: sets the contextvar to `lang`. The pre-v0.11.1
+    behaviour (global Label mutation) is gone — multi-tenant safe.
     """
     if lang not in SECONDARY_LANGS and lang != "it" and lang != "en":
         raise ValueError(
             f"Unknown secondary language '{lang}'. "
             f"Supported: {SECONDARY_LANGS} (or 'en' / 'it')."
         )
-    for key, lbl in LABELS.items():
-        if lang == "it":
-            new_secondary = _ORIGINAL_IT_VALUES[key]
-        elif lang == "en":
-            new_secondary = lbl.en
-        else:
-            new_secondary = getattr(lbl, lang, "") or lbl.en
-        object.__setattr__(lbl, "it", new_secondary)
+    # No try/finally needed — the contextvar default is "it", so a forgotten
+    # reset just leaves it at the current value. Templates that pair apply +
+    # reset get correct behavior.
+    _current_secondary_lang.set(lang)
 
 
 def reset_runtime_secondary_lang() -> None:
-    """Restore the original Italian secondary on every Label."""
-    apply_runtime_secondary_lang("it")
+    """DEPRECATED: use `reset_secondary_lang(token)` instead.
+
+    Compatibility shim: sets the contextvar back to "it" (the default).
+    """
+    _current_secondary_lang.set("it")

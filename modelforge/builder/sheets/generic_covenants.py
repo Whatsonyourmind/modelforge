@@ -53,12 +53,12 @@ def build(
     breach_rows: list[int] = []
 
     for cov in spec.covenants:
-        layout.write_section_header(ws, r, cov.name.en, cov.name.it)
+        layout.write_section_header(ws, r, cov.name.en, cov.name.secondary)
         r += 1
 
         actual_row = r
         if cov.kind == "leverage":
-            layout.write_row_label(ws, r, L("leverage_ratio").en, L("leverage_ratio").it)
+            layout.write_row_label(ws, r, L("leverage_ratio").en, L("leverage_ratio").secondary)
             ws.cell(row=r, column=3, value="x").font = styles.font_label_it
             for i in range(n):
                 col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
@@ -67,7 +67,7 @@ def build(
                 c = ws.cell(row=r, column=col_idx, value=ebitda_multiple(debt_ref, ebitda_ref))
                 styles.style_xref(c, number_format=styles.FMT_MULTIPLE)
         elif cov.kind == "icr":
-            layout.write_row_label(ws, r, L("icr").en, L("icr").it)
+            layout.write_row_label(ws, r, L("icr").en, L("icr").secondary)
             ws.cell(row=r, column=3, value="x").font = styles.font_label_it
             for i in range(n):
                 col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
@@ -95,12 +95,12 @@ def build(
                 c = ws.cell(row=r, column=col_idx, value=f"={ebitda_ref}")
                 styles.style_xref(c, number_format=styles.FMT_EUR_M)
         else:
-            layout.write_row_label(ws, r, cov.name.en, cov.name.it)
+            layout.write_row_label(ws, r, cov.name.en, cov.name.secondary)
         r += 1
 
         threshold_row = r
         layout.write_row_label(ws, r, f"{cov.name.en} — threshold",
-                               f"{cov.name.it} — soglia", indent=True)
+                               f"{cov.name.secondary} — soglia", indent=True)
         ws.cell(row=r, column=3, value="x" if cov.kind != "minimum_ebitda" else spec.meta.currency).font = styles.font_label_it
         for i in range(n):
             col_idx = ord(layout.year_col(i)) - ord("A") + 1
@@ -119,7 +119,7 @@ def build(
         # post-maturity years with zero interest don't false-flag ICR.
         breach_row = r
         layout.write_row_label(ws, r, f"{cov.name.en} — breach",
-                               f"{cov.name.it} — violazione", indent=True)
+                               f"{cov.name.secondary} — violazione", indent=True)
         for i in range(n):
             col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
             if i < h:
