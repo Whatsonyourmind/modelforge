@@ -18,6 +18,7 @@ from modelforge.templates import (
     unitranche, minibond, credit_memo, project_finance, real_estate, npl,
     structured_credit, three_statement, dcf, merger, fairness, sponsor_lbo,
     ipo, restructuring,
+    hgb_carveout, portfolio_review,
 )
 
 REGISTRY: dict[str, Callable] = {
@@ -35,7 +36,13 @@ REGISTRY: dict[str, Callable] = {
     "sponsor_lbo": sponsor_lbo.build,
     "ipo": ipo.build,
     "restructuring": restructuring.build,
+    # v0.10 foreign-market additions:
+    "hgb_carveout": hgb_carveout.build,
+    "portfolio_review": portfolio_review.build,
 }
+
+# v0.10 templates flagged as preview. CLI and MCP server can surface this.
+PREVIEW_TEMPLATES: frozenset[str] = frozenset({"hgb_carveout", "portfolio_review"})
 
 
 def build_model(

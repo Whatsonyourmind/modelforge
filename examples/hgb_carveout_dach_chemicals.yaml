@@ -1,0 +1,241 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ModelForge example: HGB Carve-out — DACH specialty chemicals (v0.10 PREVIEW)
+#
+# Operational-turnaround acquisition: large DACH chemicals group is carving
+# out a specialty-coatings business unit (~€85M revenue). Buyer is a DACH
+# special-situations PE firm modeling first-cut underwriting view from the
+# teaser data room.
+#
+# Renders with DE secondary labels (Bewertungsstichtag, Umsatzerlöse, etc.)
+# and the HGB-Recon stub sheet.
+#
+# ⚠️ v0.10 PREVIEW — structural template only. Production use requires
+#    DACH accounting-expert review of DTA/DTL and § 252-256 valuation rules.
+# ─────────────────────────────────────────────────────────────────────────────
+
+model_type: hgb_carveout
+
+meta:
+  project_code: DEMO-HGB-CHEM-01
+  deliverable:
+    en: HGB Carve-out Model — Specialty Coatings
+    it: Modello HGB Carve-out — Vernici Speciali
+    de: HGB Carve-out Modell — Spezialbeschichtungen
+  analyst: L. Stanisljevic
+  version: v0.1
+  status: draft
+  valuation_date: 2026-05-18
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - version: v0.1
+      date: 2026-05-18
+      analyst: LS
+      note: Initial DACH carve-out first-cut model from teaser data.
+
+target:
+  name: "Specialty Coatings GmbH (anonymized carve-out)"
+  sector:
+    en: Specialty Chemicals / Coatings
+    de: Spezialchemie / Beschichtungen
+  country: DE
+  currency: EUR
+  revenue_last_fy_eur_m: 85.0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 11.2
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon:
+  historical_years: 3
+  projection_years: 5
+
+sources:
+  - id: S-001
+    doc: Teaser_Carveout_April_2026.pdf
+    page: 6
+    publisher: Seller (anonymized)
+    date: 2026-04-25
+    verified: false
+    note: Carve-out teaser. Historical FY23-FY25 revenue + EBITDA (carved entity perimeter).
+  - id: S-002
+    doc: VCI_Specialty_Chemicals_Index_2025.pdf
+    page: 12
+    publisher: VCI (Verband der Chemischen Industrie)
+    date: 2026-01-30
+    verified: true
+    note: DACH specialty chemicals EBITDA margin benchmark 13-17%.
+  - id: S-003
+    doc: PWC_Germany_KSt_GewSt_2026.pdf
+    page: 8
+    publisher: PwC Deutschland
+    date: 2026-02-15
+    url: "https://www.pwc.de/de/steuern/koerperschaftsteuer.html"
+    verified: true
+    note: KSt 15% + SolZ 5.5% + GewSt Hebesatz 400% (DE municipal average).
+
+pl:
+  revenue_growth_by_year:
+    - id: A-001
+      name: revenue_growth_y1
+      label: { en: "Rev growth Y1", de: "Umsatzwachstum Y1" }
+      unit: pct
+      base: 0.03
+      rationale: "Carve-out integration drag year 1."
+      confidence: M
+      source_id: S-001
+    - id: A-002
+      name: revenue_growth_y2
+      label: { en: "Rev growth Y2", de: "Umsatzwachstum Y2" }
+      unit: pct
+      base: 0.05
+      rationale: "Stabilization + repricing."
+      confidence: M
+    - id: A-003
+      name: revenue_growth_y3
+      label: { en: "Rev growth Y3", de: "Umsatzwachstum Y3" }
+      unit: pct
+      base: 0.05
+      rationale: "DACH chemicals consensus 3-6%."
+      confidence: M
+      source_id: S-002
+    - id: A-004
+      name: revenue_growth_y4
+      label: { en: "Rev growth Y4", de: "Umsatzwachstum Y4" }
+      unit: pct
+      base: 0.04
+      rationale: "Mature."
+      confidence: L
+    - id: A-005
+      name: revenue_growth_y5
+      label: { en: "Rev growth Y5", de: "Umsatzwachstum Y5" }
+      unit: pct
+      base: 0.04
+      rationale: "Terminal."
+      confidence: L
+  ebitda_margin_by_year:
+    - id: A-011
+      name: ebitda_margin_y1
+      label: { en: "EBITDA margin Y1", de: "EBITDA-Marge Y1" }
+      unit: pct
+      base: 0.10
+      rationale: "Standalone-cost drag year 1."
+      confidence: M
+    - id: A-012
+      name: ebitda_margin_y2
+      label: { en: "EBITDA margin Y2", de: "EBITDA-Marge Y2" }
+      unit: pct
+      base: 0.13
+      rationale: "Cost-out + standalone normalization."
+      confidence: M
+      source_id: S-002
+    - id: A-013
+      name: ebitda_margin_y3
+      label: { en: "EBITDA margin Y3", de: "EBITDA-Marge Y3" }
+      unit: pct
+      base: 0.15
+      rationale: "Target VCI mid-range."
+      confidence: M
+    - id: A-014
+      name: ebitda_margin_y4
+      label: { en: "EBITDA margin Y4", de: "EBITDA-Marge Y4" }
+      unit: pct
+      base: 0.16
+      rationale: "Operational leverage."
+      confidence: L
+    - id: A-015
+      name: ebitda_margin_y5
+      label: { en: "EBITDA margin Y5", de: "EBITDA-Marge Y5" }
+      unit: pct
+      base: 0.16
+      rationale: "Terminal."
+      confidence: L
+  da_pct_revenue:
+    id: A-020
+    name: da_pct_revenue
+    label: { en: "D&A %", de: "Abschreibungen %" }
+    unit: pct
+    base: 0.045
+    rationale: "Chemicals industry historical."
+    confidence: H
+  interest_on_debt_pct:
+    id: A-021
+    name: interest_on_debt_pct
+    label: { en: "Interest on debt %", de: "Zins auf Schulden %" }
+    unit: pct
+    base: 0.065
+    rationale: "DACH MM acquisition financing benchmark."
+    confidence: M
+  effective_tax_rate:
+    id: A-022
+    name: effective_tax_rate
+    label: { en: "Effective tax rate", de: "Effektivsteuersatz" }
+    unit: pct
+    base: 0.30
+    rationale: "KSt 15% + SolZ + GewSt (Hebesatz 400%)."
+    confidence: H
+    source_id: S-003
+
+bs:
+  receivables_days:
+    id: A-030
+    name: receivables_days
+    label: { en: "DSO", de: "Forderungsumschlag (Tage)" }
+    unit: count
+    base: 55
+    rationale: "DACH chemicals B2B DSO."
+    confidence: M
+  inventory_days:
+    id: A-031
+    name: inventory_days
+    label: { en: "Inventory days", de: "Vorräte (Tage)" }
+    unit: count
+    base: 65
+    rationale: "Specialty chemicals inventory."
+    confidence: M
+  payables_days:
+    id: A-032
+    name: payables_days
+    label: { en: "DPO", de: "Verbindlichkeiten (Tage)" }
+    unit: count
+    base: 50
+    rationale: "DACH supplier terms."
+    confidence: M
+  capex_pct_revenue:
+    id: A-033
+    name: capex_pct_revenue
+    label: { en: "Capex % revenue", de: "Investitionen % Umsatz" }
+    unit: pct
+    base: 0.04
+    rationale: "Maintenance + minor expansion."
+    confidence: M
+  dividend_payout_ratio:
+    id: A-034
+    name: dividend_payout_ratio
+    label: { en: "Dividend payout", de: "Ausschüttungsquote" }
+    unit: pct
+    base: 0.00
+    rationale: "PE-owned carve-out — no dividends during hold."
+    confidence: H
+
+opening_bs:
+  cash_eur_m: 4.0
+  receivables_eur_m: 12.8
+  inventory_eur_m: 15.1
+  net_ppe_eur_m: 28.5
+  payables_eur_m: 11.6
+  debt_eur_m: 22.0
+  equity_eur_m: 26.8  # plug: 4.0+12.8+15.1+28.5 = 60.4 = 11.6+22.0+26.8
+
+historical_revenue_eur_m: [78.0, 82.0, 85.0]
+historical_ebitda_eur_m:  [8.5, 10.0, 11.2]
+historical_net_debt_eur_m: 18.0
+historical_net_debt_source_id: S-001
+
+# v0.10 HGB-specific block
+hgb_assumptions:
+  hgb_form: gesamtkostenverfahren
+  gewerbesteuer_hebesatz: 400.0  # National DE average — adjust to municipality
+  soli_applicable: true
+  enable_hgb_steuer_recon: true
