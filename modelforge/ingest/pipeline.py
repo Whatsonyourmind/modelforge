@@ -203,6 +203,22 @@ def _restructuring_sections():
     ]
 
 
+def _hgb_carveout_sections():
+    """v0.10: HGB carve-out reuses the 3-statement shape (HGBCarveoutSpec
+    inherits from ThreeStatementSpec) and overlays HGB-specific assumptions."""
+    return _three_statement_sections()
+
+
+def _portfolio_review_sections():
+    """v0.10: portfolio review is an aggregator (N portcos), not a single deal.
+    The 'target' section represents the FUND for ingest-shape consistency."""
+    from modelforge.spec.portfolio_review import PortfolioReviewSpec
+    from modelforge.spec.base import Target
+    return PortfolioReviewSpec, [
+        ("target", Target),
+    ]
+
+
 TEMPLATE_SECTIONS = {
     "project_finance": _pf_sections,
     "unitranche": _unitranche_sections,
@@ -219,6 +235,9 @@ TEMPLATE_SECTIONS = {
     "restructuring": _restructuring_sections,
     # v0.8: sponsor_lbo reuses unitranche's section layout (same spec shape)
     "sponsor_lbo": _unitranche_sections,
+    # v0.10: foreign-market additions
+    "hgb_carveout": _hgb_carveout_sections,
+    "portfolio_review": _portfolio_review_sections,
 }
 
 

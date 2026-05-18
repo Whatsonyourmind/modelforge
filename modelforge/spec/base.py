@@ -31,13 +31,39 @@ class Confidence(str, Enum):
 
 
 class Label(BaseModel):
-    """EN primary + IT secondary. Used for every row label in the workbook."""
+    """Multi-language label. EN mandatory, other languages optional.
+
+    v0.10: expanded from EN/IT to EN + 7 secondary languages (IT/DE/ES/SV/NO/DA/NL).
+    Backwards-compatible: existing code reading `.it` directly continues to work.
+    New callers should use `.get(lang)` for safe lookup with EN fallback.
+
+    Coverage status (as of v0.10):
+        EN          — primary, mandatory
+        IT          — full coverage, native-quality
+        DE, ES      — full coverage, first-cut (review encouraged)
+        SV, NO, DA, NL — full coverage, FIRST-CUT design-partner review required
+    """
 
     en: str
-    it: str = ""  # If empty, English is used in both columns.
+    it: str = ""
+    de: str = ""
+    es: str = ""
+    sv: str = ""
+    no: str = ""
+    da: str = ""
+    nl: str = ""
 
     def __str__(self) -> str:
         return self.en
+
+    def get(self, lang: str) -> str:
+        """Return label in `lang`, falling back to `en` if missing or empty.
+
+        Valid `lang` values: en, it, de, es, sv, no, da, nl.
+        Unknown languages also fall back to en (no error — labels are display-time).
+        """
+        val = getattr(self, lang, "") if lang else ""
+        return val or self.en
 
 
 class Source(BaseModel):

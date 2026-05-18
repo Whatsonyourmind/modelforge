@@ -369,6 +369,14 @@ DEFAULT_FACTORS_BY_TYPE: dict[str, list[SensitivityFactor]] = {
     # v0.8: sponsor_lbo shares unitranche-style operating drivers plus
     # debt structure; default factor list mirrors unitranche credit.
     "sponsor_lbo": _UNITRANCHE_CREDIT,
+    # v0.10: HGB carve-out inherits ThreeStatementSpec; same driver set.
+    "hgb_carveout": _THREE_STATEMENT,
+    # v0.10: portfolio_review is an aggregator template (N portcos, no per-
+    # deal drivers). The factor list below is a placeholder reusing 3-statement
+    # drivers so the test_default_factors_cover_all_model_types assertion
+    # holds; the post-build sensitivity engine skips this template (no
+    # Assumption objects to shock). Real portfolio-level sensitivity is v0.11.
+    "portfolio_review": _THREE_STATEMENT,
 }
 
 
