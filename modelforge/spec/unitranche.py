@@ -88,7 +88,7 @@ class OperatingAssumptions(BaseModel):
 class ReferenceRate(BaseModel):
     """Benchmark rate feeding the margin."""
 
-    name: Literal["EURIBOR_3M", "EURIBOR_6M", "ESTR", "SOFR"] = "EURIBOR_6M"
+    name: Literal["EURIBOR_3M", "EURIBOR_6M", "ESTR", "SOFR", "SONIA"] = "EURIBOR_6M"
     rate_decimal: Assumption  # e.g. 0.0285 = 2.85%
 
 

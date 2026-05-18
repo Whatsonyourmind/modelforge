@@ -125,7 +125,7 @@ def build(
 
         # Cash flow row: commitment out at t=0, interest in t=1..N, principal repay at maturity
         tr_row = r
-        layout.write_row_label(ws, r, L("lender_cashflow").en, L("lender_cashflow").it)
+        layout.write_row_label(ws, r, L("lender_cashflow").en, L("lender_cashflow").secondary)
         ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
 
         # t=0: -commitment (opening at drawdown year on DebtSchedule)
@@ -162,7 +162,7 @@ def build(
         first_col = layout.year_col(0)  # D
         last_col = layout.year_col(p)
         # IRR
-        layout.write_row_label(ws, r, L("lender_irr").en, L("lender_irr").it, indent=True)
+        layout.write_row_label(ws, r, L("lender_irr").en, L("lender_irr").secondary, indent=True)
         c_irr = ws.cell(row=r, column=4,
                         value=f"=IRR(${first_col}${tr_row}:${last_col}${tr_row})")
         styles.style_formula(c_irr, number_format=styles.FMT_PCT_2DP)
@@ -191,7 +191,7 @@ def build(
         c_eir.comment.height = 120
         r += 1
         # MoIC
-        layout.write_row_label(ws, r, L("lender_moic").en, L("lender_moic").it, indent=True)
+        layout.write_row_label(ws, r, L("lender_moic").en, L("lender_moic").secondary, indent=True)
         c_moic = ws.cell(
             row=r, column=4,
             value=(

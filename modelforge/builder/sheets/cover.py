@@ -27,7 +27,7 @@ def build(ws, spec, graph: LinkageGraph) -> None:
     layout.write_title_block(
         ws,
         title_en=f"{spec.target.name} — {spec.meta.deliverable.en}",
-        title_it=spec.meta.deliverable.it,
+        title_it=spec.meta.deliverable.secondary,
         subtitle=f"{spec.meta.confidentiality} · {spec.meta.status.upper()} · {spec.meta.version}",
     )
 
@@ -48,7 +48,7 @@ def build(ws, spec, graph: LinkageGraph) -> None:
     r = 4
     for key, value, nfmt in rows:
         lbl = L(key)
-        layout.write_row_label(ws, r, lbl.en, lbl.it)
+        layout.write_row_label(ws, r, lbl.en, lbl.secondary)
         c = ws.cell(row=r, column=3, value=value)
         styles.style_input(c, number_format=nfmt or "General")
         r += 1
@@ -59,7 +59,7 @@ def build(ws, spec, graph: LinkageGraph) -> None:
     r += 1
 
     lbl_active = L("scenario_active")
-    layout.write_row_label(ws, r, lbl_active.en, lbl_active.it)
+    layout.write_row_label(ws, r, lbl_active.en, lbl_active.secondary)
     # Toggle cell: integer 1/2/3
     toggle_cell = ws.cell(row=r, column=3, value=2)  # default = BASE
     styles.style_input(toggle_cell, number_format=styles.FMT_INTEGER)
@@ -87,7 +87,7 @@ def build(ws, spec, graph: LinkageGraph) -> None:
     # Resolved scenario label
     from modelforge.builder.formulas import scenario_pick
     lbl_pair = L("scenario")
-    layout.write_row_label(ws, r, f"{lbl_pair.en} (resolved)", f"{lbl_pair.it} (attivo)")
+    layout.write_row_label(ws, r, f"{lbl_pair.en} (resolved)", f"{lbl_pair.secondary} (attivo)")
     worst_txt = f'"{L("scenario_worst").en}"'
     base_txt = f'"{L("scenario_base").en}"'
     best_txt = f'"{L("scenario_best").en}"'
@@ -98,7 +98,7 @@ def build(ws, spec, graph: LinkageGraph) -> None:
     r += 2
 
     # ── Revision log
-    layout.write_section_header(ws, r, L("revision_log").en, L("revision_log").it)
+    layout.write_section_header(ws, r, L("revision_log").en, L("revision_log").secondary)
     r += 1
     header_cols = ["Version", "Date", "Analyst", "Note"]
     for i, h in enumerate(header_cols):

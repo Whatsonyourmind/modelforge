@@ -66,7 +66,7 @@ def build(ws: Worksheet, spec, graph: LinkageGraph) -> dict[str, int]:
         c = ws.cell(row=header_row, column=i + 1, value=f"{lbl.en}")
         styles.style_header(c)
         # IT label on row above
-        it_cell = ws.cell(row=header_row - 1, column=i + 1, value=lbl.it)
+        it_cell = ws.cell(row=header_row - 1, column=i + 1, value=lbl.secondary)
         it_cell.font = styles.font_label_it
         it_cell.alignment = styles.align_center
 

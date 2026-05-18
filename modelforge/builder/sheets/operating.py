@@ -98,7 +98,7 @@ def build(
 
     # Revenue growth row
     rows["revenue_growth"] = r
-    layout.write_row_label(ws, r, L("revenue_growth").en, L("revenue_growth").it)
+    layout.write_row_label(ws, r, L("revenue_growth").en, L("revenue_growth").secondary)
     ws.cell(row=r, column=3, value="%").font = styles.font_label_it
     for i in range(h):
         # Historical growth: formula vs prior revenue (row below once revenue written).
@@ -114,7 +114,7 @@ def build(
 
     # Revenue row
     rows["revenue"] = r
-    layout.write_row_label(ws, r, L("revenue").en, L("revenue").it)
+    layout.write_row_label(ws, r, L("revenue").en, L("revenue").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(h):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
@@ -152,7 +152,7 @@ def build(
 
     # EBITDA margin row
     rows["ebitda_margin"] = r
-    layout.write_row_label(ws, r, L("ebitda_margin").en, L("ebitda_margin").it)
+    layout.write_row_label(ws, r, L("ebitda_margin").en, L("ebitda_margin").secondary)
     ws.cell(row=r, column=3, value="%").font = styles.font_label_it
     for i in range(h):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
@@ -173,7 +173,7 @@ def build(
 
     # EBITDA row
     rows["ebitda"] = r
-    layout.write_row_label(ws, r, L("ebitda").en, L("ebitda").it)
+    layout.write_row_label(ws, r, L("ebitda").en, L("ebitda").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(h):
         col = layout.year_col(i)
@@ -196,7 +196,7 @@ def build(
 
     # D&A row  (cost → negative)
     rows["da"] = r
-    layout.write_row_label(ws, r, L("da").en, L("da").it, indent=True)
+    layout.write_row_label(ws, r, L("da").en, L("da").secondary, indent=True)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)
@@ -208,7 +208,7 @@ def build(
 
     # EBIT row
     rows["ebit"] = r
-    layout.write_row_label(ws, r, L("ebit").en, L("ebit").it)
+    layout.write_row_label(ws, r, L("ebit").en, L("ebit").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)
@@ -221,7 +221,7 @@ def build(
 
     # Interest row (placeholder — filled by DebtSchedule via cross-sheet ref)
     rows["interest"] = r
-    layout.write_row_label(ws, r, L("interest_expense").en, L("interest_expense").it, indent=True)
+    layout.write_row_label(ws, r, L("interest_expense").en, L("interest_expense").secondary, indent=True)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)
@@ -234,7 +234,7 @@ def build(
 
     # EBT
     rows["ebt"] = r
-    layout.write_row_label(ws, r, L("ebt").en, L("ebt").it)
+    layout.write_row_label(ws, r, L("ebt").en, L("ebt").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)
@@ -249,7 +249,7 @@ def build(
 
     # Tax
     rows["tax"] = r
-    layout.write_row_label(ws, r, L("tax").en, L("tax").it, indent=True)
+    layout.write_row_label(ws, r, L("tax").en, L("tax").secondary, indent=True)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)
@@ -263,7 +263,7 @@ def build(
 
     # Net income
     rows["net_income"] = r
-    layout.write_row_label(ws, r, L("net_income").en, L("net_income").it)
+    layout.write_row_label(ws, r, L("net_income").en, L("net_income").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)
@@ -284,7 +284,7 @@ def build(
 
     # Maintenance capex
     rows["capex_m"] = r
-    layout.write_row_label(ws, r, L("capex_maint").en, L("capex_maint").it, indent=True)
+    layout.write_row_label(ws, r, L("capex_maint").en, L("capex_maint").secondary, indent=True)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)
@@ -297,7 +297,7 @@ def build(
 
     # Growth capex
     rows["capex_g"] = r
-    layout.write_row_label(ws, r, L("capex_growth").en, L("capex_growth").it, indent=True)
+    layout.write_row_label(ws, r, L("capex_growth").en, L("capex_growth").secondary, indent=True)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)
@@ -310,7 +310,7 @@ def build(
 
     # Total capex
     rows["capex_total"] = r
-    layout.write_row_label(ws, r, L("capex_total").en, L("capex_total").it)
+    layout.write_row_label(ws, r, L("capex_total").en, L("capex_total").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)
@@ -324,7 +324,7 @@ def build(
 
     # Δ NWC
     rows["nwc"] = r
-    layout.write_row_label(ws, r, L("nwc_change").en, L("nwc_change").it, indent=True)
+    layout.write_row_label(ws, r, L("nwc_change").en, L("nwc_change").secondary, indent=True)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)
@@ -352,7 +352,7 @@ def build(
     #   FCF = EBITDA - tax - capex - ΔNWC - |interest|
     # Since all cost components are already negative, we just add them.
     rows["fcf"] = r
-    layout.write_row_label(ws, r, L("fcf_to_debt").en, L("fcf_to_debt").it)
+    layout.write_row_label(ws, r, L("fcf_to_debt").en, L("fcf_to_debt").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n_years):
         col = layout.year_col(i)
