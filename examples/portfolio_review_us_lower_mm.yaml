@@ -1,0 +1,186 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ModelForge example: Portfolio Review — US lower-MM credit fund (v0.10)
+#
+# Quarterly portfolio committee review for a US lower-MM direct lender.
+# 8 portfolio companies across SaaS, healthcare, industrials, services.
+# Showcases the portfolio_review aggregator template — different shape from
+# per-deal templates.
+# ─────────────────────────────────────────────────────────────────────────────
+
+model_type: portfolio_review
+
+meta:
+  project_code: DEMO-PORT-USLM-2026Q2
+  deliverable:
+    en: Portfolio Review — Q2 2026
+    it: Riepilogo portafoglio — Q2 2026
+  analyst: L. Stanisljevic
+  version: v0.1
+  status: draft
+  valuation_date: 2026-05-18
+  currency: USD
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - version: v0.1
+      date: 2026-05-18
+      analyst: LS
+      note: Q2 2026 portfolio review draft.
+
+review_quarter: "2026-Q2"
+fund_name: "Lower-MM Credit Fund III (anonymized)"
+fund_vintage: 2023
+fund_aum: 1850.0
+
+portfolio:
+  - portco_id: PC-001
+    name: "SaaS-Co A"
+    sector: SaaS / vertical software
+    country: US
+    entry_date: 2023-09-15
+    entry_leverage: 5.8
+    entry_ev: 280.0
+    entry_ebitda: 38.0
+    current_leverage: 5.2
+    current_ebitda_ltm: 41.5
+    current_revenue_ltm: 145.0
+    plan_ebitda_q: 10.8
+    actual_ebitda_q: 11.2
+    covenant_cushion_pct: 28.5
+    next_covenant_test_date: 2026-09-30
+    cash_trap_active: false
+    rating_internal: "2"
+    narrative: "Bookings ahead of plan; expansion into healthcare vertical on track."
+
+  - portco_id: PC-002
+    name: "HealthCo B"
+    sector: Healthcare services
+    country: US
+    entry_date: 2023-11-20
+    entry_leverage: 6.1
+    entry_ev: 410.0
+    entry_ebitda: 52.0
+    current_leverage: 6.4
+    current_ebitda_ltm: 49.0
+    current_revenue_ltm: 320.0
+    plan_ebitda_q: 13.5
+    actual_ebitda_q: 11.8
+    covenant_cushion_pct: 8.2
+    next_covenant_test_date: 2026-06-30
+    cash_trap_active: false
+    rating_internal: "4"
+    narrative: "Same-clinic volume softness; close watch on Q3 covenant test."
+
+  - portco_id: PC-003
+    name: "IndustrialCo C"
+    sector: Specialty industrials
+    country: US
+    entry_date: 2024-02-10
+    entry_leverage: 4.8
+    entry_ev: 220.0
+    entry_ebitda: 32.0
+    current_leverage: 4.5
+    current_ebitda_ltm: 35.0
+    current_revenue_ltm: 180.0
+    plan_ebitda_q: 9.2
+    actual_ebitda_q: 9.5
+    covenant_cushion_pct: 35.0
+    next_covenant_test_date: 2026-12-31
+    cash_trap_active: false
+    rating_internal: "2"
+    narrative: "On plan; pricing pass-through working."
+
+  - portco_id: PC-004
+    name: "ServicesCo D"
+    sector: Business services
+    country: US
+    entry_date: 2024-05-22
+    entry_leverage: 5.5
+    entry_ev: 310.0
+    entry_ebitda: 42.0
+    current_leverage: 5.1
+    current_ebitda_ltm: 44.0
+    current_revenue_ltm: 240.0
+    plan_ebitda_q: 11.0
+    actual_ebitda_q: 11.2
+    covenant_cushion_pct: 22.0
+    next_covenant_test_date: 2026-09-30
+    cash_trap_active: false
+    rating_internal: "3"
+    narrative: "On plan."
+
+  - portco_id: PC-005
+    name: "ConsumerCo E"
+    sector: Branded consumer
+    country: US
+    entry_date: 2024-08-08
+    entry_leverage: 5.2
+    entry_ev: 195.0
+    entry_ebitda: 28.0
+    current_leverage: 5.9
+    current_ebitda_ltm: 26.5
+    current_revenue_ltm: 168.0
+    plan_ebitda_q: 7.5
+    actual_ebitda_q: 6.4
+    covenant_cushion_pct: 4.0
+    next_covenant_test_date: 2026-06-30
+    cash_trap_active: true
+    rating_internal: "5"
+    narrative: "Cash trap active; tariff exposure + input cost pressure. Workout case."
+
+  - portco_id: PC-006
+    name: "TechServicesCo F"
+    sector: IT services
+    country: US
+    entry_date: 2024-11-15
+    entry_leverage: 5.0
+    entry_ev: 240.0
+    entry_ebitda: 32.0
+    current_leverage: 4.7
+    current_ebitda_ltm: 35.0
+    current_revenue_ltm: 195.0
+    plan_ebitda_q: 8.8
+    actual_ebitda_q: 9.0
+    covenant_cushion_pct: 30.0
+    next_covenant_test_date: 2026-09-30
+    cash_trap_active: false
+    rating_internal: "2"
+    narrative: "Expansion plan executing well; client concentration improved."
+
+  - portco_id: PC-007
+    name: "LogisticsCo G"
+    sector: Logistics / 3PL
+    country: US
+    entry_date: 2025-02-28
+    entry_leverage: 5.3
+    entry_ev: 270.0
+    entry_ebitda: 36.0
+    current_leverage: 5.0
+    current_ebitda_ltm: 38.0
+    current_revenue_ltm: 220.0
+    plan_ebitda_q: 9.5
+    actual_ebitda_q: 9.6
+    covenant_cushion_pct: 25.0
+    next_covenant_test_date: 2026-12-31
+    cash_trap_active: false
+    rating_internal: "3"
+    narrative: "On plan."
+
+  - portco_id: PC-008
+    name: "MediaCo H"
+    sector: B2B media / data
+    country: US
+    entry_date: 2025-06-05
+    entry_leverage: 5.8
+    entry_ev: 185.0
+    entry_ebitda: 24.0
+    current_leverage: 5.5
+    current_ebitda_ltm: 25.5
+    current_revenue_ltm: 78.0
+    plan_ebitda_q: 6.3
+    actual_ebitda_q: 6.5
+    covenant_cushion_pct: 20.0
+    next_covenant_test_date: 2026-12-31
+    cash_trap_active: false
+    rating_internal: "3"
+    narrative: "Slight beat; renewal rates holding."

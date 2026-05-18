@@ -22,6 +22,12 @@ from modelforge.builder.sheets import (
     returns as returns_sheet,
     qc,
 )
+from modelforge.builder.i18n import (
+    apply_runtime_secondary_lang,
+    reset_runtime_secondary_lang,
+    SECONDARY_LANGS,
+    FIRST_CUT_LANGS,
+)
 from modelforge.graph.schema import LinkageGraph
 from modelforge.graph.store import GraphStore
 from modelforge.spec.unitranche import UnitrancheSpec
@@ -43,8 +49,18 @@ def build_workbook(
     spec: UnitrancheSpec,
     out_path: Path | str,
     graph_db_path: Path | str | None = None,
+    secondary_lang: str = "it",
 ) -> tuple[Path, Path]:
     """Build a full ModelForge workbook from a spec.
+
+    Args:
+        spec: Pydantic spec describing the deal.
+        out_path: Where to write the .xlsx.
+        graph_db_path: Optional linkage-graph SQLite path (defaults next to xlsx).
+        secondary_lang: Secondary language for the rendered workbook. One of
+            "it" (default), "de", "es", "sv", "no", "da", "nl", or "en"
+            (English-only). Languages in i18n.FIRST_CUT_LANGS are flagged as
+            preview quality and emit a warning to the linkage graph.
 
     Returns (xlsx_path, graph_db_path).
     """
@@ -54,6 +70,24 @@ def build_workbook(
     if graph_db_path is None:
         graph_db_path = out_path.with_suffix(".graph.db")
     graph_db_path = Path(graph_db_path)
+
+    # Apply requested secondary language (mutates global Label dict — see i18n.py).
+    if secondary_lang != "it":
+        if secondary_lang not in SECONDARY_LANGS and secondary_lang != "en":
+            raise ValueError(
+                f"Unknown secondary_lang '{secondary_lang}'. "
+                f"Supported: {SECONDARY_LANGS} (or 'en' / 'it')."
+            )
+        apply_runtime_secondary_lang(secondary_lang)
+        if secondary_lang in FIRST_CUT_LANGS:
+            import warnings
+            warnings.warn(
+                f"secondary_lang='{secondary_lang}' is a v0.10 first-cut translation "
+                f"and requires native-speaker review before production use. "
+                f"See modelforge/builder/i18n.py header.",
+                UserWarning,
+                stacklevel=2,
+            )
 
     # Initialise graph
     graph = LinkageGraph(model_id=spec.meta.project_code)
@@ -130,5 +164,10 @@ def build_workbook(
     # Persist graph
     store = GraphStore(graph_db_path)
     store.save(graph)
+
+    # Restore default Italian secondary on exit (caller-friendly: next build
+    # starts from a clean baseline).
+    if secondary_lang != "it":
+        reset_runtime_secondary_lang()
 
     return out_path, graph_db_path

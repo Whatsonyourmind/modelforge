@@ -6,7 +6,7 @@
 
 Bulge-tier Excel financial model factory for credit & structured finance. Every cell live-formulated. Every number traceable back to the source document page it came from.
 
-[redacted] (unitranche, minibond, project finance, RE, NPL, structured credit) — extensible to any asset class.
+Built for [redacted] who model deals at scale — US MM direct lending, UK/EU credit, DACH/Nordic special situations, distressed and turnaround. Covers unitranche, sponsor-backed LBO, project finance, real estate credit, NPL, structured credit, restructuring, M&A, DCF and IPO. Extensible to any asset class.
 
 ## Use it inside Claude Code, Cursor, ChatGPT Enterprise (MCP-native)
 
@@ -42,7 +42,7 @@ The LLM never writes a number into a cell. It writes a typed YAML spec with sour
 - Blue = hardcoded input. Black = formula. Green = cross-sheet link. Red = warning.
 - No mixed formulas (no magic numbers embedded). Named ranges for every driver.
 - Costs NEGATIVE (sign convention enforced and checked).
-- EN primary labels, IT secondary.
+- EN primary labels, multi-language secondary (DE / ES / IT shipped; SV / NO / DA / NL on the v0.10 roadmap as design-partner asks).
 - Historical vs Projected column separator, obvious.
 - Check row at top of every sheet (BS balance, CFS tie, covenant headroom — TRUE or 0).
 
@@ -141,8 +141,8 @@ modelforge/
 
 ## Templates (14, all shipped)
 
-1. ✅ **Unitranche LBO** — Italian mid-market direct lending (Cash sweep + IFRS 9 EIR)
-2. ✅ **Minibond** — Banca Finint territory (Gross YTM + Net YTM + Italian WHT)
+1. ✅ **Unitranche LBO** — Mid-market direct lending (Cash sweep + IFRS 9 EIR + covenant package)
+2. ✅ **Minibond / Private Placement Bond** — Direct private debt instrument (Gross YTM + Net YTM + jurisdiction-specific WHT)
 3. ✅ **Credit Memo** — Extends Unitranche with recovery waterfall + PD×LGD×EAD
 4. ✅ **Project Finance** — Construction + operating phases, DSCR-driven
 5. ✅ **Real Estate** — NOI build, exit cap, LP/GP promote waterfall
@@ -161,13 +161,13 @@ Run `modelforge list-templates` to see them all. Each ships with an anonymized e
 ## Tax jurisdictions (7)
 
 ```
-IT  · IRES / IRAP / SIIQ / PEX
 US  · Federal CIT + state + NOL + R&D credit + GILTI + BEAT + ASC 740
 UK  · FRS 102 + main rate + marginal relief + RDEC + AIA + WDA + group relief
-DE  · KSt + SolZ + GewSt (Hebesatz + § 8 add-backs + min-tax loss CF)
+DE  · KSt + SolZ + GewSt (Hebesatz + § 8 add-backs + min-tax loss CF) — HGB roadmap v0.10
 FR  · IS + small-profits + social surcharge + CVAE + CIR + 88% participation
 ES  · IS + SME 23% + newly-created 15% + 95% participation + R&D + min-tax 15%
 JP  · NCT + LCT + Enterprise Tax + Special Local Corp Tax + R&D credit
+IT  · IRES / IRAP / SIIQ / PEX
 ```
 
 ## Data providers (11, unified `Provider` Protocol)
