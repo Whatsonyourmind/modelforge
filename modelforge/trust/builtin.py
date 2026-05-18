@@ -432,6 +432,156 @@ def _ts_balance_sheet_balances(probe, spec, rule) -> Iterable[TrustViolation]:
         )
 
 
+# ─── HGB carve-out rules (v0.11) ────────────────────────────────────────────
+
+
+def _hgb_hebesatz_in_band(probe, spec, rule) -> Iterable[TrustViolation]:
+    """GewSt Hebesatz must be in the legal DE range (200%-900%).
+
+    Below 200% violates the federal floor (§ 16 GewStG, applies from 2004).
+    Above 900% is administratively implausible (Munich at the high end ~ 490%).
+    """
+    h = None
+    if getattr(spec, "hgb_assumptions", None) is not None:
+        h = spec.hgb_assumptions.gewerbesteuer_hebesatz
+    if h is None:
+        return
+    if not _band_check(h, 200.0, 900.0):
+        yield _violation(
+            rule,
+            f"Hebesatz {h:.0f}% outside legal/realistic DE range [200%, 900%]",
+            template=spec.model_type,
+            actual=h,
+            expected_low=200.0,
+            expected_high=900.0,
+            recommendation="Use the municipality's actual Hebesatz (typical range Munich 490%, Berlin 410%, rural 300-380%).",
+        )
+
+
+def _hgb_effective_tax_above_kst_solz(probe, spec, rule) -> Iterable[TrustViolation]:
+    """Effective tax rate must be ≥ KSt 15% + SolZ 0.825% = 15.825% floor.
+
+    Plus GewSt (Hebesatz-dependent ~ 7-17%), full effective rate is 23-33%
+    for German corporates. A spec showing <15% effective tax implies a
+    structuring assumption (NOL, holding structure) that must be sourced.
+    """
+    tr = probe.get("effective_tax_rate") or probe.get("tax_rate")
+    if tr is None:
+        if hasattr(spec, "pl") and hasattr(spec.pl, "effective_tax_rate"):
+            try:
+                tr = spec.pl.effective_tax_rate.base
+            except AttributeError:
+                tr = None
+    if tr is None:
+        return
+    if tr < 0.158:  # KSt 15% + SolZ 5.5% × KSt = 0.825% → 15.825%
+        yield _violation(
+            rule,
+            f"Effective tax rate {tr:.1%} below KSt + SolZ floor (15.83%) — "
+            f"requires source citation for NOL / holding / loss-CF structuring.",
+            template=spec.model_type,
+            actual=tr,
+            expected_low=0.158,
+            expected_high=0.35,
+            recommendation="Add a source ID for the rate reduction (NOL schedule, GmbH&Co.KG structuring, or DBA treaty).",
+        )
+
+
+# ─── Portfolio review rules (v0.11) ─────────────────────────────────────────
+
+
+def _pr_avg_leverage_in_band(probe, spec, rule) -> Iterable[TrustViolation]:
+    """Average current leverage across portfolio in [1x, 12x].
+
+    Below 1x means under-levered portfolio (unusual for direct-lending fund).
+    Above 12x means systemic over-leverage requires PMC explanation.
+    """
+    if not hasattr(spec, "portfolio"):
+        return
+    lev_vals = [p.current_leverage for p in spec.portfolio
+                if p.current_leverage is not None]
+    if not lev_vals:
+        return
+    avg = sum(lev_vals) / len(lev_vals)
+    if not _band_check(avg, 1.0, 12.0):
+        yield _violation(
+            rule,
+            f"Avg portfolio leverage {avg:.2f}x outside plausible band [1x, 12x] "
+            f"(n={len(lev_vals)} portcos)",
+            template=spec.model_type,
+            actual=avg,
+            expected_low=1.0,
+            expected_high=12.0,
+            recommendation="If avg < 1x, confirm leverage is reported as Net Debt / EBITDA. If > 12x, ensure flagged in PMC commentary.",
+        )
+
+
+def _pr_no_impossible_cushion(probe, spec, rule) -> Iterable[TrustViolation]:
+    """No covenant cushion should be below -100% (would imply a debt-to-EBITDA
+    >2x the covenant, which is the same as multiple-event-of-default territory)."""
+    if not hasattr(spec, "portfolio"):
+        return
+    impossible = [
+        p for p in spec.portfolio
+        if p.covenant_cushion_pct is not None and p.covenant_cushion_pct < -100.0
+    ]
+    for p in impossible:
+        yield _violation(
+            rule,
+            f"Portco {p.portco_id} ({p.name}): cushion {p.covenant_cushion_pct:.1f}% "
+            f"below -100% floor (≥2× covenant breach).",
+            template=spec.model_type,
+            actual=p.covenant_cushion_pct,
+            expected_low=-100.0,
+            expected_high=500.0,
+            recommendation="Verify cushion calc — most likely a sign or units error.",
+        )
+
+
+def _pr_cash_trap_concentration(probe, spec, rule) -> Iterable[TrustViolation]:
+    """Flag if > 25% of portcos are in active cash trap — systemic stress signal."""
+    if not hasattr(spec, "portfolio"):
+        return
+    n = len(spec.portfolio)
+    if n == 0:
+        return
+    n_trapped = sum(1 for p in spec.portfolio if p.cash_trap_active)
+    pct = n_trapped / n
+    if pct > 0.25:
+        yield _violation(
+            rule,
+            f"{n_trapped}/{n} portcos ({pct:.0%}) in active cash trap — "
+            f"systemic stress signal exceeds 25% threshold.",
+            template=spec.model_type,
+            actual=pct,
+            expected_low=0.0,
+            expected_high=0.25,
+            recommendation="Surface in PMC commentary. Consider fund-level stress response or LP communication.",
+        )
+
+
+def _pr_rating_distribution_health(probe, spec, rule) -> Iterable[TrustViolation]:
+    """Flag if > 30% of portcos at rating 4 (watch) or 5 (workout)."""
+    if not hasattr(spec, "portfolio"):
+        return
+    rated = [p for p in spec.portfolio if p.rating_internal]
+    if len(rated) < 3:
+        return  # too small to evaluate
+    bad = sum(1 for p in rated if p.rating_internal in ("4", "5"))
+    pct = bad / len(rated)
+    if pct > 0.30:
+        yield _violation(
+            rule,
+            f"{bad}/{len(rated)} portcos ({pct:.0%}) at rating 4/5 — "
+            f"exceeds 30% watchlist concentration threshold.",
+            template=spec.model_type,
+            actual=pct,
+            expected_low=0.0,
+            expected_high=0.30,
+            recommendation="Tail risk concentrated. Review individual workout strategy for each rated-5 portco.",
+        )
+
+
 # ─── Minibond rules ─────────────────────────────────────────────────────────
 
 
@@ -656,4 +806,26 @@ DEFAULT_RULES: list[TrustRule] = [
     # Universal
     _rule("source_freshness", "Sources within 365 days of valuation date",
           (), "warn", _source_freshness),
+
+    # ─── v0.11 — HGB carve-out (DACH) ──────────────────────────────────────
+    _rule("hgb_hebesatz_in_band",
+          "GewSt Hebesatz in legal DE range [200%, 900%]",
+          ("hgb_carveout",), "fail", _hgb_hebesatz_in_band),
+    _rule("hgb_effective_tax_above_kst_solz",
+          "Effective tax rate ≥ KSt 15% + SolZ 0.825% (15.83% floor)",
+          ("hgb_carveout",), "warn", _hgb_effective_tax_above_kst_solz),
+
+    # ─── v0.11 — Portfolio review (aggregator) ─────────────────────────────
+    _rule("pr_avg_leverage_in_band",
+          "Avg portfolio leverage in plausible band [1x, 12x]",
+          ("portfolio_review",), "warn", _pr_avg_leverage_in_band),
+    _rule("pr_no_impossible_cushion",
+          "No portco covenant cushion < -100%",
+          ("portfolio_review",), "fail", _pr_no_impossible_cushion),
+    _rule("pr_cash_trap_concentration",
+          "Cash-trap portcos ≤ 25% of portfolio",
+          ("portfolio_review",), "warn", _pr_cash_trap_concentration),
+    _rule("pr_rating_distribution_health",
+          "Portcos rated 4/5 ≤ 30% of rated subset",
+          ("portfolio_review",), "warn", _pr_rating_distribution_health),
 ]

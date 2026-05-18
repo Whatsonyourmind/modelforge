@@ -414,6 +414,46 @@ LABELS: dict[str, Label] = {
         da="Långiver-APR", nl="APR kredietverlener",
     ),
 
+    # ---------- Sheet titles (v0.11 — analytics modules use these) ----------
+    "monte_carlo_title": Label(
+        en="Monte Carlo Simulation",
+        it="Simulazione Monte Carlo", de="Monte-Carlo-Simulation",
+        es="Simulación Monte Carlo", sv="Monte Carlo-simulering",
+        no="Monte Carlo-simulering", da="Monte Carlo-simulering",
+        nl="Monte Carlo-simulatie",
+    ),
+    "reproducibility_title": Label(
+        en="Reproducibility",
+        it="Riproducibilità", de="Reproduzierbarkeit",
+        es="Reproducibilidad", sv="Reproducerbarhet",
+        no="Reproduserbarhet", da="Reproducerbarhed",
+        nl="Reproduceerbaarheid",
+    ),
+    "risk_analysis_title": Label(
+        en="Risk Analysis — Merton / KMV / IFRS 9",
+        it="Analisi del rischio — Merton / KMV / IFRS 9",
+        de="Risikoanalyse — Merton / KMV / IFRS 9",
+        es="Análisis de riesgo — Merton / KMV / IFRS 9",
+        sv="Riskanalys — Merton / KMV / IFRS 9",
+        no="Risikoanalyse — Merton / KMV / IFRS 9",
+        da="Risikoanalyse — Merton / KMV / IFRS 9",
+        nl="Risicoanalyse — Merton / KMV / IFRS 9",
+    ),
+    "sensitivity_title": Label(
+        en="Sensitivity Analysis",
+        it="Analisi di sensibilità", de="Sensitivitätsanalyse",
+        es="Análisis de sensibilidad", sv="Känslighetsanalys",
+        no="Sensitivitetsanalyse", da="Følsomhedsanalyse",
+        nl="Gevoeligheidsanalyse",
+    ),
+    "assumptions_title": Label(
+        en="Assumptions",
+        it="Ipotesi e driver", de="Annahmen",
+        es="Hipótesis", sv="Antaganden",
+        no="Antagelser", da="Forudsætninger",
+        nl="Aannames",
+    ),
+
     # ---------- QC ----------
     "qc_check": Label(
         en="QC check", it="Controllo QC", de="QC-Prüfung",
@@ -480,6 +520,26 @@ def label_in(key: str, lang: str) -> str:
 #     sheet titles) are NOT affected. These ship as v0.11 cleanup.
 
 _ORIGINAL_IT_VALUES: dict[str, str] = {k: lbl.it for k, lbl in LABELS.items()}
+
+
+# Sanity check: every label populated for every secondary language.
+# Caught at import-time, not at render-time, so missing translations fail
+# loudly during dev. v0.11 — runs once at module load.
+def _validate_coverage() -> None:
+    missing: dict[str, list[str]] = {}
+    for key, lbl in LABELS.items():
+        for lang in SECONDARY_LANGS:
+            if not getattr(lbl, lang, ""):
+                missing.setdefault(key, []).append(lang)
+    if missing:
+        raise RuntimeError(
+            f"i18n coverage gap — labels missing secondary translations: "
+            f"{missing}. Add the missing translations to LABELS or remove "
+            f"the language from SECONDARY_LANGS."
+        )
+
+
+_validate_coverage()
 
 
 def apply_runtime_secondary_lang(lang: str) -> None:

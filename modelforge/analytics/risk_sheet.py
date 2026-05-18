@@ -107,10 +107,9 @@ def append_risk_analysis_sheet(
     for col, w in {"A": 38, "B": 28, "C": 18, "D": 18, "E": 18}.items():
         ws.column_dimensions[col].width = w
 
-    ws.cell(row=1, column=1, value="Risk Analysis").font = styles.font_title
-    ws.cell(row=2, column=1,
-            value="Analisi del rischio — Merton / KMV / IFRS 9"
-            ).font = styles.font_label_it
+    from modelforge.builder.i18n import L as _L
+    ws.cell(row=1, column=1, value=_L("risk_analysis_title").en).font = styles.font_title
+    ws.cell(row=2, column=1, value=_L("risk_analysis_title").it).font = styles.font_label_it
     layout.write_scenario_banner(ws, row=3)
     ws.cell(
         row=4, column=1,
