@@ -64,14 +64,14 @@ def build(
     r = 7
     tranche_blocks: list[dict] = []
     for tr_idx, tr in enumerate(spec.debt.tranches):
-        layout.write_section_header(ws, r, f"Tranche — {tr.name.en}", tr.name.it)
+        layout.write_section_header(ws, r, f"Tranche — {tr.name.en}", tr.name.secondary)
         r += 1
 
         block: dict[str, int] = {"name": tr.name.en}
 
         # Opening debt
         block["opening"] = r
-        layout.write_row_label(ws, r, L("debt_opening").en, L("debt_opening").it)
+        layout.write_row_label(ws, r, L("debt_opening").en, L("debt_opening").secondary)
         ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
         for i in range(n_years):
             col = layout.year_col(i)
@@ -89,7 +89,7 @@ def build(
 
         # Drawdown (only at close — the first projected year)
         block["drawdown"] = r
-        layout.write_row_label(ws, r, L("debt_drawdown").en, L("debt_drawdown").it, indent=True)
+        layout.write_row_label(ws, r, L("debt_drawdown").en, L("debt_drawdown").secondary, indent=True)
         ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
         for i in range(n_years):
             col = layout.year_col(i)
@@ -104,7 +104,7 @@ def build(
 
         # Repayment / amortization
         block["repayment"] = r
-        layout.write_row_label(ws, r, L("debt_repayment").en, L("debt_repayment").it, indent=True)
+        layout.write_row_label(ws, r, L("debt_repayment").en, L("debt_repayment").secondary, indent=True)
         ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
         # v0.6: corrected off-by-one. Drawdown is at column index h (Year 1
         # of the bond). A tenor_years=N bond lives through Year N, which is
@@ -151,7 +151,7 @@ def build(
 
         # Closing debt = opening + drawdown + repayment (repayment negative)
         block["closing"] = r
-        layout.write_row_label(ws, r, L("debt_closing").en, L("debt_closing").it)
+        layout.write_row_label(ws, r, L("debt_closing").en, L("debt_closing").secondary)
         ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
         for i in range(n_years):
             col = layout.year_col(i)
@@ -171,7 +171,7 @@ def build(
 
         # Average balance
         block["average"] = r
-        layout.write_row_label(ws, r, L("debt_average").en, L("debt_average").it, indent=True)
+        layout.write_row_label(ws, r, L("debt_average").en, L("debt_average").secondary, indent=True)
         ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
         for i in range(n_years):
             col = layout.year_col(i)
@@ -185,7 +185,7 @@ def build(
 
         # All-in rate (constant within period, floor-adjusted)
         block["all_in_rate"] = r
-        layout.write_row_label(ws, r, L("all_in_rate").en, L("all_in_rate").it, indent=True)
+        layout.write_row_label(ws, r, L("all_in_rate").en, L("all_in_rate").secondary, indent=True)
         ws.cell(row=r, column=3, value="%").font = styles.font_label_it
         ref_rate_name = tr.reference_rate.rate_decimal.name
         for i in range(n_years):
@@ -206,7 +206,7 @@ def build(
         # WSP / bulge-bracket convention: use BOP to avoid the circular.
         # Slight accuracy tradeoff but required when a cash-sweep is in play.
         block["interest"] = r
-        layout.write_row_label(ws, r, L("cash_interest").en, L("cash_interest").it)
+        layout.write_row_label(ws, r, L("cash_interest").en, L("cash_interest").secondary)
         ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
         for i in range(n_years):
             col = layout.year_col(i)
@@ -220,7 +220,7 @@ def build(
 
         # Arrangement fee (paid at close only)
         block["arrangement_fee"] = r
-        layout.write_row_label(ws, r, L("arrangement_fee").en, L("arrangement_fee").it, indent=True)
+        layout.write_row_label(ws, r, L("arrangement_fee").en, L("arrangement_fee").secondary, indent=True)
         ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
         for i in range(n_years):
             col = layout.year_col(i)

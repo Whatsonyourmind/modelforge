@@ -109,14 +109,16 @@ def test_label_in_helper():
 
 
 def test_apply_runtime_secondary_lang_de():
-    """Mutates Label.it to DE values; reset restores Italian."""
-    original_it = LABELS["project_code"].it
+    """v0.11.1: contextvar-based — `.secondary` returns the active language;
+    `.it` always returns literal Italian (no mutation)."""
     apply_runtime_secondary_lang("de")
     try:
-        assert LABELS["project_code"].it == "Projektcode"
+        assert LABELS["project_code"].secondary == "Projektcode"
+        # No more mutation — .it always stays Italian.
+        assert LABELS["project_code"].it == "Codice progetto"
     finally:
         reset_runtime_secondary_lang()
-    assert LABELS["project_code"].it == original_it
+    assert LABELS["project_code"].secondary == "Codice progetto"
 
 
 def test_apply_runtime_secondary_lang_unknown_raises():
@@ -128,6 +130,8 @@ def test_reset_restores_italian():
     apply_runtime_secondary_lang("de")
     apply_runtime_secondary_lang("nl")
     reset_runtime_secondary_lang()
+    assert LABELS["project_code"].secondary == "Codice progetto"
+    # .it never changed under the new architecture
     assert LABELS["project_code"].it == "Codice progetto"
 
 

@@ -1,0 +1,519 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ModelForge example: Senior Unitranche financing for UK B2B Tech-Services Group (v0.11.1)
+#
+# Anonymized UK B2B tech-services target, £55M revenue, durable
+# multi-year contracted recurring revenue,
+# mid-single-digit growth taper, standard sponsor unitranche structure.
+#
+# All figures hypothetical. Source IDs are shaped like the real sources
+# Luka would cite in a live engagement.
+# ─────────────────────────────────────────────────────────────────────────────
+
+model_type: unitranche
+
+meta:
+  project_code: DEMO-UKTECH-01
+  deliverable:
+    en: Senior Unitranche Financing Proposal — UK B2B Tech-Services
+    it: Proposta di Finanziamento Senior Unitranche — Servizi UK
+  analyst: L. maintainer
+  version: v0.1
+  status: draft
+  valuation_date: 2026-04-15
+  currency: GBP
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - version: v0.1
+      date: 2026-04-15
+      analyst: LS
+      note: Initial draft — base case only. Scenarios to follow.
+
+target:
+  name: "Target Ltd. (anonymized UK B2B services)"
+  sector:
+    en: B2B Tech-Enabled Services
+    it: Servizi B2B tech-enabled
+  country: GB
+  currency: GBP
+  revenue_last_fy_eur_m: 55.0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 13.5
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon:
+  historical_years: 3
+  projection_years: 7
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SOURCES — every hardcoded number below references one of these
+# ─────────────────────────────────────────────────────────────────────────────
+sources:
+  - id: S-001
+    doc: Dataroom_FY23_FY24_FY25_Audited_UK.pdf
+    page: 14
+    publisher: Target SpA (data room)
+    date: 2026-03-12
+    verified: true
+    note: Audited financial statements. Revenue, EBITDA, net debt, capex historical.
+  - id: S-002
+    doc: BVCA_UK_MM_EBITDA_Margins_2025.pdf
+    page: 8
+    publisher: BVCA
+    date: 2026-01-30
+    url: https://www.bvca.co.uk/research
+    verified: true
+    note: UK MM EBITDA margins by sector — B2B tech-services benchmark 22-28%.
+  - id: S-003
+    doc: UK_PE_Panel_March_2026_Notes.md
+    page: 1
+    publisher: UK PE Panel (private)
+    date: 2026-03-26
+    verified: true
+    note: "UK B2B tech-services growth consensus 6-10% post-Brexit normalisation; durable recurring revenue strongly favoured by lenders."
+  - id: S-004
+    doc: BoE_Bank_Rate_SONIA.html
+    page: 1
+    publisher: Bank of England
+    date: 2026-04-10
+    url: https://www.bankofengland.co.uk/markets/sonia
+    verified: true
+    note: SONIA reference rate, month-end April 2026.
+  - id: S-005
+    doc: Debtwire_UK_Unitranche_Pricing_Q1_2026.pdf
+    page: 22
+    publisher: Debtwire
+    date: 2026-04-01
+    verified: false
+    note: "UK MM unitranche Q1 2026: SONIA + 525-650 bps for B2B tech-services unitranche."
+  - id: S-006
+    doc: LMA_UK_Direct_Lending_Fees_2025.pdf
+    page: 6
+    publisher: BVCA
+    date: 2026-01-30
+    verified: true
+    note: Arrangement fee benchmarks on UK unitranche (typical 2.0-3.0%).
+  - id: S-007
+    doc: ONS_UK_Services_Capex_Intensity_2025.pdf
+    page: 17
+    publisher: ONS (UK Office for National Statistics)
+    date: 2025-11-15
+    verified: false
+    note: UK B2B services capex intensity — typically 2-4% of revenue.
+  - id: S-008
+    doc: HMRC_UK_Corporation_Tax_2026.pdf
+    page: 1
+    publisher: HMRC
+    date: 2026-01-01
+    url: https://www.gov.uk/corporation-tax
+    verified: true
+    note: UK Corporation Tax main rate 25% + marginal relief; effective rate for £55M turnover company ~25%.
+  - id: S-009
+    doc: LMA_UK_Unitranche_Covenant_Pack_2025.pdf
+    page: 12
+    publisher: LMA
+    date: 2025-09-30
+    verified: false
+    note: Standard LMA UK unitranche covenant package (leverage step-down, ICR, FCCR).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OPERATING ASSUMPTIONS
+# ─────────────────────────────────────────────────────────────────────────────
+operating:
+  revenue_growth_by_year:
+    - id: A-001
+      name: revenue_growth_y1
+      label: { en: "Revenue growth (Y1)", it: "Crescita ricavi (Y1)" }
+      unit: pct
+      base: 0.08
+      worst: 0.03
+      best: 0.12
+      rationale: "Management plan 10%, 3y historical CAGR 7%. Midpoint skewed to mgmt in Y1 given Y23 ARR bookings momentum (S-001 page 22)."
+      confidence: M
+      source_id: S-001
+    - id: A-002
+      name: revenue_growth_y2
+      label: { en: "Revenue growth (Y2)", it: "Crescita ricavi (Y2)" }
+      unit: pct
+      base: 0.07
+      worst: 0.02
+      best: 0.10
+      rationale: "Taper from Y1 as new contracts roll off base effect. Consistent with UK B2B services 6-10% growth band."
+      confidence: M
+      source_id: S-003
+    - id: A-003
+      name: revenue_growth_y3
+      label: { en: "Revenue growth (Y3)", it: "Crescita ricavi (Y3)" }
+      unit: pct
+      base: 0.06
+      worst: 0.02
+      best: 0.09
+      rationale: "Steady-state growth convergence."
+      confidence: M
+      source_id: S-003
+    - id: A-004
+      name: revenue_growth_y4
+      label: { en: "Revenue growth (Y4)", it: "Crescita ricavi (Y4)" }
+      unit: pct
+      base: 0.05
+      worst: 0.01
+      best: 0.08
+      rationale: "Approaching sector mature growth rate."
+      confidence: L
+      source_id: S-003
+    - id: A-005
+      name: revenue_growth_y5
+      label: { en: "Revenue growth (Y5)", it: "Crescita ricavi (Y5)" }
+      unit: pct
+      base: 0.05
+      worst: 0.01
+      best: 0.07
+      rationale: "Steady state."
+      confidence: L
+      source_id: S-003
+    - id: A-006
+      name: revenue_growth_y6
+      label: { en: "Revenue growth (Y6)", it: "Crescita ricavi (Y6)" }
+      unit: pct
+      base: 0.04
+      worst: 0.01
+      best: 0.06
+      rationale: "Post-plan convergence to long-run."
+      confidence: L
+    - id: A-007
+      name: revenue_growth_y7
+      label: { en: "Revenue growth (Y7)", it: "Crescita ricavi (Y7)" }
+      unit: pct
+      base: 0.04
+      worst: 0.01
+      best: 0.06
+      rationale: "Terminal growth placeholder for lender IRR; not material to covenants."
+      confidence: L
+
+  ebitda_margin_by_year:
+    - id: A-011
+      name: ebitda_margin_y1
+      label: { en: "EBITDA margin (Y1)", it: "Margine EBITDA (Y1)" }
+      unit: pct
+      base: 0.22
+      worst: 0.18
+      best: 0.24
+      rationale: "Benchmark to BVCA UK tech-services peer set 22-28%. Current FY25 22%, held flat."
+      confidence: H
+      source_id: S-002
+    - id: A-012
+      name: ebitda_margin_y2
+      label: { en: "EBITDA margin (Y2)", it: "Margine EBITDA (Y2)" }
+      unit: pct
+      base: 0.23
+      worst: 0.19
+      best: 0.25
+      rationale: "100 bps expansion from operating leverage on new contracts."
+      confidence: H
+      source_id: S-002
+    - id: A-013
+      name: ebitda_margin_y3
+      label: { en: "EBITDA margin (Y3)", it: "Margine EBITDA (Y3)" }
+      unit: pct
+      base: 0.23
+      worst: 0.19
+      best: 0.26
+      rationale: "Steady-state mid-range of peer distribution."
+      confidence: H
+      source_id: S-002
+    - id: A-014
+      name: ebitda_margin_y4
+      label: { en: "EBITDA margin (Y4)", it: "Margine EBITDA (Y4)" }
+      unit: pct
+      base: 0.24
+      worst: 0.19
+      best: 0.26
+      rationale: "Continued mix improvement (higher-margin specialty)."
+      confidence: M
+    - id: A-015
+      name: ebitda_margin_y5
+      label: { en: "EBITDA margin (Y5)", it: "Margine EBITDA (Y5)" }
+      unit: pct
+      base: 0.24
+      worst: 0.19
+      best: 0.26
+      rationale: "Steady state."
+      confidence: M
+    - id: A-016
+      name: ebitda_margin_y6
+      label: { en: "EBITDA margin (Y6)", it: "Margine EBITDA (Y6)" }
+      unit: pct
+      base: 0.24
+      worst: 0.18
+      best: 0.25
+      rationale: "Steady state."
+      confidence: L
+    - id: A-017
+      name: ebitda_margin_y7
+      label: { en: "EBITDA margin (Y7)", it: "Margine EBITDA (Y7)" }
+      unit: pct
+      base: 0.23
+      worst: 0.18
+      best: 0.25
+      rationale: "Steady state — slight mean reversion."
+      confidence: L
+
+  da_pct_revenue:
+    id: A-020
+    name: da_pct_revenue
+    label: { en: "D&A as % revenue", it: "Ammortamenti % ricavi" }
+    unit: pct
+    base: 0.05
+    worst: 0.06
+    best: 0.045
+    rationale: "Historical average 5% over 3 years (S-001). Worst assumes higher asset intensity."
+    confidence: H
+    source_id: S-001
+
+  maintenance_capex_pct_revenue:
+    id: A-021
+    name: maintenance_capex_pct_revenue
+    label: { en: "Maintenance capex % revenue", it: "Capex manutenzione % ricavi" }
+    unit: pct
+    base: 0.035
+    worst: 0.045
+    best: 0.03
+    rationale: "ONS UK services benchmark 2-4% maintenance."
+    confidence: M
+    source_id: S-007
+
+  growth_capex_pct_revenue:
+    id: A-022
+    name: growth_capex_pct_revenue
+    label: { en: "Growth capex % revenue", it: "Capex crescita % ricavi" }
+    unit: pct
+    base: 0.025
+    worst: 0.02
+    best: 0.03
+    rationale: "Growth capex for new CDMO lines. Management plan envelope."
+    confidence: M
+    source_id: S-001
+
+  nwc_pct_revenue_delta:
+    id: A-023
+    name: nwc_pct_revenue_delta
+    label: { en: "ΔNWC % ΔRevenue", it: "ΔCCN % ΔRicavi" }
+    unit: pct
+    base: 0.12
+    worst: 0.18
+    best: 0.08
+    rationale: "Pharma DSO + inventory-heavy. 3y historical ΔNWC/ΔRev = 12%."
+    confidence: M
+    source_id: S-001
+
+  effective_tax_rate:
+    id: A-024
+    name: effective_tax_rate
+    label: { en: "Effective tax rate", it: "Aliquota effettiva" }
+    unit: pct
+    base: 0.28
+    worst: 0.28
+    best: 0.28
+    rationale: "Italian IRES + IRAP ≈ 27.9%, rounded."
+    confidence: H
+    source_id: S-008
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEBT STRUCTURE
+# ─────────────────────────────────────────────────────────────────────────────
+debt:
+  tranches:
+    - name:
+        en: Senior Unitranche
+        it: Unitranche Senior
+      seniority: senior
+      tenor_years: 6
+      amortization: bullet
+      reference_rate:
+        name: SONIA
+        rate_decimal:
+          id: A-030
+          name: euribor_6m_rate
+          label: { en: "SONIA (reference)", it: "SONIA (riferimento)" }
+          unit: pct
+          base: 0.0280
+          worst: 0.0360
+          best: 0.0220
+          rationale: "BoE SONIA fixing 10-Apr-2026. Worst = +80 bps stress, Best = -60 bps."
+          confidence: H
+          source_id: S-004
+      amount:
+        id: A-031
+        name: senior_unitranche_amount
+        label: { en: "Senior Unitranche amount", it: "Unitranche Senior importo" }
+        unit: eur_m
+        base: 38.0
+        worst: 38.0
+        best: 38.0
+        rationale: "Commitment sized at ~4.1x FY25 EBITDA, within UK MM unitranche norms (3.5-5.0x leverage)."
+        confidence: H
+        source_id: S-005
+      margin_bps:
+        id: A-032
+        name: senior_unitranche_margin_bps
+        label: { en: "Senior Unitranche margin (bps)", it: "Unitranche Senior margine (bps)" }
+        unit: bps
+        base: 625
+        worst: 675
+        best: 575
+        rationale: "Debtwire Q1 2026 median 575 bps for UK MM B2B-services unitranche."
+        confidence: H
+        source_id: S-005
+      floor_pct:
+        id: A-033
+        name: senior_unitranche_floor
+        label: { en: "SONIA floor", it: "SONIA floor" }
+        unit: pct
+        base: 0.0
+        rationale: "No floor — standard for 2026 vintage unitranche in IT given positive rates."
+        confidence: H
+      arrangement_fee_pct:
+        id: A-034
+        name: senior_unitranche_arrangement_fee
+        label: { en: "Arrangement fee %", it: "Commissione strutturazione %" }
+        unit: pct
+        base: 0.03
+        worst: 0.025
+        best: 0.035
+        rationale: "LMA UK benchmark 2.0-3.0%. Midpoint."
+        confidence: H
+        source_id: S-006
+      commitment_fee_bps:
+        id: A-035
+        name: senior_unitranche_commitment_fee
+        label: { en: "Commitment fee (bps)", it: "Commitment fee (bps)" }
+        unit: bps
+        base: 0
+        rationale: "Fully drawn at close — no commitment fee."
+        confidence: H
+      oid_pct:
+        id: A-036
+        name: senior_unitranche_oid
+        label: { en: "OID %", it: "OID %" }
+        unit: pct
+        base: 0.0
+        rationale: "No OID structured."
+        confidence: H
+  rcf:
+    enabled: false
+  cash_sweep:
+    enabled: true
+    sweep_pct:
+      id: A-080
+      name: cash_sweep_pct
+      label: { en: "Cash sweep % of excess FCF", it: "Cash sweep % FCF in eccesso" }
+      unit: pct
+      base: 0.50
+      worst: 0.75
+      best: 0.25
+      rationale: "LMA-standard UK unitranche: 50% sweep above trigger. Worst tightens to 75%, best loosens to 25%."
+      confidence: H
+      source_id: S-009
+    trigger_leverage:
+      id: A-081
+      name: cash_sweep_trigger
+      label: { en: "Cash sweep leverage trigger", it: "Soglia leva per cash sweep" }
+      unit: x
+      base: 3.50
+      worst: 3.00
+      best: 4.00
+      rationale: "Sweep activates when leverage > 3.5x. Standard in UK MM unitranche."
+      confidence: H
+      source_id: S-009
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COVENANTS
+# ─────────────────────────────────────────────────────────────────────────────
+covenants:
+  - name:
+      en: Total Net Leverage
+      it: Leva Finanziaria Netta Totale
+    kind: leverage
+    test_frequency: quarterly
+    equity_cure: true
+    cure_limit_per_year: 1
+    cure_limit_total: 2
+    threshold_by_year:
+      - { id: A-040, name: leverage_threshold_y1, label: { en: "Leverage threshold Y1", it: "Soglia leva Y1" }, unit: x, base: 5.25, rationale: "LMA standard opening + 0.5x headroom.", confidence: H, source_id: S-009 }
+      - { id: A-041, name: leverage_threshold_y2, label: { en: "Leverage threshold Y2", it: "Soglia leva Y2" }, unit: x, base: 5.00, rationale: "Step down 25 bps.", confidence: H, source_id: S-009 }
+      - { id: A-042, name: leverage_threshold_y3, label: { en: "Leverage threshold Y3", it: "Soglia leva Y3" }, unit: x, base: 4.75, rationale: "Step down 25 bps.", confidence: H, source_id: S-009 }
+      - { id: A-043, name: leverage_threshold_y4, label: { en: "Leverage threshold Y4", it: "Soglia leva Y4" }, unit: x, base: 4.50, rationale: "Step down 25 bps.", confidence: H, source_id: S-009 }
+      - { id: A-044, name: leverage_threshold_y5, label: { en: "Leverage threshold Y5", it: "Soglia leva Y5" }, unit: x, base: 4.25, rationale: "Step down 25 bps.", confidence: H, source_id: S-009 }
+      - { id: A-045, name: leverage_threshold_y6, label: { en: "Leverage threshold Y6", it: "Soglia leva Y6" }, unit: x, base: 4.00, rationale: "Step down 25 bps.", confidence: H, source_id: S-009 }
+      - { id: A-046, name: leverage_threshold_y7, label: { en: "Leverage threshold Y7", it: "Soglia leva Y7" }, unit: x, base: 4.00, rationale: "Hold at 4.00x through maturity.", confidence: H, source_id: S-009 }
+  - name:
+      en: Interest Coverage Ratio
+      it: Rapporto di Copertura Interessi
+    kind: icr
+    test_frequency: quarterly
+    equity_cure: true
+    threshold_by_year:
+      - { id: A-050, name: icr_threshold_y1, label: { en: "ICR threshold Y1", it: "Soglia ICR Y1" }, unit: x, base: 1.75, rationale: "LMA standard opening.", confidence: H, source_id: S-009 }
+      - { id: A-051, name: icr_threshold_y2, label: { en: "ICR threshold Y2", it: "Soglia ICR Y2" }, unit: x, base: 1.85, rationale: "Step up 10 bps.", confidence: H, source_id: S-009 }
+      - { id: A-052, name: icr_threshold_y3, label: { en: "ICR threshold Y3", it: "Soglia ICR Y3" }, unit: x, base: 2.00, rationale: "Step up 15 bps.", confidence: H, source_id: S-009 }
+      - { id: A-053, name: icr_threshold_y4, label: { en: "ICR threshold Y4", it: "Soglia ICR Y4" }, unit: x, base: 2.00, rationale: "Hold.", confidence: H, source_id: S-009 }
+      - { id: A-054, name: icr_threshold_y5, label: { en: "ICR threshold Y5", it: "Soglia ICR Y5" }, unit: x, base: 2.00, rationale: "Hold.", confidence: H, source_id: S-009 }
+      - { id: A-055, name: icr_threshold_y6, label: { en: "ICR threshold Y6", it: "Soglia ICR Y6" }, unit: x, base: 2.00, rationale: "Hold.", confidence: H, source_id: S-009 }
+      - { id: A-056, name: icr_threshold_y7, label: { en: "ICR threshold Y7", it: "Soglia ICR Y7" }, unit: x, base: 2.00, rationale: "Hold through maturity.", confidence: H, source_id: S-009 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FEES & EXIT
+# ─────────────────────────────────────────────────────────────────────────────
+fees:
+  legal:
+    id: A-060
+    name: legal_fees_eur_m
+    label: { en: "Legal fees (at close)", it: "Spese legali (al closing)" }
+    unit: eur_m
+    base: 0.35
+    rationale: "Typical for a €38M Italian unitranche deal."
+    confidence: M
+  advisory:
+    id: A-061
+    name: advisory_fees_eur_m
+    label: { en: "Advisory fees (at close)", it: "Advisory (al closing)" }
+    unit: eur_m
+    base: 0.20
+    rationale: "Buyside advisory."
+    confidence: M
+  other:
+    id: A-062
+    name: other_fees_eur_m
+    label: { en: "Other transaction fees", it: "Altre spese transazionali" }
+    unit: eur_m
+    base: 0.15
+    rationale: "DD, notary, gov. registrations."
+    confidence: M
+
+exit:
+  expected_hold_years:
+    id: A-070
+    name: expected_hold_years
+    label: { en: "Expected hold (years)", it: "Durata prevista (anni)" }
+    unit: years
+    base: 5.0
+    rationale: "Sponsor typical hold, before refi."
+    confidence: M
+  call_protection_years: 2
+  make_whole_pct:
+    id: A-071
+    name: make_whole_pct
+    label: { en: "Make-whole premium %", it: "Make-whole %" }
+    unit: pct
+    base: 0.02
+    rationale: "2% par premium inside call protection."
+    confidence: M
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HISTORICAL FINANCIALS (anchors the projection)
+# ─────────────────────────────────────────────────────────────────────────────
+historical_revenue_eur_m: [45.0, 50.0, 55.0]
+historical_ebitda_eur_m:  [10.0, 11.8, 13.5]
+historical_net_debt_eur_m: 4.5
+historical_net_debt_source_id: S-001

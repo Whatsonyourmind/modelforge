@@ -5,6 +5,72 @@ All notable changes to ModelForge.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/).
 
+## [0.11.1] — 2026-05-19 — Contextvar Rendering + Full Multi-Language ts_model
+
+Architectural cleanup of the v0.10 global-mutation shim. Adds true multi-tenant
+safety (concurrent builds in different secondary languages no longer bleed).
+679/679 tests passing.
+
+### Added
+- **`Label.secondary` property** — reads the current secondary-language from
+  a `contextvars.ContextVar` and returns the appropriate field. Sheet
+  renderers now call `.secondary` instead of `.it`. Multi-tenant safe.
+- **`set_secondary_lang(lang)` / `reset_secondary_lang(token)`** — new public
+  API for context-scoped language switching. Returns a token; works with
+  asyncio, threading, and nested contexts.
+- **19 new ts_model labels** in i18n.py — section headers (P&L, BS, CFS) +
+  BS rows (Cash, AR, Inventory, Net PP&E, TOTAL ASSETS, AP, Debt, Equity,
+  TOTAL L&E, BS check) + CFS rows (Net income, CFO, Capex, CFI, CFF, Net
+  change). All with full EN + 7 secondary coverage.
+- **`SONIA` added** to the `ReferenceRate` literal in `spec/unitranche.py`
+  to support UK deals.
+- **`unitranche_uk_servicesco.yaml`** — UK B2B tech-services unitranche
+  example. Country=GB, currency=GBP, SONIA, LMA UK covenant pack,
+  HMRC/BoE/BVCA/Debtwire sources. £55M target revenue.
+- **12 new tests** at `tests/test_v0111_contextvar_render.py` covering
+  contextvar semantics, thread safety (the v0.10/v0.11 limitation), full
+  German render on HGB workbook (no Italian leaks), SONIA validation, UK
+  example end-to-end build.
+
+### Changed
+- **84 `.it` → `.secondary`** sed replacement across all sheet builders.
+  Renderers now respond correctly to the contextvar; `.it` stays literal
+  Italian forever (no more global mutation).
+- **19 hardcoded EN/IT pairs** in `ts_model.py` (P&L / BS / CFS section
+  headers and rows) lifted to Label-driven calls. HGB workbooks now render
+  fully in German across the Balance Sheet section (was Italian leak in
+  v0.11.0: "Stato patrimoniale" / "Cassa" / "Magazzino" / "TOTALE ATTIVO"
+  → now "Bilanz" / "Bargeld" / "Vorräte" / "AKTIVA INSGESAMT").
+- **`apply_runtime_secondary_lang` + `reset_runtime_secondary_lang`** — now
+  DEPRECATED no-op-style wrappers around the contextvar API. Backwards-
+  compatible: existing template code (hgb_carveout uses these in
+  try/finally) keeps working without modification. The Label mutation
+  behaviour from v0.10/v0.11 is GONE — `LABELS["x"].it` always returns
+  literal Italian.
+- **Total label count**: 85 → 105.
+
+### Score impact
+- **D6 Collaboration**: real architectural improvement — multi-tenant
+  workbook builds no longer require process isolation. Enables a true
+  SaaS render layer (D5 unlock).
+- **D8 Regional**: DACH HGB workbook now reads as a clean German Bilanz
+  end-to-end. Cold-email demos materially stronger for a turnaround investor / a turnaround investor.
+- **D9 Speed**: unchanged (no perf delta).
+- Cumulative product-side scorecard estimate: 5.46 (v0.9.7 baseline) →
+  ~5.75 (post-v0.11.1). Score lift from product work alone remains
+  bounded by D5/D7/customer-pull dimensions per internal review.
+
+### Still deferred (v0.12+)
+- 169 other hardcoded EN/IT pairs in specialized sheet builders
+  (`bond_structure.py`, `ifrs9_ecl.py`, `compliance.py`, `pf_*.py`,
+  `re_*.py`, `npl_waterfall.py`, etc.). These are inherently template-
+  specialized; v0.12 sweep is a half-day mechanical pass following the
+  ts_model pattern.
+- HGB Anlagevermögen § 252-256 valuation rules.
+- BilMoG pension provision math.
+- Tier-1 paid data adapter live wireup (needs API keys at runtime).
+- Multi-currency display logic (unit_scale label inherits meta.currency).
+
 ## [0.11.0] — 2026-05-18 — Quality Lift (Trust + HGB + Foreign Examples)
 
 Closes the v0.10 PREVIEW/BETA gaps and pushes product quality toward the

@@ -34,11 +34,11 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r = 7
 
     # ── P&L ──────────────────────────────────────────────────────────────
-    layout.write_section_header(ws, r, "Profit & Loss", "Conto economico")
+    layout.write_section_header(ws, r, L("ts_pnl_header").en, L("ts_pnl_header").secondary)
     r += 1
 
     rows["revenue_growth"] = r
-    layout.write_row_label(ws, r, L("revenue_growth").en, L("revenue_growth").it)
+    layout.write_row_label(ws, r, L("revenue_growth").en, L("revenue_growth").secondary)
     ws.cell(row=r, column=3, value="%").font = styles.font_label_it
     for i in range(p):
         a = spec.pl.revenue_growth_by_year[i]
@@ -48,7 +48,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["revenue"] = r
-    layout.write_row_label(ws, r, L("revenue").en, L("revenue").it)
+    layout.write_row_label(ws, r, L("revenue").en, L("revenue").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(h):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
@@ -70,7 +70,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["ebitda_margin"] = r
-    layout.write_row_label(ws, r, L("ebitda_margin").en, L("ebitda_margin").it)
+    layout.write_row_label(ws, r, L("ebitda_margin").en, L("ebitda_margin").secondary)
     ws.cell(row=r, column=3, value="%").font = styles.font_label_it
     for i in range(h):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
@@ -86,7 +86,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["ebitda"] = r
-    layout.write_row_label(ws, r, L("ebitda").en, L("ebitda").it)
+    layout.write_row_label(ws, r, L("ebitda").en, L("ebitda").secondary)
     for i in range(h):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx, value=spec.historical_ebitda_eur_m[i])
@@ -99,7 +99,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["da"] = r
-    layout.write_row_label(ws, r, L("da").en, L("da").it, indent=True)
+    layout.write_row_label(ws, r, L("da").en, L("da").secondary, indent=True)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx, value=f"=-${col}${rows['revenue']}*da_pct_revenue")
@@ -107,7 +107,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["ebit"] = r
-    layout.write_row_label(ws, r, L("ebit").en, L("ebit").it)
+    layout.write_row_label(ws, r, L("ebit").en, L("ebit").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,
@@ -117,14 +117,14 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
 
     # Interest (cross-ref to BS debt row — which we build below)
     rows["interest"] = r
-    layout.write_row_label(ws, r, L("interest_expense").en, L("interest_expense").it, indent=True)
+    layout.write_row_label(ws, r, L("interest_expense").en, L("interest_expense").secondary, indent=True)
     for i in range(n):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
         ws.cell(row=r, column=col_idx, value=0)
     r += 1
 
     rows["ebt"] = r
-    layout.write_row_label(ws, r, L("ebt").en, L("ebt").it)
+    layout.write_row_label(ws, r, L("ebt").en, L("ebt").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,
@@ -133,7 +133,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["tax"] = r
-    layout.write_row_label(ws, r, L("tax").en, L("tax").it, indent=True)
+    layout.write_row_label(ws, r, L("tax").en, L("tax").secondary, indent=True)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,
@@ -142,7 +142,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["net_income"] = r
-    layout.write_row_label(ws, r, L("net_income").en, L("net_income").it)
+    layout.write_row_label(ws, r, L("net_income").en, L("net_income").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,
@@ -153,19 +153,19 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 2
 
     # ── Balance Sheet ────────────────────────────────────────────────────
-    layout.write_section_header(ws, r, "Balance Sheet", "Stato patrimoniale")
+    layout.write_section_header(ws, r, L("ts_bs_header").en, L("ts_bs_header").secondary)
     r += 1
 
     # Assets
     rows["cash"] = r
-    layout.write_row_label(ws, r, "Cash", "Cassa", indent=True)
+    layout.write_row_label(ws, r, L("ts_cash").en, L("ts_cash").secondary, indent=True)
     # Cash is the plug — formula later in CFS section; here hardcode opening
     cc = ws.cell(row=r, column=4, value=spec.opening_bs.cash_eur_m)
     styles.style_input(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
     rows["receivables"] = r
-    layout.write_row_label(ws, r, "Accounts receivable", "Crediti", indent=True)
+    layout.write_row_label(ws, r, L("ts_ar").en, L("ts_ar").secondary, indent=True)
     cc = ws.cell(row=r, column=4, value=spec.opening_bs.receivables_eur_m)
     styles.style_input(cc, number_format=styles.FMT_EUR_M)
     for i in range(1, n):
@@ -176,7 +176,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["inventory"] = r
-    layout.write_row_label(ws, r, "Inventory", "Magazzino", indent=True)
+    layout.write_row_label(ws, r, L("ts_inventory").en, L("ts_inventory").secondary, indent=True)
     cc = ws.cell(row=r, column=4, value=spec.opening_bs.inventory_eur_m)
     styles.style_input(cc, number_format=styles.FMT_EUR_M)
     for i in range(1, n):
@@ -187,7 +187,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["net_ppe"] = r
-    layout.write_row_label(ws, r, "Net PP&E", "Immobilizzazioni nette", indent=True)
+    layout.write_row_label(ws, r, L("ts_net_ppe").en, L("ts_net_ppe").secondary, indent=True)
     cc = ws.cell(row=r, column=4, value=spec.opening_bs.net_ppe_eur_m)
     styles.style_input(cc, number_format=styles.FMT_EUR_M)
     for i in range(1, n):
@@ -199,7 +199,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["total_assets"] = r
-    layout.write_row_label(ws, r, "TOTAL ASSETS", "TOTALE ATTIVO")
+    layout.write_row_label(ws, r, L("ts_total_assets").en, L("ts_total_assets").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,
@@ -211,7 +211,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
 
     # Liabilities & Equity
     rows["payables"] = r
-    layout.write_row_label(ws, r, "Accounts payable", "Debiti v/fornitori", indent=True)
+    layout.write_row_label(ws, r, L("ts_ap").en, L("ts_ap").secondary, indent=True)
     cc = ws.cell(row=r, column=4, value=spec.opening_bs.payables_eur_m)
     styles.style_input(cc, number_format=styles.FMT_EUR_M)
     for i in range(1, n):
@@ -226,7 +226,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     # from spec; draws/repayments default to zero unless spec provides
     # debt_annual_repayment_eur_m which applies linearly from year 1.
     rows["debt"] = r
-    layout.write_row_label(ws, r, "Debt", "Debito finanziario", indent=True)
+    layout.write_row_label(ws, r, L("ts_debt").en, L("ts_debt").secondary, indent=True)
     cc = ws.cell(row=r, column=4, value=spec.opening_bs.debt_eur_m)
     styles.style_input(cc, number_format=styles.FMT_EUR_M)
     annual_repay = getattr(spec.opening_bs, 'debt_annual_repayment_eur_m', 0.0) or 0.0
@@ -242,7 +242,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["equity"] = r
-    layout.write_row_label(ws, r, "Equity (retained earnings)", "Patrimonio netto", indent=True)
+    layout.write_row_label(ws, r, L("ts_equity").en, L("ts_equity").secondary, indent=True)
     cc = ws.cell(row=r, column=4, value=spec.opening_bs.equity_eur_m)
     styles.style_input(cc, number_format=styles.FMT_EUR_M)
     for i in range(1, n):
@@ -256,7 +256,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["total_le"] = r
-    layout.write_row_label(ws, r, "TOTAL L & E", "TOTALE PASSIVO + PN")
+    layout.write_row_label(ws, r, L("ts_total_le").en, L("ts_total_le").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,
@@ -267,7 +267,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["bs_check"] = r
-    layout.write_row_label(ws, r, "BS check (A - L - E)", "Check BS (A - P - PN)")
+    layout.write_row_label(ws, r, L("ts_bs_check").en, L("ts_bs_check").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,
@@ -285,11 +285,11 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         styles.style_formula(int_cell, number_format=styles.FMT_EUR_M)
 
     # ── Cash Flow Statement ──────────────────────────────────────────────
-    layout.write_section_header(ws, r, "Cash Flow Statement", "Rendiconto finanziario")
+    layout.write_section_header(ws, r, L("ts_cfs_header").en, L("ts_cfs_header").secondary)
     r += 1
 
     rows["cf_ni"] = r
-    layout.write_row_label(ws, r, "Net income (from P&L)", "Utile netto (da CE)")
+    layout.write_row_label(ws, r, L("ts_ni_from_pl").en, L("ts_ni_from_pl").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,
@@ -324,7 +324,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["cf_cfo"] = r
-    layout.write_row_label(ws, r, "CFO (operating)", "CFO")
+    layout.write_row_label(ws, r, L("ts_cfo").en, L("ts_cfo").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,
@@ -334,7 +334,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["cf_capex"] = r
-    layout.write_row_label(ws, r, "Capex", "Capex", indent=True)
+    layout.write_row_label(ws, r, L("ts_capex").en, L("ts_capex").secondary, indent=True)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,
@@ -343,7 +343,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["cf_cfi"] = r
-    layout.write_row_label(ws, r, "CFI (investing)", "CFI")
+    layout.write_row_label(ws, r, L("ts_cfi").en, L("ts_cfi").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx, value=f"=${col}${rows['cf_capex']}")
@@ -360,7 +360,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["cf_cff"] = r
-    layout.write_row_label(ws, r, "CFF (financing)", "CFF")
+    layout.write_row_label(ws, r, L("ts_cff").en, L("ts_cff").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx, value=f"=${col}${rows['cf_div']}")
@@ -368,7 +368,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["cf_net_change"] = r
-    layout.write_row_label(ws, r, "Net change in cash", "Variazione di cassa")
+    layout.write_row_label(ws, r, L("ts_net_change_cash").en, L("ts_net_change_cash").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,

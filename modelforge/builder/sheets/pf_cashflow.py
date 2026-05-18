@@ -72,7 +72,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["revenue"] = r
-    layout.write_row_label(ws, r, L("revenue").en, L("revenue").it)
+    layout.write_row_label(ws, r, L("revenue").en, L("revenue").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     yr1 = spec.operating.availability_payment_eur_m_yr1.name
     idx = spec.operating.revenue_indexation_pct.name
@@ -139,7 +139,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     r += 1
 
     rows["ebitda"] = r
-    layout.write_row_label(ws, r, L("ebitda").en, L("ebitda").it)
+    layout.write_row_label(ws, r, L("ebitda").en, L("ebitda").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         cc = ws.cell(row=r, column=col_idx,

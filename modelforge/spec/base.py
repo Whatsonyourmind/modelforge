@@ -65,6 +65,30 @@ class Label(BaseModel):
         val = getattr(self, lang, "") if lang else ""
         return val or self.en
 
+    @property
+    def secondary(self) -> str:
+        """Render the current secondary language column.
+
+        Reads the contextvar set by `modelforge.builder.i18n.set_secondary_lang()`.
+        Sheet renderers should use `.secondary` instead of `.it` so the rendered
+        column responds to `build_workbook(..., secondary_lang="de")` etc.
+
+        Fallback ladder:
+            - If contextvar lang == "it": return self.it or self.en
+            - Else: return getattr(self, lang) or self.en (direct EN fallback,
+              not through Italian, since a German-rendering user prefers EN over
+              an Italian leak when their spec didn't supply German).
+
+        v0.11.1: introduces contextvars-based rendering (was process-global
+        mutation in v0.10).
+        """
+        # Lazy import to avoid circular dependency (i18n imports Label).
+        from modelforge.builder.i18n import current_secondary_lang
+        lang = current_secondary_lang()
+        if lang == "it":
+            return self.it or self.en
+        return getattr(self, lang, "") or self.en
+
 
 class Source(BaseModel):
     """A citable source. Referenced by ID (S-001) throughout the model.

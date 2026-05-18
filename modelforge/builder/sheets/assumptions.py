@@ -72,7 +72,7 @@ def build(
 
     # Title block
     ws.cell(row=1, column=1, value=L("assumptions_title").en).font = styles.font_title
-    ws.cell(row=2, column=1, value=L("assumptions_title").it).font = styles.font_label_it
+    ws.cell(row=2, column=1, value=L("assumptions_title").secondary).font = styles.font_label_it
     ws.cell(
         row=3, column=1,
         value="Single source of truth. Every formula in the workbook reads "
@@ -100,7 +100,7 @@ def build(
         c = ws.cell(row=hr, column=col, value=L(key).en)
         styles.style_header(c)
     # IT description header in col 4
-    c = ws.cell(row=hr, column=4, value=L("assumption_label").it)
+    c = ws.cell(row=hr, column=4, value=L("assumption_label").secondary)
     styles.style_header(c)
 
     # Rows
@@ -148,7 +148,7 @@ def _emit_row(
     # Cols C & D: EN / IT description
     en = ws.cell(row=r, column=3, value=a.label.en)
     styles.style_label_en(en)
-    it = ws.cell(row=r, column=4, value=a.label.it or a.label.en)
+    it = ws.cell(row=r, column=4, value=a.label.secondary or a.label.en)
     styles.style_label_it(it)
 
     # Col E: unit

@@ -46,7 +46,7 @@ def build(ws: Worksheet, spec, operating_refs: dict[str, str],
     r += 1
 
     rows["opening"] = r
-    layout.write_row_label(ws, r, L("debt_opening").en, L("debt_opening").it)
+    layout.write_row_label(ws, r, L("debt_opening").en, L("debt_opening").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
@@ -61,7 +61,7 @@ def build(ws: Worksheet, spec, operating_refs: dict[str, str],
 
     # Drawdown (full notional at close)
     rows["drawdown"] = r
-    layout.write_row_label(ws, r, L("debt_drawdown").en, L("debt_drawdown").it, indent=True)
+    layout.write_row_label(ws, r, L("debt_drawdown").en, L("debt_drawdown").secondary, indent=True)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     notional = spec.bond.notional.name
     for i in range(n):
@@ -76,7 +76,7 @@ def build(ws: Worksheet, spec, operating_refs: dict[str, str],
 
     # Scheduled amortization
     rows["amort"] = r
-    layout.write_row_label(ws, r, L("debt_repayment").en, L("debt_repayment").it, indent=True)
+    layout.write_row_label(ws, r, L("debt_repayment").en, L("debt_repayment").secondary, indent=True)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     tenor = spec.bond.tenor_years
     # v0.6: corrected off-by-one. Drawdown is at column index h (Year 1 of
@@ -107,7 +107,7 @@ def build(ws: Worksheet, spec, operating_refs: dict[str, str],
 
     # Closing
     rows["closing"] = r
-    layout.write_row_label(ws, r, L("debt_closing").en, L("debt_closing").it)
+    layout.write_row_label(ws, r, L("debt_closing").en, L("debt_closing").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
@@ -122,7 +122,7 @@ def build(ws: Worksheet, spec, operating_refs: dict[str, str],
     layout.write_section_header(ws, r, "Coupon schedule", "Cedole")
     r += 1
     rows["avg_balance"] = r
-    layout.write_row_label(ws, r, L("debt_average").en, L("debt_average").it, indent=True)
+    layout.write_row_label(ws, r, L("debt_average").en, L("debt_average").secondary, indent=True)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
@@ -132,7 +132,7 @@ def build(ws: Worksheet, spec, operating_refs: dict[str, str],
     r += 1
 
     rows["all_in_rate"] = r
-    layout.write_row_label(ws, r, L("all_in_rate").en, L("all_in_rate").it, indent=True)
+    layout.write_row_label(ws, r, L("all_in_rate").en, L("all_in_rate").secondary, indent=True)
     ws.cell(row=r, column=3, value="%").font = styles.font_label_it
     if spec.bond.coupon.kind == "fixed":
         rate_ref = spec.bond.coupon.fixed_rate.name
@@ -148,7 +148,7 @@ def build(ws: Worksheet, spec, operating_refs: dict[str, str],
     r += 1
 
     rows["interest"] = r
-    layout.write_row_label(ws, r, L("cash_interest").en, L("cash_interest").it)
+    layout.write_row_label(ws, r, L("cash_interest").en, L("cash_interest").secondary)
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
