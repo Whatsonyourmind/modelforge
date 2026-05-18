@@ -207,10 +207,10 @@ def build(
 
     # Portfolio totals
     if len(tranche_cashflow_rows) > 1:
-        layout.write_section_header(ws, r, "Blended lender returns", "Rendimenti blended")
+        layout.write_section_header(ws, r, L("ret_blended_returns").en, L("ret_blended_returns").secondary)
         r += 1
         portfolio_row = r
-        layout.write_row_label(ws, r, "Blended cash flow", "CF totale")
+        layout.write_row_label(ws, r, L("ret_blended_cf").en, L("ret_blended_cf").secondary)
         for i in range(p + 1):
             col = layout.year_col(i)
             col_idx = ord(col) - ord("A") + 1
@@ -222,11 +222,11 @@ def build(
 
         first_col = layout.year_col(0)
         last_col = layout.year_col(p)
-        layout.write_row_label(ws, r, "Blended IRR", "IRR blended", indent=True)
+        layout.write_row_label(ws, r, L("ret_blended_irr").en, L("ret_blended_irr").secondary, indent=True)
         ws.cell(row=r, column=4, value=f"=IRR(${first_col}${portfolio_row}:${last_col}${portfolio_row})")
         styles.style_formula(ws.cell(row=r, column=4), number_format=styles.FMT_PCT_2DP)
         r += 1
-        layout.write_row_label(ws, r, "Blended MoIC", "MoIC blended", indent=True)
+        layout.write_row_label(ws, r, L("ret_blended_moic").en, L("ret_blended_moic").secondary, indent=True)
         ws.cell(
             row=r, column=4,
             value=(

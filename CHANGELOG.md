@@ -5,6 +5,58 @@ All notable changes to ModelForge.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/).
 
+## [0.11.2] — 2026-05-19 — Common-Sheet Multi-Language Sweep
+
+Continues the v0.11.1 multi-language work. Sweeps 14 more hardcoded EN/IT
+pairs from the most commonly-rendered sheet builders (Cover, Operating,
+Covenants, Debt, Returns) into the Label class. Sponsor LBO and unitranche
+workbooks now render correctly across all 8 languages on the common path.
+
+### Added
+- **14 new common-sheet labels** in `i18n.py`:
+  - `cover_scenario_control`, `cover_sheet_index`
+  - `op_revenue_build`, `op_margin_opex`, `op_fcf_to_debt`
+  - `cov_breach_counter`
+  - `debt_cash_sweep`, `debt_totals_tranches`, `debt_total_debt`,
+    `debt_total_interest`
+  - `ret_blended_returns`, `ret_blended_cf`, `ret_blended_irr`,
+    `ret_blended_moic`
+- All with full EN + 7 secondary coverage. Coverage validator (added
+  v0.11) verifies completeness at import time.
+
+### Changed
+- **14 hardcoded EN/IT pairs** lifted to Label-driven calls across
+  `cover.py`, `operating.py`, `covenants.py`, `debt.py`, `returns.py`.
+  Sponsor LBO render in German now shows "Umsatzaufbau" / "Marge und
+  Betriebskosten" / "Cashflow zum Schuldendienst" / "Cash Sweep" /
+  "Mischrendite (Kreditgeber)" etc. instead of Italian fallback.
+- **Total label count**: 105 → 119.
+
+### Cumulative product-side scorecard estimate
+- v0.9.7 baseline: 5.46
+- v0.10.0: ~5.69 (foreign markets, multi-lang data layer, HGB+portfolio templates)
+- v0.11.0: ~5.75 (quality lift, Trust+, HGB BETA, hardcoded Italian cleanup)
+- v0.11.1: ~5.78 (contextvar render, full German ts_model, UK example)
+- **v0.11.2: ~5.80** (common-sheet sweep complete)
+
+Cumulative product-work lift: **+0.34 weighted**, from 5.46 to ~5.80.
+The bounded ceiling holds — D5 SaaS productization (2.3, 15% weight) and
+KILLER #2 customer pull are the structural blockers above ~6.0 on
+product code alone.
+
+### Still deferred (v0.12+)
+- 155 remaining hardcoded EN/IT pairs in specialized template sheets:
+  npl_waterfall, pf_debt, credit_opinion, re_financing, re_dcf,
+  merger_proforma, pf_cashflow, dcf_valuation, bond_structure,
+  sc_tranches, investor_returns, pf_returns, generic_covenants,
+  sources_uses, issuer_financials. These are template-specialized; full
+  sweep is a half-day mechanical pass following the ts_model pattern.
+- HGB Anlagevermögen § 252-256 valuation rules.
+- BilMoG pension provision math.
+- Tier-1 paid data adapter live wireup (needs API keys at runtime).
+- Multi-currency unit_scale label inheritance from meta.currency.
+- Nordic restructuring + Italian-to-foreign-anonymized example pass.
+
 ## [0.11.1] — 2026-05-19 — Contextvar Rendering + Full Multi-Language ts_model
 
 Architectural cleanup of the v0.10 global-mutation shim. Adds true multi-tenant
