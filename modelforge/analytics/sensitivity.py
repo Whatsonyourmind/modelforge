@@ -395,9 +395,10 @@ def _emit_sheet(
         ws.column_dimensions[col].width = w
 
     # ── Title block
-    t = ws.cell(row=1, column=1, value="Sensitivity Analysis")
+    from modelforge.builder.i18n import L as _L
+    t = ws.cell(row=1, column=1, value=_L("sensitivity_title").en)
     t.font = styles.font_title
-    it = ws.cell(row=2, column=1, value="Analisi di sensibilità")
+    it = ws.cell(row=2, column=1, value=_L("sensitivity_title").it)
     it.font = styles.font_label_it
     # Scenario banner at row 3 (bulge convention — audit_suite.py enforces)
     from modelforge.builder import layout as _layout

@@ -71,8 +71,8 @@ def build(
         ws.column_dimensions[col].width = w
 
     # Title block
-    ws.cell(row=1, column=1, value="Assumptions").font = styles.font_title
-    ws.cell(row=2, column=1, value="Ipotesi e driver").font = styles.font_label_it
+    ws.cell(row=1, column=1, value=L("assumptions_title").en).font = styles.font_title
+    ws.cell(row=2, column=1, value=L("assumptions_title").it).font = styles.font_label_it
     ws.cell(
         row=3, column=1,
         value="Single source of truth. Every formula in the workbook reads "

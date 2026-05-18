@@ -95,8 +95,9 @@ def _emit_sheet(
     ws.column_dimensions["A"].width = 32
     ws.column_dimensions["B"].width = 70
 
-    ws.cell(row=1, column=1, value="Reproducibility").font = styles.font_title
-    ws.cell(row=2, column=1, value="Riproducibilità").font = styles.font_label_it
+    from modelforge.builder.i18n import L as _L
+    ws.cell(row=1, column=1, value=_L("reproducibility_title").en).font = styles.font_title
+    ws.cell(row=2, column=1, value=_L("reproducibility_title").it).font = styles.font_label_it
     from modelforge.builder import layout as _layout
     _layout.write_scenario_banner(ws, row=3)
     ws.cell(
