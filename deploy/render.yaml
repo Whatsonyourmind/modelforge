@@ -20,7 +20,6 @@ services:
   - type: web
     name: modelforge-saas
     runtime: python
-    pythonVersion: "3.12"
     plan: free
     branch: master
     autoDeploy: true
@@ -31,6 +30,8 @@ services:
       uvicorn modelforge.web.app:app --host 0.0.0.0 --port $PORT --workers 1
     healthCheckPath: /healthz
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.5"
       - key: PYTHONUNBUFFERED
         value: "1"
       - key: MODELFORGE_AUTH_DEV_BYPASS
@@ -50,7 +51,6 @@ services:
   - type: cron
     name: modelforge-audit-listed-cron
     runtime: python
-    pythonVersion: "3.12"
     plan: free
     schedule: "0 6 * * *"   # 06:00 UTC daily
     branch: master
@@ -60,5 +60,7 @@ services:
     startCommand: |
       python scripts/audit_listed.py --sleep 2.0 --output AUDIT_RUN_LISTED.md
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.5"
       - key: PYTHONUNBUFFERED
         value: "1"
