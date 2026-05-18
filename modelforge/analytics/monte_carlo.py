@@ -222,8 +222,9 @@ def _emit_sheet(
         ws.column_dimensions[col].width = w
 
     # ── Title block
-    ws.cell(row=1, column=1, value="Monte Carlo").font = styles.font_title
-    ws.cell(row=2, column=1, value="Simulazione Monte Carlo").font = styles.font_label_it
+    from modelforge.builder.i18n import L as _L
+    ws.cell(row=1, column=1, value=_L("monte_carlo_title").en).font = styles.font_title
+    ws.cell(row=2, column=1, value=_L("monte_carlo_title").it).font = styles.font_label_it
     from modelforge.builder import layout as _layout
     _layout.write_scenario_banner(ws, row=3)
     method_tag = ("exact shadow-engine recompute per draw"
