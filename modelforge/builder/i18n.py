@@ -561,6 +561,88 @@ LABELS: dict[str, Label] = {
         da="Nettoændring i likvider", nl="Netto mutatie kasmiddelen",
     ),
 
+    # ---------- Cover / Operating / Covenants / Debt / Returns (v0.11.2) ----------
+    "cover_scenario_control": Label(
+        en="Scenario control", it="Controllo scenari", de="Szenariosteuerung",
+        es="Control de escenarios", sv="Scenariokontroll",
+        no="Scenariokontroll", da="Scenariekontrol", nl="Scenariobeheer",
+    ),
+    "cover_sheet_index": Label(
+        en="Sheet index", it="Indice fogli", de="Blattindex",
+        es="Índice de hojas", sv="Bladindex",
+        no="Arkindeks", da="Arkindeks", nl="Bladindex",
+    ),
+    "op_revenue_build": Label(
+        en="Revenue build", it="Costruzione ricavi", de="Umsatzaufbau",
+        es="Construcción de ingresos", sv="Intäktsuppbyggnad",
+        no="Inntektsoppbygging", da="Indtægtsopbygning", nl="Omzetopbouw",
+    ),
+    "op_margin_opex": Label(
+        en="Margin & opex", it="Margini e opex", de="Marge und Betriebskosten",
+        es="Margen y opex", sv="Marginal & opex",
+        no="Margin & opex", da="Margin & opex", nl="Marge en opex",
+    ),
+    "op_fcf_to_debt": Label(
+        en="Cash flow to debt", it="Flusso di cassa al debito",
+        de="Cashflow zum Schuldendienst", es="Flujo a deuda",
+        sv="Kassaflöde till skuld", no="Kontantstrøm til gjeld",
+        da="Pengestrøm til gæld", nl="Kasstroom naar schuld",
+    ),
+    "cov_breach_counter": Label(
+        en="Aggregate breach counter", it="Contatore violazioni",
+        de="Verletzungszähler (aggregiert)", es="Contador de incumplimientos",
+        sv="Brottsräknare", no="Bruddteller",
+        da="Overtrædelsestæller", nl="Schendingsteller",
+    ),
+    "debt_cash_sweep": Label(
+        en="Cash sweep", it="Rimborso automatico (cash sweep)",
+        de="Cash Sweep", es="Barrido de efectivo",
+        sv="Cash sweep", no="Cash sweep",
+        da="Cash sweep", nl="Cash sweep",
+    ),
+    "debt_totals_tranches": Label(
+        en="Totals across tranches", it="Totali (tutte le tranche)",
+        de="Summe über alle Tranchen", es="Totales por tramos",
+        sv="Summa över trancher", no="Sum over trancher",
+        da="Total over trancher", nl="Totalen over tranches",
+    ),
+    "debt_total_debt": Label(
+        en="Total debt outstanding", it="Debito totale",
+        de="Gesamtschulden ausstehend", es="Deuda total",
+        sv="Total skuld", no="Total gjeld",
+        da="Samlet gæld", nl="Totale uitstaande schuld",
+    ),
+    "debt_total_interest": Label(
+        en="Total cash interest", it="Interessi totali",
+        de="Gesamte Cash-Zinsen", es="Intereses totales",
+        sv="Total kontantränta", no="Total kontantrenter",
+        da="Total kontantrenter", nl="Totale cashrente",
+    ),
+    "ret_blended_returns": Label(
+        en="Blended lender returns", it="Rendimenti blended",
+        de="Mischrendite (Kreditgeber)", es="Rendimientos combinados",
+        sv="Blandad avkastning", no="Sammensatt avkastning",
+        da="Blandet afkast", nl="Gemengd rendement",
+    ),
+    "ret_blended_cf": Label(
+        en="Blended cash flow", it="CF totale",
+        de="Mischzahlungsfluss", es="Flujo combinado",
+        sv="Blandat kassaflöde", no="Sammensatt kontantstrøm",
+        da="Blandet pengestrøm", nl="Gemengde kasstroom",
+    ),
+    "ret_blended_irr": Label(
+        en="Blended IRR", it="IRR blended",
+        de="Misch-IRR", es="TIR combinada",
+        sv="Blandad IRR", no="Blandet IRR",
+        da="Blandet IRR", nl="Gemengde IRR",
+    ),
+    "ret_blended_moic": Label(
+        en="Blended MoIC", it="MoIC blended",
+        de="Misch-MoIC", es="MoIC combinado",
+        sv="Blandad MoIC", no="Blandet MoIC",
+        da="Blandet MoIC", nl="Gemengde MoIC",
+    ),
+
     # ---------- QC ----------
     "qc_check": Label(
         en="QC check", it="Controllo QC", de="QC-Prüfung",

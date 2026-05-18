@@ -171,7 +171,7 @@ def build(
         r += 2
 
     # Aggregate breach counter
-    layout.write_section_header(ws, r, "Aggregate breach counter", "Contatore violazioni")
+    layout.write_section_header(ws, r, L("cov_breach_counter").en, L("cov_breach_counter").secondary)
     r += 1
     total_breach_row = r
     layout.write_row_label(ws, r, "Total breaches (projection window)",

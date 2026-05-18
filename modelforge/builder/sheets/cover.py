@@ -55,7 +55,7 @@ def build(ws, spec, graph: LinkageGraph) -> None:
 
     # ── Scenario toggle block
     r += 1
-    layout.write_section_header(ws, r, "Scenario control", "Controllo scenari")
+    layout.write_section_header(ws, r, L("cover_scenario_control").en, L("cover_scenario_control").secondary)
     r += 1
 
     lbl_active = L("scenario_active")
@@ -116,7 +116,7 @@ def build(ws, spec, graph: LinkageGraph) -> None:
     r += 2
 
     # ── Sheet index (hyperlinks to each tab)
-    layout.write_section_header(ws, r, "Sheet index", "Indice fogli")
+    layout.write_section_header(ws, r, L("cover_sheet_index").en, L("cover_sheet_index").secondary)
     r += 1
     sheet_order = ["Cover", "Sources", "Assumptions", "OperatingModel",
                    "DebtSchedule", "Covenants", "Returns", "QC"]
