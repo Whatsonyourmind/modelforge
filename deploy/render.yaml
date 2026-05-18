@@ -47,20 +47,6 @@ services:
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
 
-  # Optional: cron worker for the daily scheduled feeds refresh + audit harness
-  - type: cron
-    name: modelforge-audit-listed-cron
-    runtime: python
-    plan: free
-    schedule: "0 6 * * *"   # 06:00 UTC daily
-    branch: master
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -e ".[data]"
-    startCommand: |
-      python scripts/audit_listed.py --sleep 2.0 --output AUDIT_RUN_LISTED.md
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.12.5"
-      - key: PYTHONUNBUFFERED
-        value: "1"
+  # Audit-listed cron moved to GitHub Actions (Render free tier doesn't support cron).
+  # See .github/workflows/ for daily scheduled run. Re-enable via Render Starter ($7/mo)
+  # if/when we want the audit logs colocated with the web service.
