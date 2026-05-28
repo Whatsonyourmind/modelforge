@@ -2,7 +2,7 @@
 
 <!-- mcp-name: io.github.Whatsonyourmind/modelforge -->
 
-[![Version](https://img.shields.io/badge/version-0.9.7-blue)](https://pypi.org/project/modelforge-finance/) [![Tests](https://img.shields.io/badge/tests-504%2F504-brightgreen)](./tests) [![Trust](https://img.shields.io/badge/trust--layer-v1%20(14%2F14%20FAIL--clean)-brightgreen)](./AUDIT_REPORT.md) [![Scorecard](https://img.shields.io/badge/scorecard-5.45%20consensus-blue)](./SCORECARD.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py) [![Templates](https://img.shields.io/badge/templates-14-blue)](./modelforge/templates/) [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.5-purple)](./.github/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-0.11.2-blue)](https://pypi.org/project/modelforge-finance/) [![Tests](https://img.shields.io/badge/tests-679%2F679-brightgreen)](./tests) [![Trust](https://img.shields.io/badge/trust--layer-v1%20(14%2F14%20FAIL--clean)-brightgreen)](./AUDIT_REPORT.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py) [![Templates](https://img.shields.io/badge/templates-16-blue)](./modelforge/templates/) [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.5-purple)](./.github/workflows/ci.yml)
 
 Bulge-tier Excel financial model factory for credit & structured finance. Every cell live-formulated. Every number traceable back to the source document page it came from.
 
@@ -27,8 +27,6 @@ Then in your AI assistant:
 > *"Build me a unitranche LBO model from this YAML spec, export the committee deck."*
 
 Tools available: `list_templates` · `build_model` · `qc_workbook` · `list_sources` · `lineage_walk` · `ingest_dataroom` · `screen_deals` · `compute_tax` · `export_pptx` · `export_docx` · plus 7 unified-feed tools (`get_fundamentals`, `get_prices`, `lookup_lei`, etc.) across an 11-provider data stack.
-
-**Where it actually stands**: see [SCORECARD.md](./SCORECARD.md) — the canonical scorecard reflects a blind external IC review (ChatGPT 5.5 + Opus 4.7) that converged on **5.45 weighted** vs the prior founder-graded 6.56. The killers, unlocks, and recommended seed structure are documented honestly. [SCORECARD_v1.md](./SCORECARD_v1.md) / [SCORECARD_v2.md](./SCORECARD_v2.md) / [SCORECARD_v3.md](./SCORECARD_v3.md) are kept for historical transparency only.
 
 ## The architectural principle
 
@@ -118,7 +116,7 @@ modelforge build output/my_deal.yaml     # produces the workbook
 modelforge qc output/my_deal.xlsx        # 8/8 quality gate
 ```
 
-Supported template: `project_finance` (MVP). Templates 1, 3, 5-8 queued for v0.3.2. See `PRD_v03_dataroom_ingestion.md` for the full spec.
+Supported template: `project_finance` (MVP). Templates 1, 3, 5-8 queued for v0.3.2.
 
 ## Package layout
 
@@ -186,7 +184,7 @@ Tier-1 and Tier-2 are interface-complete — paid keys activate them via env var
 - **Trust Layer** semantic gates auto-injected into every built workbook
 - **Security policy**: see [SECURITY.md](./SECURITY.md)
 
-Procurement-grade controls (SOC 2 Type II, ISO 27001, pen-test, multi-tenant SaaS with SSO/SCIM) are Phase-B work — see [SCORECARD.md](./SCORECARD.md) for the honest path.
+Procurement-grade controls (SOC 2 Type II, ISO 27001, pen-test, multi-tenant SaaS with SSO/SCIM) are Phase-B work.
 
 ## The pitch
 
