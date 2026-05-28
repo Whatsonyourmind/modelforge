@@ -18,3 +18,23 @@ sbom.cdx.json
 site/
 output/
 *.manifest.json
+
+# Internal — moved to modelforge-private
+SCORECARD*.md
+IC_DOSSIER*.md
+EXTERNAL_IC_REVIEW*.md
+TRIPLE_REVIEW*.md
+GTM_STRATEGY.md
+MOAT_SWEEP.md
+GAP_ANALYSIS*.md
+GOLD_STANDARD_AUDIT*.md
+STRESS_TEST_REPORT*.md
+CHATGPT_RESPONSE_FULL.md
+OPUS_INDEPENDENT_REVIEW.md
+WIP.md
+.continue-here.md
+AUDIT_RUN_LISTED.*
+adversarial_findings.json
+gold_standard_findings.json
+stress_test_findings.json
+PRD_*.md
