@@ -38,3 +38,7 @@ adversarial_findings.json
 gold_standard_findings.json
 stress_test_findings.json
 PRD_*.md
+
+# build artifacts (do not commit wheels/sdists)
+dist/
+dist-*/
