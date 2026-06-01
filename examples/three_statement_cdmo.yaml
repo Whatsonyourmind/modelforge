@@ -6,7 +6,7 @@ model_type: three_statement
 meta:
   project_code: DEMO-CDMO-3S
   deliverable: { en: "3-Statement Operating Model", it: "Modello Operativo a 3 Prospetti" }
-  analyst: L. Stanisljevic
+  analyst: Analyst
   version: v0.1
   status: draft
   valuation_date: 2026-04-16
@@ -14,7 +14,7 @@ meta:
   unit_scale: millions
   sign_convention: costs_negative
   revision_log:
-    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "Standalone 3-statement for Italian pharma CDMO." }
+    - { version: v0.1, date: 2026-04-16, analyst: Analyst, note: "Standalone 3-statement for Italian pharma CDMO." }
 
 target:
   name: "Target SpA (anonymized CDMO)"

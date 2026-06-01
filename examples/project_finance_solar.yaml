@@ -6,7 +6,7 @@ model_type: project_finance
 meta:
   project_code: DEMO-SOLAR-PF
   deliverable: { en: "Senior Project Finance Package", it: "Pacchetto Project Finance Senior" }
-  analyst: L. Stanisljevic
+  analyst: Analyst
   version: v0.1
   status: draft
   valuation_date: 2026-04-16
@@ -14,7 +14,7 @@ meta:
   unit_scale: millions
   sign_convention: costs_negative
   revision_log:
-    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "50MW Italian solar PV, PNRR-eligible." }
+    - { version: v0.1, date: 2026-04-16, analyst: Analyst, note: "50MW Italian solar PV, PNRR-eligible." }
 
 target:
   name: "SolarCo SPV (anonymized)"

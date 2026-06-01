@@ -29,8 +29,8 @@ def client(tmp_path, monkeypatch):
     return TestClient(app)
 
 
-def _h(user_id: str = "u-luka", tenant_id: str = "t-123",
-       email: str = "luka@x.com", role: str = "owner") -> dict:
+def _h(user_id: str = "u-demo", tenant_id: str = "t-123",
+       email: str = "demo@example.com", role: str = "owner") -> dict:
     return {
         "X-User-Id": user_id,
         "X-Tenant-Id": tenant_id,
@@ -66,9 +66,9 @@ def test_whoami_returns_authcontext(client):
     r = client.get("/api/v1/auth/whoami", headers=_h())
     assert r.status_code == 200
     body = r.json()
-    assert body["user_id"] == "u-luka"
+    assert body["user_id"] == "u-demo"
     assert body["tenant_id"] == "t-123"
-    assert body["email"] == "luka@x.com"
+    assert body["email"] == "demo@example.com"
     assert body["role"] == "owner"
     assert body["is_dev_bypass"] is True
 
@@ -84,12 +84,12 @@ def test_whoami_401_without_headers(client):
 def test_create_tenant_returns_owner_membership(client):
     r = client.post(
         "/api/v1/tenants",
-        json={"name": "Aither Capital", "plan": "free", "seats": 3},
+        json={"name": "DemoCo Capital", "plan": "free", "seats": 3},
         headers=_h(),
     )
     assert r.status_code == 201
     body = r.json()
-    assert body["name"] == "Aither Capital"
+    assert body["name"] == "DemoCo Capital"
     assert body["plan"] == "free"
     assert body["seats"] == 3
     assert body["id"].startswith("tenant_")
@@ -133,7 +133,7 @@ def test_add_and_remove_member(client):
     tid = create_resp.json()["id"]
     add = client.post(
         f"/api/v1/tenants/{tid}/members",
-        json={"user_id": "bob", "email": "bob@x.com", "role": "member"},
+        json={"user_id": "bob", "email": "bob@example.com", "role": "member"},
         headers=_h(user_id="alice"),
     )
     assert add.status_code == 201
@@ -181,7 +181,7 @@ def _make_stripe_payload(tenant_id="t-123", amount=9900) -> dict:
         "type": "checkout.session.completed",
         "data": {"object": {
             "amount_total": amount, "currency": "usd",
-            "metadata": {"tenant_id": tenant_id, "user_id": "u-luka",
+            "metadata": {"tenant_id": tenant_id, "user_id": "u-demo",
                          "plan": "seat_monthly"},
         }},
     }

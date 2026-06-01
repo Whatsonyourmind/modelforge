@@ -14,7 +14,7 @@ Usage::
     from modelforge.audit_log import AuditLog
     log = AuditLog()  # defaults to ~/.modelforge/audit.db
 
-    with log.record("build_model", inputs={"spec": "deal.yaml"}, user="luka@..."):
+    with log.record("build_model", inputs={"spec": "deal.yaml"}, user="analyst@..."):
         ... do work ...
         log.set_outputs(xlsx="output/deal.xlsx", sha256="abc...")
 """

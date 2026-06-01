@@ -9,7 +9,7 @@ model_type: three_statement
 meta:
   project_code: REAL-STVN-FY26
   deliverable: { en: "Stevanato Group 3-Statement Model (public filings)", it: "Stevanato Group modello 3 prospetti (bilanci pubblici)" }
-  analyst: L. Stanisljevic
+  analyst: Analyst
   version: v0.1-real
   status: draft
   valuation_date: 2026-04-16
@@ -17,7 +17,7 @@ meta:
   unit_scale: millions
   sign_convention: costs_negative
   revision_log:
-    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "Real Stevanato — FY23 + FY24 + FY25 actuals; FY26-FY28 on consensus growth." }
+    - { version: v0.1, date: 2026-04-16, analyst: Analyst, note: "Real Stevanato — FY23 + FY24 + FY25 actuals; FY26-FY28 on consensus growth." }
 
 target:
   name: "Stevanato Group S.p.A."

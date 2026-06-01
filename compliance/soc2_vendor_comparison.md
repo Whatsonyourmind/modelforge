@@ -2,7 +2,7 @@
 title: SOC 2 Type II Vendor Comparison for ModelForge
 date: 2026-04-18
 type: research
-author: Luka Stanisljevic
+author: Whatsonyourmind
 context: Solo founder, Italian boutique credit fund customers, Python/FastAPI/Docker stack, EU residency required
 ---
 

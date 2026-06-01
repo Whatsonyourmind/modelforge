@@ -1,7 +1,7 @@
 # Security Policy
 
 **Last updated**: 2026-05-14 · **Version**: 0.9.0
-**Owner**: Luka Stanisljevic (redacted@example.com)
+**Maintainer**: ModelForge maintainers — report security issues via [GitHub Security Advisories](https://github.com/Whatsonyourmind/modelforge/security/advisories/new)
 
 ## Threat model
 
@@ -25,8 +25,9 @@ Therefore the primary threats this policy addresses:
 
 ## Reporting a vulnerability
 
-If you discover a security issue, please email **redacted@example.com**
-with subject `[SECURITY] modelforge: <short description>`.
+If you discover a security issue, please report it privately via
+**[GitHub Security Advisories](https://github.com/Whatsonyourmind/modelforge/security/advisories/new)**
+(on the repo: Security → Report a vulnerability).
 
 **Please do not** open a public GitHub issue for security vulnerabilities.
 

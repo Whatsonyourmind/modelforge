@@ -6,7 +6,7 @@
 # mid-single-digit growth taper, standard sponsor unitranche structure.
 #
 # All figures hypothetical. Source IDs are shaped like the real sources
-# Luka would cite in a live engagement.
+# an analyst would cite in a live engagement.
 # ─────────────────────────────────────────────────────────────────────────────
 
 model_type: unitranche
@@ -16,7 +16,7 @@ meta:
   deliverable:
     en: Senior Unitranche Financing Proposal — UK B2B Tech-Services
     it: Proposta di Finanziamento Senior Unitranche — Servizi UK
-  analyst: L. Stanisljevic
+  analyst: Analyst
   version: v0.1
   status: draft
   valuation_date: 2026-04-15

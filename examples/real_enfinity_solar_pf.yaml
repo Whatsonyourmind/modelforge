@@ -11,7 +11,7 @@ model_type: project_finance
 meta:
   project_code: REAL-ENFINITY-IT
   deliverable: { en: "Enfinity 276MW Italian Solar PV Portfolio — Non-Recourse PF", it: "Enfinity 276MW Solare Italia — PF Non-Recourse" }
-  analyst: L. Stanisljevic
+  analyst: Analyst
   version: v0.1-real
   status: draft
   valuation_date: 2026-04-16
@@ -19,7 +19,7 @@ meta:
   unit_scale: millions
   sign_convention: costs_negative
   revision_log:
-    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "Enfinity Global 276MW Italian solar, public press release Aug 2025." }
+    - { version: v0.1, date: 2026-04-16, analyst: Analyst, note: "Enfinity Global 276MW Italian solar, public press release Aug 2025." }
 
 target:
   name: "Enfinity Global Italian Solar SPV (276MW portfolio)"

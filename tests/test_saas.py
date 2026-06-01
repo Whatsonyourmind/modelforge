@@ -87,15 +87,15 @@ def tenant_store(tmp_path):
 
 def test_create_tenant_returns_tenant_with_owner(tenant_store):
     t = tenant_store.create_tenant(
-        name="Aither", owner_user_id="luka", owner_email="l@x.com",
+        name="DemoCo", owner_user_id="demo", owner_email="l@example.com",
     )
     assert isinstance(t, Tenant)
-    assert t.name == "Aither"
+    assert t.name == "DemoCo"
     assert t.plan == "free"
     members = tenant_store.list_members(t.id)
     assert len(members) == 1
     assert members[0]["role"] == "owner"
-    assert members[0]["user_id"] == "luka"
+    assert members[0]["user_id"] == "demo"
 
 
 def test_create_tenant_provisions_storage_dirs(tenant_store):
@@ -112,7 +112,7 @@ def test_storage_path_unknown_kind_raises(tenant_store):
 
 
 def test_add_member_idempotent(tenant_store):
-    t = tenant_store.create_tenant(name="X", owner_user_id="luka")
+    t = tenant_store.create_tenant(name="X", owner_user_id="demo")
     tenant_store.add_member(tenant_id=t.id, user_id="bob", role="member")
     tenant_store.add_member(tenant_id=t.id, user_id="bob", role="member")
     members = tenant_store.list_members(t.id)
@@ -120,7 +120,7 @@ def test_add_member_idempotent(tenant_store):
 
 
 def test_remove_member(tenant_store):
-    t = tenant_store.create_tenant(name="X", owner_user_id="luka")
+    t = tenant_store.create_tenant(name="X", owner_user_id="demo")
     tenant_store.add_member(tenant_id=t.id, user_id="bob")
     tenant_store.remove_member(tenant_id=t.id, user_id="bob")
     members = tenant_store.list_members(t.id)
@@ -128,20 +128,20 @@ def test_remove_member(tenant_store):
 
 
 def test_list_tenants_for_user(tenant_store):
-    t1 = tenant_store.create_tenant(name="A", owner_user_id="luka")
+    t1 = tenant_store.create_tenant(name="A", owner_user_id="demo")
     t2 = tenant_store.create_tenant(name="B", owner_user_id="bob")
-    tenant_store.add_member(tenant_id=t2.id, user_id="luka")
-    luka_tenants = tenant_store.list_tenants_for_user("luka")
-    assert {t.id for t in luka_tenants} == {t1.id, t2.id}
+    tenant_store.add_member(tenant_id=t2.id, user_id="demo")
+    demo_tenants = tenant_store.list_tenants_for_user("demo")
+    assert {t.id for t in demo_tenants} == {t1.id, t2.id}
 
 
 def test_assert_member_passes_for_member(tenant_store):
-    t = tenant_store.create_tenant(name="X", owner_user_id="luka")
-    tenant_store.assert_member(tenant_id=t.id, user_id="luka")
+    t = tenant_store.create_tenant(name="X", owner_user_id="demo")
+    tenant_store.assert_member(tenant_id=t.id, user_id="demo")
 
 
 def test_assert_member_raises_for_non_member(tenant_store):
-    t = tenant_store.create_tenant(name="X", owner_user_id="luka")
+    t = tenant_store.create_tenant(name="X", owner_user_id="demo")
     with pytest.raises(KeyError):
         tenant_store.assert_member(tenant_id=t.id, user_id="bob")
 

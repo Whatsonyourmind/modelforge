@@ -1,7 +1,7 @@
 # ModelForge — Formal Threat Model (STRIDE)
 
 **Last updated**: 2026-05-15
-**Owner**: Luka Stanisljevic (redacted@example.com)
+**Maintainer**: ModelForge maintainers (security reports via GitHub Security Advisories)
 **Companion**: [`SECURITY.md`](SECURITY.md) (vulnerability disclosure, supply-chain integrity, audit logging, compliance posture)
 
 This document complements `SECURITY.md` with a STRIDE-style threat catalogue.
@@ -157,7 +157,7 @@ All other threats: **Low** inherent, **Very low** residual.
 | `pip-audit` against `requirements.txt` | every push (advisory CI) | `.github/workflows/security.yml` |
 | Bandit static analysis | every push (advisory CI) | `.github/workflows/security.yml` |
 | `safety` known-CVE scan | every push (advisory CI) | `.github/workflows/security.yml` |
-| Manual STRIDE review | every minor release | Maintainer (Luka) |
+| Manual STRIDE review | every minor release | Maintainer |
 | Threat model document refresh | every quarter or after major architecture change | Maintainer |
 
 This document is **not** a substitute for an external pen-test. Pen-test is gated

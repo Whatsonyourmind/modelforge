@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
-_USER_AGENT = ("ModelForge/0.5 (contact: redacted@example.com) "
+_USER_AGENT = ("ModelForge/0.5 (+https://github.com/Whatsonyourmind/modelforge) "
                "Python/urllib")
 _TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"

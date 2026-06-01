@@ -5,7 +5,7 @@ meta:
   deliverable:
     en: Italian telecom merger — accretion/dilution illustrative
     it: Fusione telecom italiano — accretion/diluizione illustrativa
-  analyst: Luka Stanisljevic
+  analyst: Analyst
   version: v0.1
   status: draft
   valuation_date: 2026-04-17
@@ -15,7 +15,7 @@ meta:
   revision_log:
     - version: v0.1
       date: 2026-04-17
-      analyst: Luka Stanisljevic
+      analyst: Analyst
       note: Initial illustrative merger spec
 
 target:

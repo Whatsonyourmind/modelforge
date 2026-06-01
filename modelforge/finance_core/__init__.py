@@ -5,8 +5,8 @@ tax computations, future extractions of formulas / styles / spec.base
 that both ``real_estate`` + ``npl`` + ``project_finance`` + ``credit_memo``
 can import without duplicating.
 
-The package boundary is intentional: downstream consumers (Aither,
-CreditAI, DeckForge) should import from ``modelforge.finance_core`` when
+The package boundary is intentional: downstream consumers (the vertical
+wrappers/services) should import from ``modelforge.finance_core`` when
 they need deterministic, vertical-agnostic finance math.
 """
 from __future__ import annotations

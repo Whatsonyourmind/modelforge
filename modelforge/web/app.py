@@ -342,7 +342,6 @@ _INDEX_HTML = """<!doctype html>
       <a href="/health" class="hover:text-blue-200">Health</a>
       <a href="https://github.com/Whatsonyourmind/modelforge" class="hover:text-blue-200">GitHub</a>
       <a href="https://github.com/Whatsonyourmind/modelforge/blob/master/SCORECARD_v3.md" class="hover:text-blue-200">Scorecard</a>
-      <a href="https://github.com/Whatsonyourmind/modelforge/blob/master/GTM_STRATEGY.md" class="hover:text-blue-200">GTM</a>
     </nav>
   </div>
 </header>
@@ -411,10 +410,10 @@ __ROWS__
 
 <footer class="mt-12 bg-slate-900 text-slate-400 py-6 text-sm">
   <div class="max-w-6xl mx-auto px-6 flex flex-wrap justify-between gap-4">
-    <div>© 2026 Luka Stanisljevic · ModelForge v0.9.3 · Milan</div>
+    <div>© 2026 ModelForge</div>
     <div class="space-x-4">
       <a href="https://github.com/Whatsonyourmind/modelforge" class="hover:text-white">GitHub</a>
-      <a href="mailto:redacted@example.com" class="hover:text-white">Contact</a>
+      <a href="https://github.com/Whatsonyourmind/modelforge/issues" class="hover:text-white">Contact</a>
     </div>
   </div>
 </footer>

@@ -180,7 +180,7 @@ def list_templates_cmd() -> None:
     tbl.add_column("Status")
     descriptions = {
         "unitranche": "Italian mid-market unitranche LBO (senior direct lending)",
-        "minibond": "Italian minibond pricing + investor returns (Banca Finint territory)",
+        "minibond": "Italian minibond pricing + investor returns",
         "credit_memo": "Credit memo with covenant headroom + LGD + recovery analysis",
         "project_finance": "Infrastructure/RE project finance, DSCR-driven, construction + operating",
         "real_estate": "RE DCF with NOI build, exit cap, equity waterfall (pref + promote)",
