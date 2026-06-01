@@ -1,4 +1,4 @@
-# Italian PMI securitization — a regional bank basket bond / legge 130/1999
+# Italian PMI securitization — basket bond / legge 130/1999
 # €150M receivables, 7y horizon, 4 tranches
 
 model_type: structured_credit
@@ -6,7 +6,7 @@ model_type: structured_credit
 meta:
   project_code: DEMO-SEC-PMI
   deliverable: { en: "PMI Securitization — Tranche Rating Deck", it: "Cartolarizzazione PMI — Deck di Rating" }
-  analyst: L. maintainer
+  analyst: Analyst
   version: v0.1
   status: draft
   valuation_date: 2026-04-16
@@ -14,7 +14,7 @@ meta:
   unit_scale: millions
   sign_convention: costs_negative
   revision_log:
-    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "Italian PMI securitization, 4 tranches." }
+    - { version: v0.1, date: 2026-04-16, analyst: Analyst, note: "Italian PMI securitization, 4 tranches." }
 
 target:
   name: "Project PMI Securitization (anonymized)"
@@ -32,7 +32,7 @@ horizon: { collection_years: 7 }
 sources:
   - { id: S-001, doc: Originator_data_tape_SME_receivables.xlsx, page: 1, publisher: "Originator bank", date: 2026-03-10, verified: true, note: "SME trade receivables data tape, sector and geography split." }
   - { id: S-002, doc: Moodys_Italian_SME_ABS_Default_Study_2025.pdf, page: 18, publisher: "Moody's Investors Service", date: 2026-01-20, verified: true, note: "Italian SME ABS cumulative defaults — investment grade tranches 2-4% over 7y." }
-  - { id: S-003, doc: Banca_a regional bank_PMI_Basket_Bond_precedent.pdf, page: 4, publisher: "a regional bank", date: 2026-02-05, verified: true, note: "a regional bank basket bond structure Italian legge 130/1999 precedent." }
+  - { id: S-003, doc: Italian_basket_bond_precedent.pdf, page: 4, publisher: "Italian arranger bank", date: 2026-02-05, verified: true, note: "Italian basket bond structure (legge 130/1999) precedent." }
   - { id: S-004, doc: EBA_Risk_Dashboard_Q4_2025.pdf, page: 32, publisher: EBA, date: 2026-02-28, url: "https://www.eba.europa.eu/", verified: true, note: "European SME recovery rates 45-55% on default." }
   - { id: S-005, doc: Cerved_Italian_SME_PD_By_Sector.pdf, page: 12, publisher: Cerved, date: 2026-01-15, verified: false, note: "Italian SME PD by sector." }
 

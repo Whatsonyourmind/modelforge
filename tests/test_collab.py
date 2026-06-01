@@ -24,7 +24,7 @@ from modelforge.collab import (
 
 def test_create_comment_returns_comment_with_thread_eq_id(tmp_path):
     store = CommentStore(tmp_path / "c.db")
-    c = store.create(anchor="wacc_rate", author="md@x.com", body="Why 8.5%?")
+    c = store.create(anchor="wacc_rate", author="md@example.com", body="Why 8.5%?")
     assert isinstance(c, Comment)
     assert c.id == c.thread
     assert c.anchor == "wacc_rate"
@@ -34,8 +34,8 @@ def test_create_comment_returns_comment_with_thread_eq_id(tmp_path):
 
 def test_reply_inherits_anchor_from_thread_root(tmp_path):
     store = CommentStore(tmp_path / "c.db")
-    c1 = store.create(anchor="wacc_rate", author="md@x.com", body="Q?")
-    c2 = store.reply(thread=c1.id, author="jr@x.com", body="A.")
+    c1 = store.create(anchor="wacc_rate", author="md@example.com", body="Q?")
+    c2 = store.reply(thread=c1.id, author="jr@example.com", body="A.")
     assert c2.thread == c1.id
     assert c2.anchor == "wacc_rate"
     assert c2.event == "reply"

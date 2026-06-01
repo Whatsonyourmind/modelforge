@@ -6,7 +6,7 @@ formulas so callers can:
 - Compute reference values in Python for unit tests (sanity-check the
   Excel-rendered workbook against these — closes the v0.3 PMT-drift
   incident class).
-- Let downstream wrappers (Aither, CreditAI, DeckForge composers) do
+- Let downstream wrappers (vertical composers/services) do
   finance math without taking the whole openpyxl dependency.
 
 All functions are vector-free and work on ``float`` (or Decimal for

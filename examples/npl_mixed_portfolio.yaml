@@ -6,7 +6,7 @@ model_type: npl
 meta:
   project_code: DEMO-NPL-MIX
   deliverable: { en: "NPL Portfolio Acquisition Model", it: "Modello di Acquisizione Portafoglio NPL" }
-  analyst: L. maintainer
+  analyst: Analyst
   version: v0.1
   status: draft
   valuation_date: 2026-04-16
@@ -14,7 +14,7 @@ meta:
   unit_scale: millions
   sign_convention: costs_negative
   revision_log:
-    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "Mixed secured/unsecured Italian NPL portfolio." }
+    - { version: v0.1, date: 2026-04-16, analyst: Analyst, note: "Mixed secured/unsecured Italian NPL portfolio." }
 
 target:
   name: "NPL Portfolio (anonymized)"

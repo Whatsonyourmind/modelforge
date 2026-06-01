@@ -1,8 +1,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # ModelForge example: Italian mid-market logistics company minibond
 #
-# Anonymized issuer modelled on a holding group-style issuance pattern
-# (a regional bank arranger, 6y amortizing, ExtraMOT Pro listing).
+# Anonymized issuer modelled on a representative Italian mid-market issuance pattern
+# (Italian arranger bank, 6y amortizing, ExtraMOT Pro listing).
 #
 # Benchmarks: Codess 3.85% fixed coupon · Polimi Osservatorio Minibond 2025
 # benchmarks · AIFI arrangement fee ranges · Italian WHT 26% default.
@@ -13,7 +13,7 @@ model_type: minibond
 meta:
   project_code: DEMO-LOGI-MB
   deliverable: { en: "Senior Secured Minibond Placement", it: "Collocamento Minibond Senior Secured" }
-  analyst: L. maintainer
+  analyst: Analyst
   version: v0.1
   status: draft
   valuation_date: 2026-04-16
@@ -21,7 +21,7 @@ meta:
   unit_scale: millions
   sign_convention: costs_negative
   revision_log:
-    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "Initial draft — base case, ICM-pattern structure." }
+    - { version: v0.1, date: 2026-04-16, analyst: Analyst, note: "Initial draft — base case, ICM-pattern structure." }
 
 target:
   name: "Issuer SpA (anonymized)"
@@ -53,15 +53,14 @@ sources:
     date: 2026-02-20
     url: https://www.osservatorimi.it/
     verified: true
-    note: Italian minibond 2025 market — a regional bank top arranger, tenor & pricing benchmarks.
+    note: Italian minibond 2025 market — leading arranger, tenor & pricing benchmarks.
   - id: S-003
-    doc: Banca_a regional bank_ICM_minibond_25M_press.pdf
+    doc: Italian_minibond_25M_precedent.pdf
     page: 1
-    publisher: a regional bank
+    publisher: Italian arranger bank
     date: 2026-01-15
-    url: https://www.a regional bank.com/
     verified: true
-    note: ICM Gruppo €25M minibond precedent — 6y amortizing, ExtraMOT Pro.
+    note: Representative €25M minibond precedent — 6y amortizing, ExtraMOT Pro.
   - id: S-004
     doc: ECB_EURIBOR_6M_fixing.html
     page: 1
@@ -127,7 +126,7 @@ bond:
   make_whole_pct:
     { id: A-032, name: make_whole_pct, label: { en: "Make-whole premium", it: "Make-whole" }, unit: pct, base: 0.02, rationale: "2% par premium inside call protection.", confidence: M }
   arrangement_fee_pct:
-    { id: A-033, name: arrangement_fee_pct, label: { en: "Arrangement fee %", it: "Commissione strutturazione %" }, unit: pct, base: 0.015, rationale: "Italian minibond arrangement 1-2% (a regional bank norm).", confidence: H, source_id: S-002 }
+    { id: A-033, name: arrangement_fee_pct, label: { en: "Arrangement fee %", it: "Commissione strutturazione %" }, unit: pct, base: 0.015, rationale: "Italian minibond arrangement 1-2% (market norm).", confidence: H, source_id: S-002 }
   legal_fees_eur_m:
     { id: A-034, name: legal_fees, label: { en: "Legal fees (€m)", it: "Spese legali" }, unit: eur_m, base: 0.10, rationale: "Standard €100-150k for €20M issuance.", confidence: H }
   listing_fees_eur_m:
@@ -137,7 +136,7 @@ bond:
   listed_extramot_pro: true
   eltif_eligible: true
   basket_bond: false
-  subscribers: ["Cassa Depositi e Prestiti (CDP)", "a regional bank Private Debt Fund", "Assicurazioni Italia (hypothetical)"]
+  subscribers: ["A national promotional institution", "An Italian private debt fund", "An insurance investor (hypothetical)"]
 
 covenants:
   - name: { en: "Net Leverage (Net Debt / EBITDA)", it: "Leva netta" }

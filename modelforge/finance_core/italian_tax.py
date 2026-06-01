@@ -3,7 +3,7 @@
 Pure Python, deterministic, no pydantic side effects. Consumed by:
 
 - Template builders (real_estate, npl, credit_memo, project_finance)
-- Aither & CreditAI HTTP services via ``modelforge.finance_core``
+- Downstream HTTP services via ``modelforge.finance_core``
 
 All dataclasses / functions accept and return ``Decimal`` where monetary
 amounts are involved, converting on the way in and out of callers.

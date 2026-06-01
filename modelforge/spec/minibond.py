@@ -1,9 +1,9 @@
 """Minibond spec — Template 2.
 
-Italian minibond (a regional bank territory). Key differences vs. Unitranche:
+Italian minibond (Italian arranger territory). Key differences vs. Unitranche:
     - Issuer-centric (not sponsor)
     - Listed on ExtraMOT Pro (secondary liquidity)
-    - Typically 6y amortizing (a regional bank norm per Osservatorio Polimi)
+    - Typically 6y amortizing (Italian market norm per Osservatorio Polimi)
     - ElTIF eligibility flag
     - Gross-to-net investor yield (withholding, transaction costs)
     - Multi-investor subscription (basket bond common)
@@ -75,7 +75,7 @@ class BondStructure(BaseModel):
     listed_extramot_pro: bool = True
     eltif_eligible: bool = False
     basket_bond: bool = False  # multi-issuer syndicate
-    subscribers: list[str] = Field(default_factory=list)  # e.g. ["CDP", "a regional bank Fund"]
+    subscribers: list[str] = Field(default_factory=list)  # e.g. ["A promotional institution", "An Italian private debt fund"]
 
 
 class Covenant(BaseModel):

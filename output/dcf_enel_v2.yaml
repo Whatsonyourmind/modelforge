@@ -4,7 +4,7 @@ meta:
   deliverable:
     en: Standalone DCF-WACC valuation (Italy)
     it: Valutazione DCF-WACC autonoma (Italia)
-  analyst: maintainer
+  analyst: Analyst
   version: v0.1
   status: draft
   valuation_date: 2026-04-17
@@ -14,7 +14,7 @@ meta:
   revision_log:
   - version: v0.1
     date: 2026-04-17
-    analyst: maintainer
+    analyst: Analyst
     note: Initial DCF illustrative spec
 target:
   name: Enel S.p.A. (illustrative)

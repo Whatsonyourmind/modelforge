@@ -77,11 +77,11 @@ Reference: [Damodaran Country Default Spreads and Risk Premiums](https://pages.s
 Reference: [BeBeez AIFI-CDP](https://bebeez.it/private-debt/private-debt-nei-6-mesi-2025-crescono-gli-investimenti-a-21-mld-euro-66-ma-la-raccolta-scende-a-464-mln-21-i-dati-di-aifi-cdp/), [FocusRisparmio](https://www.focusrisparmio.com/news/private-debt-2025-aifi), [Il Giornale d'Italia](https://www.ilgiornaleditalia.it/news/mondo-imprese/780444/aifi-investimenti-nel-private-debt-a-6-8-mld-+33-nel-2025-i-nuovi-capitali-in-entrata-si-fermano-a-1-miliardo-26.html).
 
 ### Italian minibond benchmark (for Template 2)
-- **a regional bank = #1 Italian minibond arranger 2025** — 53 issuances, €294.5M
+- **Leading Italian minibond arranger 2025** — ~53 issuances, ~€294.5M
 - Typical structure: **6-year amortizing**, size €5-25M per tranche
 - Recent pricing: Codess 3.85% annual coupon
 
-Reference: [Osservatorio Minibond Polimi — a regional bank primo arranger](https://financecommunity.it/osservatorio-minibond-polimi-a regional bank-primo-arranger-in-italia/), [an asset manager Magazine — a regional bank leader 2025](https://www.finance media.it/investire/2026/03/23/news/minibond-a regional bank-si-conferma-leader-italia/), [BeBeez — ICM €25M minibond 6y amortizing](https://bebeez.it/private-debt/il-costruttore-di-grandi-opere-icm-emette-minibond-da-25-mln-con-la-regia-di-a regional bank/).
+Reference: Osservatorio Minibond — Politecnico di Milano (2025 annual report); Italian private-debt market press.
 
 ### EURIBOR 6M — current observation point
 ECB Data Portal updated Apr 1, 2026. Reference-source URL: [ECB SDW](https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR6MD_.HSTA) and [EMMI Benchmarks](https://www.emmi-benchmarks.eu/benchmarks/euribor/rate/). Our 2.80% base is consistent with recent ECB rate-cut path; keep, scenario band covers drift.

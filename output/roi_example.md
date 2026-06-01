@@ -1,4 +1,4 @@
-# ModelForge ROI — a regional bank Credit Fund
+# ModelForge ROI — Example Credit Fund
 
 One-page business case. All numbers are computed from the assumptions below; edit any of them and re-run `modelforge roi` to refresh.
 
@@ -32,4 +32,4 @@ One-page business case. All numbers are computed from the assumptions below; edi
 | 1-year ROI | 1783.1% |
 | Payback period | 0.6 months |
 
-Prepared for a regional bank Credit Fund · ModelForge v0.5. The numbers above are driven by your stated assumptions; every calculation is computed deterministically by the Python module `modelforge.roi.calculator` and can be audited line-by-line.
+Prepared for an example credit fund · ModelForge v0.5. The numbers above are driven by your stated assumptions; every calculation is computed deterministically by the Python module `modelforge.roi.calculator` and can be audited line-by-line.

@@ -6,7 +6,7 @@ model_type: credit_memo
 meta:
   project_code: DEMO-CDMO-CM
   deliverable: { en: "Credit Committee Memorandum", it: "Memorandum per Comitato Crediti" }
-  analyst: L. maintainer
+  analyst: Analyst
   version: v0.1
   status: draft
   valuation_date: 2026-04-16
@@ -14,7 +14,7 @@ meta:
   unit_scale: millions
   sign_convention: costs_negative
   revision_log:
-    - { version: v0.1, date: 2026-04-16, analyst: LS, note: "CDMO deal — credit memo wrapper on unitranche model." }
+    - { version: v0.1, date: 2026-04-16, analyst: Analyst, note: "CDMO deal — credit memo wrapper on unitranche model." }
 
 target:
   name: "Target SpA (anonymized)"

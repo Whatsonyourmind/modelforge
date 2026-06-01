@@ -96,7 +96,7 @@ def build_sbom() -> dict:
         "description": proj_meta.get("description", ""),
         "purl": f"pkg:pypi/modelforge@{proj_meta.get('version', '0.0.0')}",
         "supplier": {
-            "name": "maintainer",
+            "name": "Whatsonyourmind",
             "url": ["https://github.com/Whatsonyourmind/modelforge"],
         },
         "licenses": [

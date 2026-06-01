@@ -2,7 +2,7 @@
 
 Every ModelForge template assigns ``A-001`` / ``S-001`` -style IDs to its
 assumptions and sources. Templates currently re-implement the allocation
-separately; this module centralises it so Aither / CreditAI wrappers can
+separately; this module centralises it so downstream wrappers can
 also produce valid spec payloads without re-implementing the ID rules.
 
 ID rules (enforced):

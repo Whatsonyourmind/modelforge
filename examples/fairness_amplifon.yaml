@@ -5,7 +5,7 @@ meta:
   deliverable:
     en: Fairness opinion football field — illustrative
     it: Fairness opinion football field — illustrativa
-  analyst: maintainer
+  analyst: Analyst
   version: v0.1
   status: draft
   valuation_date: 2026-04-17
@@ -15,7 +15,7 @@ meta:
   revision_log:
     - version: v0.1
       date: 2026-04-17
-      analyst: maintainer
+      analyst: Analyst
       note: Initial illustrative fairness spec
 
 target:

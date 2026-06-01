@@ -31,7 +31,7 @@ from modelforge.feeds.cache import get_cache
 from modelforge.feeds.provider import Filing, Provider, ProviderError
 
 _USER_AGENT = (
-    "ModelForge/0.9 (contact: redacted@example.com) Python/urllib"
+    "ModelForge/0.9 (+https://github.com/Whatsonyourmind/modelforge) Python/urllib"
 )
 _TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
