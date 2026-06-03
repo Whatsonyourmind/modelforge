@@ -1,0 +1,31 @@
+ModelForge — Proprietary, Source-Available License
+Copyright (c) 2026 Whatsonyourmind. All rights reserved.
+
+This software and its source code ("the Software") are published publicly for
+evaluation, reference, and non-commercial use only. Publication of the source
+does not place the Software in the public domain or grant an open-source license.
+
+YOU MAY, free of charge:
+  - View, clone, and fork the Software.
+  - Run and modify the Software for personal evaluation, learning, and
+    non-commercial experimentation.
+  - Submit contributions, which you agree are licensed back to the copyright
+    holder under these same terms.
+
+YOU MAY NOT, without a separate written commercial license from the copyright
+holder:
+  - Use the Software, in whole or in part, in any commercial product, service,
+    consulting engagement, or other revenue-generating activity.
+  - Redistribute, sublicense, sell, or offer the Software (or a derivative) as
+    a hosted or managed service.
+  - Remove, obscure, or alter this license or the copyright notices.
+
+Commercial use requires a paid license. To inquire, open a GitHub issue or
+discussion on the project repository.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
