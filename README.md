@@ -8,6 +8,13 @@ Bulge-tier Excel financial model factory for credit & structured finance. Every 
 
 A developer tool for analysts and engineers who build credit and corporate-finance models programmatically. Covers unitranche, sponsor-backed LBO, project finance, real estate credit, NPL, structured credit, restructuring, M&A, DCF and IPO templates. Extensible to any asset class.
 
+---
+
+> **🚀 Using ModelForge in production — or want managed features, priority support, or a specific template/connector?**
+> [**Tell me about your use case →**](https://github.com/Whatsonyourmind/modelforge/issues/new?template=early-access.yml) — I read every one.
+
+---
+
 ## Use it inside Claude Code, Cursor, ChatGPT Enterprise (MCP-native)
 
 **PyPI name**: `modelforge-finance` (the unscoped `modelforge` was taken by source{d}'s ML library). **Import name** stays `modelforge`.
