@@ -1,6 +1,6 @@
 # Comparison — ModelForge vs Rogo / Macabacus / FAST
 
-Three competitors / reference points in the financial-modelling SOTA landscape. ModelForge's positioning is deliberately niche: the intersection of **live-formula output, source-traceable cells, Italian credit/structured finance specificity, and regulator-grade audit dossier.** None of the three alternatives ship all four.
+Three competitors / reference points in the financial-modelling SOTA landscape. ModelForge's positioning is deliberately niche: the intersection of **live-formula output, source-traceable cells, European credit/structured finance coverage, and regulator-grade audit dossier.** None of the three alternatives ship all four.
 
 ## Rogo (Series C, 25k users)
 
