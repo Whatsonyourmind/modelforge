@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "modelforge-finance"
-version = "0.11.3"
+version = "0.11.4"
 description = "Bulge-tier Excel financial model factory. Every cell live-formulated, every number traceable. MCP-native."
 readme = "README.md"
 requires-python = ">=3.11"
