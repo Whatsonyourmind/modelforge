@@ -104,8 +104,14 @@ def test_performance_1000_runs_under_5s():
     assert len(r.samples) == 1000
 
 
-def test_mc_sheet_on_all_templates():
-    """Every template gets a MonteCarlo sheet after build_model."""
+def test_mc_sheet_on_all_templates(tmp_path):
+    """Every template gets a MonteCarlo sheet after build_model.
+
+    Builds each example into a temp dir (self-contained) rather than reading
+    gitignored prebuilt output/*.xlsx, so the test passes from a clean checkout.
+    """
+    from modelforge.cli import _load_spec_class
+
     specs = [
         ("unitranche_cdmo.yaml", "unitranche"),
         ("minibond_logistics.yaml", "minibond"),
@@ -117,7 +123,12 @@ def test_mc_sheet_on_all_templates():
         ("three_statement_cdmo.yaml", "three_statement"),
     ]
     for fname, mt in specs:
-        wb = load_workbook(ROOT / "output" / f"{Path(fname).stem}.xlsx")
+        spec_path = ROOT / "examples" / fname
+        raw = yaml.safe_load(spec_path.read_bytes())
+        spec = _load_spec_class(raw.get("model_type", mt)).model_validate(raw)
+        out = tmp_path / f"{Path(fname).stem}.xlsx"
+        build_model(spec, out, spec_source_bytes=spec_path.read_bytes(), spec_source_path=spec_path)
+        wb = load_workbook(out)
         assert "MonteCarlo" in wb.sheetnames, f"MC missing on {mt}"
 
 

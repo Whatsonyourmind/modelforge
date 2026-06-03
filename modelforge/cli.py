@@ -22,6 +22,17 @@ from modelforge.qc import run_qc
 from modelforge.spec.unitranche import UnitrancheSpec
 from modelforge.templates import REGISTRY, build_model
 
+# Force UTF-8 output so help/text containing non-ASCII characters (e.g. the
+# "χ²" in a backtest command docstring) doesn't raise UnicodeEncodeError on
+# Windows cp1252 consoles.
+for _stream in (sys.stdout, sys.stderr):
+    _reconfigure = getattr(_stream, "reconfigure", None)
+    if _reconfigure is not None:
+        try:
+            _reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
+
 
 console = Console()
 
