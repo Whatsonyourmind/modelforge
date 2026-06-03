@@ -2,7 +2,7 @@
 
 > Bulge-tier Excel financial models. Every cell live. Every number sourced. Every assumption defended.
 
-ModelForge is a deterministic Excel model factory for Italian credit and structured finance (and now global IB workflows). An LLM writes the spec; a typed Python builder writes the workbook. Every cell is a live formula; every input cites a source page or an analyst rationale; every model ships with a linkage graph auditable via CLI or PDF dossier.
+ModelForge is a deterministic Excel model factory for credit, structured finance, and corporate-finance workflows. An LLM writes the spec; a typed Python builder writes the workbook. Every cell is a live formula; every input cites a source page or an analyst rationale; every model ships with a linkage graph auditable via CLI or PDF dossier.
 
 ## Why it exists
 

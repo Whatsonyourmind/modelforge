@@ -196,10 +196,9 @@ buyer persona.
 
 ## [0.10.0] — 2026-05-18 — Foreign-Market Expansion
 
-Retires Italian-only positioning. Ships the foreign-market substrate for a
-US + UK + DACH + Nordic + Benelux GTM motion. Six persona interviews across
-30 target firms drove the scope. See `PRD_v010_foreign_markets.md` for the
-full design + rationale.
+Retires single-vertical positioning. Ships a market-neutral, multi-language
+substrate (EN + 7 secondary languages) plus two preview templates so the
+toolkit is no longer tied to one market or jurisdiction.
 
 ### Added
 - **Multi-language label expansion** — `Label` class now supports EN + 7
@@ -224,8 +223,6 @@ full design + rationale.
 - **20 new tests** at `tests/test_v010_foreign_markets.py` covering Label
   class, i18n coverage, runtime lang swap, template registration, and
   example round-trip builds.
-- **PRD** at `PRD_v010_foreign_markets.md` documenting the v0.10 scope
-  + persona research + risk register.
 
 ### Changed
 - **README** scrubbed of vertical-specific go-to-market positioning and
@@ -253,13 +250,9 @@ full design + rationale.
 - Italian-language hardcoded strings outside the Label class (Monte Carlo
   sheet titles, etc.) — small set, v0.11 cleanup.
 
-### Strategic context
-v0.10 closes the [redacted] of the v0.9.x README (which marketed
-the product as "[redacted]") and unblocks the
-[redacted] W1 outreach motion to foreign actors: US MM direct lenders,
-[redacted], [redacted] shops, Benelux family
-MM PE. See `PRD_v010_foreign_markets.md` §2 for the six-persona interview
-that drove the prioritization.
+### Notes
+v0.10 retires single-vertical positioning in favor of a market-neutral,
+multi-language substrate and broader template coverage.
 
 ## [0.9.7] — 2026-05-15 — Trust Layer v1
 
