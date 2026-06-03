@@ -2,7 +2,7 @@
 
 <!-- mcp-name: io.github.Whatsonyourmind/modelforge -->
 
-[![Version](https://img.shields.io/pypi/v/modelforge-finance?label=version&color=blue)](https://pypi.org/project/modelforge-finance/) [![Tests](https://img.shields.io/badge/tests-679%2F679-brightgreen)](./tests) [![Trust](https://img.shields.io/badge/trust--layer-v1%20(14%2F14%20FAIL--clean)-brightgreen)](./AUDIT_REPORT.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py) [![Templates](https://img.shields.io/badge/templates-14-blue)](./modelforge/templates/) [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.5-purple)](./.github/workflows/ci.yml)
+[![Version](https://img.shields.io/pypi/v/modelforge-finance?label=version&color=blue)](https://pypi.org/project/modelforge-finance/) [![Tests](https://img.shields.io/badge/tests-679%2F679-brightgreen)](./tests) [![Trust](https://img.shields.io/badge/trust--layer-v1%20(14%2F14%20FAIL--clean)-brightgreen)](./AUDIT_REPORT.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py) [![Templates](https://img.shields.io/badge/templates-16%20(14%20shipped%20%2B%202%20preview)-blue)](./modelforge/templates/) [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.5-purple)](./.github/workflows/ci.yml)
 
 Bulge-tier Excel financial model factory for credit & structured finance. Every cell live-formulated. Every number traceable back to the source document page it came from.
 
@@ -12,6 +12,17 @@ A developer tool for analysts and engineers who build credit and corporate-finan
 
 > **🚀 Using ModelForge in production — or want managed features, priority support, or a specific template/connector?**
 > [**Tell me about your use case →**](https://github.com/Whatsonyourmind/modelforge/issues/new?template=early-access.yml) — I read every one.
+
+---
+
+## What this solves
+
+- Your agent needs to produce an Excel model from a structured spec — without an LLM hallucinating numbers directly into cells. ModelForge keeps the model deterministic: the LLM writes a typed YAML spec with source IDs, and a Python builder emits the live-formula workbook.
+- You need every output number to be auditable back to where it came from — without manually maintaining a sources sheet. Each hardcoded input carries a source ID, and the model's linkage graph is persisted to SQLite so a cell can be traced to its driver, source, and document page.
+- You want a model that recalculates instead of being a static dump — without writing formula strings by hand. Every cell is a real Excel formula, with named ranges, sign conventions, and WORST/BASE/BEST scenario toggles wired across sheets.
+- You need to gate a workbook for review — without eyeballing it. The QC tool runs an automated structural check suite (QC sheet present, named ranges populated, source references resolve, print areas set, no orphan sheets) and returns a per-check pass/fail report.
+- You need to triage many candidate deals fast — without building a workbook for each one. The screening tool filters and ranks a directory of spec YAMLs by quantitative criteria (margins, leverage, IRR) on their `screening:` block alone.
+- You want the whole pipeline available to an AI assistant — without bespoke glue code. ModelForge ships an MCP server (`modelforge-mcp`) so agents in Claude Code, Cursor, Cline, or ChatGPT Enterprise can list templates, build, QC, trace lineage, ingest a data room, and export deliverables.
 
 ---
 
@@ -33,7 +44,7 @@ pip install "modelforge-finance[mcp,export]"
 Then in your AI assistant:
 > *"Build me a unitranche LBO model from this YAML spec, export the committee deck."*
 
-Tools available: `list_templates` · `build_model` · `qc_workbook` · `list_sources` · `lineage_walk` · `ingest_dataroom` · `screen_deals` · `compute_tax` · `export_pptx` · `export_docx` · plus 7 unified-feed tools (`get_fundamentals`, `get_prices`, `lookup_lei`, etc.) across an 11-provider data stack.
+Tools available: `list_templates` · `build_model` · `qc_workbook` · `list_sources` · `lineage_walk` · `ingest_dataroom` · `screen_deals` · `compute_tax` · `export_pptx` · `export_docx` · plus 7 unified-feed tools (`data_providers_status` · `quote` · `history` · `fundamentals` · `search_filings` · `entity_lookup` · `search_securities`) across an 11-provider data stack.
 
 ## The architectural principle
 
@@ -61,7 +72,7 @@ The LLM never writes a number into a cell. It writes a typed YAML spec with sour
 - Every sheet respects the toggle — no orphan assumptions.
 
 **Audit**
-- `QC` sheet with 12 automated checks, all must pass.
+- `QC` sheet with 8 automated checks, all must pass.
 - Revision log on Cover.
 - Named ranges mandatory.
 - Print areas set. Print-ready on every sheet.
@@ -71,10 +82,10 @@ The LLM never writes a number into a cell. It writes a typed YAML spec with sour
 ```bash
 pip install "modelforge-finance[mcp,export,data]"
 
-# Build any of 14 templates from a YAML spec
+# Build any of 16 templates from a YAML spec (14 shipped + 2 preview)
 modelforge build examples/unitranche_cdmo.yaml
 
-# QC the workbook (12 checks + Trust Layer plausibility)
+# QC the workbook (8 structural checks + Trust Layer plausibility)
 modelforge qc output/unitranche_cdmo.xlsx --trust-strict
 
 # Audit every example (CI uses the same gate)
@@ -87,7 +98,7 @@ modelforge audit-all examples/ --report AUDIT_REPORT.md
 
 The Trust Layer is a **semantic** gate (separate from the structural QC gate). It answers the question every IC asks in the first five minutes: *is this number plausible?* It catches issues like a DCF EV that's 8× the company's real market cap before the model ever leaves QA.
 
-25+ built-in rules cover all 14 templates:
+25+ built-in rules cover all shipped templates:
 
 - **DCF**: WACC band (3-25%), terminal growth ≤ GDP + 1%, EV vs market-cap deviation, terminal-value share, sensitivity-table monotonicity
 - **Three-statement**: balance-sheet integrity, cash reconciliation, retained-earnings link
@@ -99,7 +110,7 @@ The Trust Layer is a **semantic** gate (separate from the structural QC gate). I
 Each violation produces a `RedFlags` worksheet inside the built workbook with severity (`info` / `warn` / `fail`), the rule that fired, expected-vs-actual, and the recommended remediation.
 
 ```bash
-modelforge audit-all examples/   # 14/14 templates, 0 FAIL violations in current ship
+modelforge audit-all examples/   # 14/14 shipped templates, 0 FAIL violations in current ship
 ```
 
 See [AUDIT_REPORT.md](./AUDIT_REPORT.md) for the current ship's audit.
@@ -139,12 +150,12 @@ modelforge/
 │   ├── i18n.py       # EN/IT label dictionary
 │   ├── workbook.py   # Top-level builder
 │   └── sheets/       # One module per sheet (cover, sources, assumptions, ...)
-├── qc/               # Quality gate (12 checks + PDF report)
+├── qc/               # Quality gate (8 structural checks + PDF report)
 ├── data/             # Market data loaders (Damodaran, ECB, Borsa minibond)
 └── cli.py            # modelforge build|qc|sources|inspect
 ```
 
-## Templates (14, all shipped)
+## Templates (16: 14 shipped + 2 preview)
 
 1. ✅ **Unitranche LBO** — Mid-market direct lending (Cash sweep + IFRS 9 EIR + covenant package)
 2. ✅ **Minibond / Private Placement Bond** — Direct private debt instrument (Gross YTM + Net YTM + jurisdiction-specific WHT)
@@ -160,8 +171,10 @@ modelforge/
 12. ✅ **Sponsor LBO** — Returns waterfall, debt schedule, 14-story block
 13. ✅ **IPO** — Float build, lock-up, stabilization, fee schedule
 14. ✅ **Restructuring** — Going-concern recovery, plan-feasibility, creditor classes
+15. 🔬 **HGB Carveout** *(preview)* — German HGB carve-out financials
+16. 🔬 **Portfolio Review** *(preview)* — Multi-asset portfolio performance review
 
-Run `modelforge list-templates` to see them all. Each ships with an anonymized example YAML in `examples/`.
+Run `modelforge list-templates` to see them all (preview templates are flagged). Each shipped template has an anonymized example YAML in `examples/`.
 
 ## Tax jurisdictions (7)
 

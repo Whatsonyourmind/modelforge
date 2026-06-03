@@ -1,25 +1,32 @@
 """ModelForge MCP server.
 
 Exposes ModelForge as an MCP tool catalog for AI agents (Claude Code, Cursor, Cline,
-ChatGPT Enterprise, etc.). Distribution lever per GTM_STRATEGY.md §4 Channel A.
+ChatGPT Enterprise, etc.).
 
 Usage::
 
     pip install modelforge-finance[mcp]
     modelforge-mcp                       # stdio server
-    npx -y @modelforge/mcp-server@latest # via Node wrapper (Phase B)
 
-Tools exposed:
+Tools exposed (17):
 
-    build_model       — YAML spec → live-formula Excel workbook
-    qc_workbook       — run 12-check QC gate
-    list_sources      — enumerate source citations
-    lineage_walk      — trace cell → driver → source → doc page
-    list_templates    — which deal templates are available
-    ingest_dataroom   — auto-extract YAML spec from a directory of PDFs
-    export_pptx       — generate executive presentation from a model
-    export_docx       — generate IC/credit memo from a model
-    sensitivity_run   — 2D sensitivity tornado on key drivers
+    list_templates       — discover available financial-model templates
+    build_model          — YAML spec → live-formula Excel workbook + SQLite linkage graph
+    qc_workbook          — run automated structural QC gate (8 checks)
+    list_sources         — enumerate source citations from the linkage graph
+    lineage_walk         — trace cell → driver → source → doc page
+    ingest_dataroom      — auto-extract validated YAML spec from a directory of PDFs/XLSXs/CSVs
+    export_pptx          — generate executive PPTX from a model workbook
+    screen_deals         — filter and rank deal spec YAMLs by criteria without building
+    compute_tax          — corporate income tax across 7 jurisdictions
+    export_docx          — generate IC/credit memo DOCX from a model workbook
+    data_providers_status — list every market-data provider and its availability
+    quote                — latest price quote for a ticker
+    history              — historical OHLCV bars for a ticker
+    fundamentals         — reported financial statements for a ticker
+    search_filings       — list recent SEC EDGAR filings for a US ticker
+    entity_lookup        — resolve an entity by LEI, FIGI, or ticker
+    search_securities    — free-text search across reference-data providers
 """
 
 from __future__ import annotations
@@ -38,7 +45,7 @@ except ImportError as e:
         "(adds `mcp>=1.12.0` to your environment)."
     ) from e
 
-from modelforge.templates import REGISTRY, build_model
+from modelforge.templates import REGISTRY, PREVIEW_TEMPLATES, build_model
 from modelforge.qc import run_qc
 
 log = logging.getLogger("modelforge.mcp")
@@ -46,11 +53,11 @@ log = logging.getLogger("modelforge.mcp")
 server = FastMCP(
     name="modelforge",
     instructions=(
-        "ModelForge is a deterministic bulge-tier financial model factory. "
-        "Every cell is live-formulated, every number traces to a source doc page, "
-        "every change is diffed. Use `list_templates` to see what's available, "
+        "ModelForge is a deterministic financial model factory. "
+        "Every cell is live-formulated, every number traces to a source doc page. "
+        "Use `list_templates` to see what's available, "
         "`build_model` to produce a workbook from a YAML spec, `qc_workbook` to run "
-        "the 12-check audit gate, and `export_pptx`/`export_docx` for committee "
+        "the automated structural QC gate, and `export_pptx`/`export_docx` for committee "
         "deliverables. Source traceability is the moat — every output cell can be "
         "walked back to the underlying document via `lineage_walk`."
     ),
@@ -70,15 +77,16 @@ def _resolve_path(p: str | Path) -> Path:
 
 @server.tool()
 def list_templates() -> dict[str, Any]:
-    """Enumerate available ModelForge deal templates.
+    """List every financial-model template the server can build, with a count.
 
-    Returns the active template registry — names, asset classes, and a one-line
-    description of each. Use this to discover what kinds of models can be built
-    before invoking ``build_model``.
+    Use this FIRST to discover which model types are available (e.g. DCF,
+    three-statement, M&A merger, LBO, project finance, NPL portfolio, structured
+    credit, IPO, restructuring) before calling build_model or ingest_dataroom.
+    Returns {templates: [{name, registered, preview}], count} from the live REGISTRY.
     """
     return {
         "templates": [
-            {"name": name, "registered": True}
+            {"name": name, "registered": True, "preview": name in PREVIEW_TEMPLATES}
             for name in sorted(REGISTRY.keys())
         ],
         "count": len(REGISTRY),
@@ -87,14 +95,12 @@ def list_templates() -> dict[str, Any]:
 
 @server.tool()
 def build_model(spec_path: str, output_dir: str | None = None) -> dict[str, Any]:
-    """Build an Excel model from a YAML spec.
+    """Generate a live-formula Excel workbook (.xlsx) plus its SQLite linkage graph (.graph.db) from a typed YAML spec.
 
-    Args:
-        spec_path: Path to a ModelForge YAML spec (see ``examples/`` in the repo).
-        output_dir: Where to write the .xlsx + .graph.db (default: ``output/``).
-
-    Returns:
-        Paths to the generated artifacts and high-level model stats.
+    Use when the user has (or has just produced) a ModelForge YAML spec and wants
+    the actual workbook — formulas in every cell, scenario toggles, and
+    source-tagged inputs. Takes spec_path and optional output_dir; returns
+    {xlsx, graph_db, spec, ok} or {error}.
     """
     spec = _resolve_path(spec_path)
     if not spec.exists():
@@ -119,17 +125,13 @@ def build_model(spec_path: str, output_dir: str | None = None) -> dict[str, Any]
 
 @server.tool()
 def qc_workbook(xlsx_path: str) -> dict[str, Any]:
-    """Run the 12-check QC gate on a ModelForge workbook.
+    """Run the automated structural QC gate on a ModelForge workbook and return a per-check pass/fail report.
 
-    Checks: balance sheet ties, CFS reconciliation, named-range coverage,
-    sign-convention enforcement, formula vs hardcoded-value ratio, source-citation
-    coverage, scenario-toggle propagation, and 5 others.
-
-    Args:
-        xlsx_path: Path to a .xlsx file produced by ``build_model``.
-
-    Returns:
-        Per-check pass/fail/partial dict + summary score.
+    Use after build_model (or on any ModelForge .xlsx) to verify it is
+    audit-ready before exporting or sharing. Runs 8 checks: QC-sheet presence,
+    sign-convention declaration, scenario-toggle named range, named-range
+    population, comments on hardcoded cells, source references resolving, print
+    areas, and no orphan sheets. Takes xlsx_path; returns {xlsx, report} or {error}.
     """
     xlsx = _resolve_path(xlsx_path)
     if not xlsx.exists():
@@ -146,13 +148,12 @@ def qc_workbook(xlsx_path: str) -> dict[str, Any]:
 
 @server.tool()
 def list_sources(graph_db: str) -> dict[str, Any]:
-    """List every source citation in the model's linkage graph.
+    """Enumerate the source citations recorded in a model's linkage graph.
 
-    Returns the Sources sheet content (doc, page, publisher, date, URL,
-    verified-flag) for each S-001…S-NNN entry.
-
-    Args:
-        graph_db: Path to the SQLite graph store (output of ``build_model``).
+    Returns the doc, page, publisher, date and URL behind each S-NNN reference.
+    Use when an agent needs the provenance list for a built model (e.g. to render
+    a citations table or verify every input is sourced). Takes graph_db (the
+    .graph.db from build_model); returns {graph_db, sources, count} or {error}.
     """
     db = _resolve_path(graph_db)
     if not db.exists():
@@ -162,6 +163,23 @@ def list_sources(graph_db: str) -> dict[str, Any]:
         from modelforge.graph.store import GraphStore
         store = GraphStore(db)
         sources = store.list_sources()
+    except AttributeError:
+        # Fallback: query source nodes directly from SQLite when list_sources
+        # is not yet present on this version of GraphStore.
+        try:
+            import sqlite3, json as _json
+            conn = sqlite3.connect(db)
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT id, label, payload FROM nodes WHERE kind = 'source' ORDER BY id"
+            ).fetchall()
+            conn.close()
+            sources = [
+                {"id": r["id"], "label": r["label"], **_json.loads(r["payload"])}
+                for r in rows
+            ]
+        except Exception as e2:
+            return {"error": f"failed to read sources: {e2!r}"}
     except Exception as e:
         return {"error": f"failed to read sources: {e!r}"}
 
@@ -170,26 +188,29 @@ def list_sources(graph_db: str) -> dict[str, Any]:
 
 @server.tool()
 def lineage_walk(graph_db: str, cell: str) -> dict[str, Any]:
-    """Trace a cell back to its source documents.
+    """Trace a single output cell back through its drivers to the underlying source document and page.
 
-    Walks: cell → driver(s) → source(s) → doc page. The defining moat of ModelForge —
-    every output number is queryable back to where it came from.
-
-    Args:
-        graph_db: Path to the SQLite graph store.
-        cell: Cell reference (e.g. "Returns!E45" or "IS!Revenue_2026").
-
-    Returns:
-        Ordered list of upstream cells/drivers/sources for ``cell``.
+    Use when the user asks 'where does this number come from?' or 'show the
+    audit trail for cell X' on a built model. Takes graph_db and a cell
+    reference (e.g. "Returns!E45"); returns an ordered list of upstream hops
+    cell -> driver -> source -> doc page.
     """
     db = _resolve_path(graph_db)
     if not db.exists():
         return {"error": f"graph_db not found: {db}"}
 
     try:
+        import sqlite3 as _sqlite3
         from modelforge.graph.store import GraphStore
         store = GraphStore(db)
-        path = store.lineage(cell)
+        # Discover the first model_id persisted in this database.
+        conn = _sqlite3.connect(db)
+        _row = conn.execute("SELECT DISTINCT model_id FROM nodes LIMIT 1").fetchone()
+        conn.close()
+        if _row is None:
+            return {"error": "graph_db contains no model data"}
+        model_id = _row[0]
+        path = store.lineage(model_id, cell)
     except Exception as e:
         return {"error": f"lineage walk failed: {e!r}"}
 
@@ -202,21 +223,14 @@ def ingest_dataroom(
     template: str = "project_finance",
     output_spec: str | None = None,
 ) -> dict[str, Any]:
-    """Auto-extract a YAML spec from a directory of PDFs/XLSXs/CSVs.
+    """Read a folder of PDFs/XLSXs/CSVs and produce a Pydantic-validated ModelForge YAML spec plus an ingestion report.
 
-    Uses Claude (via the Anthropic SDK) to classify each document, then
-    structured extraction produces a Pydantic-validated YAML ready for
-    ``build_model``. Generates an INGESTION_REPORT.md listing every extracted
-    field, source ID, and confidence level.
-
-    Args:
-        dataroom_path: Directory containing the data room.
-        template: Which template to ingest into (default: project_finance).
-                  Use ``list_templates`` to enumerate options.
-        output_spec: Where to write the resulting YAML (default: auto-name).
-
-    Returns:
-        Paths to generated YAML + ingestion report + extraction stats.
+    Use when the user has a directory of raw deal documents and wants to turn
+    them into a buildable spec without hand-coding it. Each extracted field is
+    traced to its source. Requires the [ingest] extra and an Anthropic API key.
+    Takes dataroom_path, template (default project_finance), optional
+    output_spec; returns paths to the YAML + ingestion report + extracted_fields
+    count.
     """
     dr = _resolve_path(dataroom_path)
     if not dr.exists() or not dr.is_dir():
@@ -249,14 +263,12 @@ def ingest_dataroom(
 
 @server.tool()
 def export_pptx(xlsx_path: str, output_path: str | None = None) -> dict[str, Any]:
-    """Generate an executive PPTX from a ModelForge workbook.
+    """Generate an executive PowerPoint deck (.pptx) summarizing a built ModelForge workbook.
 
-    Produces a 5-slide deck: Cover · Assumptions · Sources · Key Outputs · QC Pass.
-    Branded with the bulge-tier color convention.
-
-    Args:
-        xlsx_path: ModelForge workbook to summarize.
-        output_path: Output .pptx (default: ``<xlsx>.pptx``).
+    Use when the user wants a presentation-ready summary of a model for a
+    committee or stakeholder review. Requires the [export] extra (python-pptx).
+    Takes xlsx_path and optional output_path; returns {xlsx, pptx, ok} or
+    {error}.
     """
     xlsx = _resolve_path(xlsx_path)
     if not xlsx.exists():
@@ -287,24 +299,14 @@ def screen_deals(
     rank_by: dict[str, float] | None = None,
     top_n: int = 25,
 ) -> dict[str, Any]:
-    """Screen a directory of deal YAMLs by criteria, ranking the top N matches.
+    """Filter and rank a directory of deal spec YAMLs by quantitative criteria without building each workbook.
 
-    Mirrors Rogo's Screenings feature: filter 1,000+ deals by sector, geography,
-    deal size, IRR threshold, leverage ceiling, EBITDA margin — without building
-    each model. Works on spec YAMLs with a ``screening:`` block.
-
-    Args:
-        spec_dir: Directory containing deal spec YAML files (walked recursively).
-        filters: e.g. ``{"sector": "industrials", "ebitda_margin_min": 0.20,
-                  "leverage_x_max": 5.0, "geography_in": ["EU/IT","EU/ES"]}``.
-                  Suffixes: ``_min`` (gte), ``_max`` (lte), ``_in`` (membership),
-                  no suffix = equality.
-        rank_by: Weights for sort key. Positive = higher better, negative = lower better.
-                  e.g. ``{"irr_base": 0.5, "leverage_x": -0.3, "deal_size_eur_m": 0.2}``.
-        top_n: Max results returned (default 25).
-
-    Returns:
-        Ranked list of {deal_id, spec_path, summary, score}.
+    Use when the user wants to triage many candidate deals — e.g. 'rank all
+    specs with EBITDA margin >= 20% and leverage <= 5x by base-case IRR'.
+    Filter keys support _min (>=), _max (<=), _in (membership), or bare key
+    (equality); rank_by weights are positive (higher better) or negative (lower
+    better). Takes spec_dir, filters, rank_by, top_n (default 25); returns a
+    ranked list of {deal_id, spec_path, summary, score}.
     """
     try:
         from modelforge.screening import screen
@@ -338,18 +340,13 @@ def compute_tax(
     pretax_book_income: float,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Compute corporate tax for a given jurisdiction.
+    """Compute corporate income tax (effective rate + total tax) for one of seven jurisdictions from pretax book income.
 
-    Args:
-        jurisdiction: One of "IT" (Italy), "US" (federal+state), "UK" (FRS 102),
-                       "DE" (Germany), "FR" (France), "ES" (Spain), "JP" (Japan).
-        pretax_book_income: Pretax book income in local currency.
-        **kwargs: Additional jurisdiction-specific parameters (NOL CF, R&D,
-                  state rate, Hebesatz, capital, etc.). See finance_core module
-                  for each jurisdiction's full input dataclass.
-
-    Returns:
-        Effective rate + total tax + per-component breakdown.
+    Use when a model or analysis needs a quick jurisdiction-aware tax figure.
+    US, UK, DE, FR, ES, JP are fully wired; IT returns a pointer to the
+    dedicated italian_tax module for full IRES/IRAP inputs. Takes jurisdiction
+    code, pretax_book_income, and optional jurisdiction-specific kwargs; returns
+    {jurisdiction, etr, total_tax} or an error for an unknown code.
     """
     from decimal import Decimal
     pti = Decimal(str(pretax_book_income))
@@ -387,14 +384,13 @@ def compute_tax(
 
 @server.tool()
 def export_docx(xlsx_path: str, output_path: str | None = None) -> dict[str, Any]:
-    """Generate an IC/credit-memo DOCX from a ModelForge workbook.
+    """Generate a structured Word memo (.docx) from a built ModelForge workbook.
 
-    Produces a structured Word document with sections: Executive Summary,
-    Transaction Overview, Key Assumptions (cited), Risk Analysis, Recommendation.
-
-    Args:
-        xlsx_path: ModelForge workbook to summarize.
-        output_path: Output .docx (default: ``<xlsx>.docx``).
+    Sections: Executive Summary, Transaction Overview, cited Key Assumptions,
+    Risk Analysis, Recommendation. Use when the user wants a written
+    investment/credit memo derived from a model. Requires the [export] extra
+    (python-docx). Takes xlsx_path and optional output_path; returns
+    {xlsx, docx, ok} or {error}.
     """
     xlsx = _resolve_path(xlsx_path)
     if not xlsx.exists():
@@ -423,12 +419,12 @@ def export_docx(xlsx_path: str, output_path: str | None = None) -> dict[str, Any
 
 @server.tool()
 def data_providers_status() -> dict[str, Any]:
-    """List every registered market data provider and its availability.
+    """List every registered market-data provider with its tier and an availability flag.
 
-    Returns adapter name, tier (bulge/institutional/free), required-auth
-    flag, capability list, and an `available` flag (True if creds + SDK
-    are present). Use this first to see what's wired up before calling
-    `quote`/`fundamentals`/`filings`.
+    Use this FIRST before quote/history/fundamentals/search_filings to see
+    which providers are actually usable in the current environment (free
+    providers work out of the box; paid/institutional ones activate only when
+    their API keys are set). Returns {providers, available_count, total_count}.
     """
     from modelforge.feeds import status
     rows = status()
@@ -441,12 +437,11 @@ def data_providers_status() -> dict[str, Any]:
 
 @server.tool()
 def quote(symbol: str, prefer: str | None = None) -> dict[str, Any]:
-    """Latest quote for a symbol, auto-routed to the best available provider.
+    """Fetch the latest price quote for a ticker, auto-routed to the best available market-data provider.
 
-    Args:
-        symbol: Vendor-native ticker (e.g. ``AAPL``, ``BNP.PA``, ``IBM US Equity``).
-        prefer: Optional provider name to try first (``bloomberg``, ``polygon``,
-                ``fmp``, ``finnhub``, ``tiingo``, ``refinitiv``, ``factset``).
+    Use when the user needs a current price for a symbol. Takes a vendor-native
+    symbol (e.g. AAPL, BNP.PA) and an optional ``prefer`` provider to try first;
+    returns the quote fields, or an {error, hint} if no provider is configured.
     """
     from dataclasses import asdict
     from modelforge.feeds import quote as _quote, NoProviderAvailable
@@ -466,15 +461,12 @@ def history(
     limit: int = 250,
     prefer: str | None = None,
 ) -> dict[str, Any]:
-    """OHLCV bars for a symbol over a date range.
+    """Fetch historical OHLCV price bars for a ticker over a date range and interval.
 
-    Args:
-        symbol: Ticker.
-        interval: ``1m``, ``5m``, ``1h``, ``1d``, ``1wk``, ``1mo``.
-        start: ISO date inclusive (default: limit-derived).
-        end: ISO date inclusive (default: today).
-        limit: Max bars returned.
-        prefer: Optional provider override.
+    Use when the user needs a price series (e.g. daily bars for the last year,
+    or intraday bars). Takes symbol, interval (1m/5m/1h/1d/1wk/1mo), optional
+    start/end ISO dates, limit, and optional prefer provider; returns
+    {symbol, interval, bars: [...]} or {error}.
     """
     from dataclasses import asdict
     from modelforge.feeds import history as _history, NoProviderAvailable
@@ -493,14 +485,12 @@ def fundamentals(
     limit: int = 5,
     prefer: str | None = None,
 ) -> dict[str, Any]:
-    """Income / balance / cashflow fundamentals for a ticker.
+    """Fetch reported financial statements (income, balance, or cashflow) for a ticker, newest first.
 
-    Args:
-        symbol: Ticker (vendor-native).
-        statement: ``income``, ``balance``, or ``cashflow``.
-        period: ``annual`` or ``quarter``.
-        limit: How many periods back, newest first.
-        prefer: Optional provider override.
+    Use when the user needs historical fundamentals to seed or sanity-check a
+    model. Takes symbol, statement (income/balance/cashflow), period
+    (annual/quarter), limit, optional prefer provider; returns
+    {symbol, statement, period, data: [...]} or {error}.
     """
     from dataclasses import asdict
     from modelforge.feeds import fundamentals as _fund, NoProviderAvailable
@@ -518,12 +508,11 @@ def fundamentals(
 
 @server.tool()
 def search_filings(ticker: str, form: str | None = None, limit: int = 20) -> dict[str, Any]:
-    """List recent SEC filings (10-K, 10-Q, 8-K) for a US ticker.
+    """List recent SEC EDGAR filings (10-K, 10-Q, 8-K, etc.) for a US ticker.
 
-    Args:
-        ticker: US ticker (resolved to CIK via the SEC ticker file).
-        form: Optional form filter, e.g. ``10-K``.
-        limit: Max filings.
+    Use when the user wants to find or link a company's primary filings for
+    due diligence or sourcing. Takes ticker, optional form filter (e.g. 10-K),
+    and limit; returns {ticker, filings: [...]} or {error}.
     """
     from dataclasses import asdict
     from modelforge.feeds import filings as _filings, NoProviderAvailable
@@ -540,10 +529,11 @@ def entity_lookup(
     figi: str | None = None,
     ticker: str | None = None,
 ) -> dict[str, Any]:
-    """Cross-reference an entity by LEI (GLEIF), FIGI (OpenFIGI), or ticker.
+    """Resolve a legal entity by LEI, FIGI, or ticker and return its canonical legal name plus any cross-reference IDs.
 
-    Resolves the canonical legal name and any other available IDs.
-    Use this before any model spec to disambiguate counterparties.
+    Use to disambiguate a counterparty or issuer before building a model spec
+    or wiring market data. Takes any one of lei / figi / ticker; returns the
+    resolved Entity record or {error}.
     """
     from dataclasses import asdict
     from modelforge.feeds import entity_lookup as _entity, NoProviderAvailable
@@ -556,10 +546,11 @@ def entity_lookup(
 
 @server.tool()
 def search_securities(query: str, limit: int = 20) -> dict[str, Any]:
-    """Free-text search across the available reference universes.
+    """Free-text search for securities/entities across configured reference data providers, returning the first non-empty result set.
 
-    Tries every available provider's search() (FMP, EDGAR, OpenFIGI,
-    GLEIF) and returns the first non-empty result set.
+    Use when the user has a company name or fragment and needs to find the
+    matching ticker/identifier. Takes a query string and limit (default 20);
+    returns {query, results} or {error}.
     """
     from modelforge.feeds import search as _search, NoProviderAvailable
     try:
