@@ -228,11 +228,9 @@ full design + rationale.
   + persona research + risk register.
 
 ### Changed
-- **README** scrubbed of "Italian private capital" positioning. Hero line
-  now reads "Built for [redacted] who model deals at scale —
-  US MM direct lending, UK/EU credit, DACH/Nordic special situations,
-  distressed and turnaround." Tax-jurisdiction list reordered to put US
-  and UK first. Template descriptions de-localized.
+- **README** scrubbed of vertical-specific go-to-market positioning and
+  reframed around the developer/analyst audience. Tax-jurisdiction list
+  reordered to put US and UK first. Template descriptions de-localized.
 - **`templates/__init__.py` REGISTRY** grows from 14 → 16 entries. New
   `PREVIEW_TEMPLATES` constant exposes preview-flag templates to the CLI
   and MCP server.

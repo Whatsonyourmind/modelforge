@@ -2,11 +2,11 @@
 
 <!-- mcp-name: io.github.Whatsonyourmind/modelforge -->
 
-[![Version](https://img.shields.io/badge/version-0.11.2-blue)](https://pypi.org/project/modelforge-finance/) [![Tests](https://img.shields.io/badge/tests-679%2F679-brightgreen)](./tests) [![Trust](https://img.shields.io/badge/trust--layer-v1%20(14%2F14%20FAIL--clean)-brightgreen)](./AUDIT_REPORT.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py) [![Templates](https://img.shields.io/badge/templates-16-blue)](./modelforge/templates/) [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.5-purple)](./.github/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-0.11.2-blue)](https://pypi.org/project/modelforge-finance/) [![Tests](https://img.shields.io/badge/tests-679%2F679-brightgreen)](./tests) [![Trust](https://img.shields.io/badge/trust--layer-v1%20(14%2F14%20FAIL--clean)-brightgreen)](./AUDIT_REPORT.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py) [![Templates](https://img.shields.io/badge/templates-14-blue)](./modelforge/templates/) [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.5-purple)](./.github/workflows/ci.yml)
 
 Bulge-tier Excel financial model factory for credit & structured finance. Every cell live-formulated. Every number traceable back to the source document page it came from.
 
-Built for [redacted] who model deals at scale — US MM direct lending, UK/EU credit, DACH/Nordic special situations, distressed and turnaround. Covers unitranche, sponsor-backed LBO, project finance, real estate credit, NPL, structured credit, restructuring, M&A, DCF and IPO. Extensible to any asset class.
+A developer tool for analysts and engineers who build credit and corporate-finance models programmatically. Covers unitranche, sponsor-backed LBO, project finance, real estate credit, NPL, structured credit, restructuring, M&A, DCF and IPO templates. Extensible to any asset class.
 
 ## Use it inside Claude Code, Cursor, ChatGPT Enterprise (MCP-native)
 

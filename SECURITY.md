@@ -83,7 +83,7 @@ For regulator-grade auditing, ship this DB alongside the workbook deliverable.
 | HIPAA | **N/A** | No PHI |
 | Penetration testing | **Not yet performed** | Phase B: annual pen test by approved firm |
 
-Compliance is **gated by Phase-B capital**. For [redacted] today,
+Compliance is **gated by Phase-B capital**. For regulated deployments today,
 ModelForge runs on customer infrastructure inside their existing compliance
 perimeter. No data leaves their network.
 
