@@ -1,0 +1,29 @@
+# ModelForge
+
+> ModelForge (PyPI: `modelforge-finance`) is a deterministic financial-model factory: it turns a typed YAML spec into a live-formula Excel workbook where every cell is a formula and every hardcoded number is traceable back to its source document page via a persisted SQLite linkage graph. The language model writes the spec and the sources; deterministic Python renders the workbook. Use it when you need a corporate-finance or credit model (DCF, three-statement, M&A merger, LBO, project finance, NPL, structured credit, IPO, restructuring) that recalculates, supports WORST/BASE/BEST scenarios, and can be audited cell-by-cell — not a static spreadsheet dump. It runs as an MCP server (`modelforge-mcp`) for AI agents in Claude Code, Cursor, Cline, and ChatGPT Enterprise.
+
+## Key capabilities (MCP tools)
+
+- `list_templates` — discover the available model templates (14 shipped + 2 preview)
+- `build_model` — YAML spec -> live-formula .xlsx + .graph.db linkage store
+- `qc_workbook` — run the automated structural QC gate (8 checks), per-check pass/fail
+- `lineage_walk` — trace a cell back to its driver, source, and document page
+- `list_sources` — enumerate the source citations behind a built model
+- `ingest_dataroom` — extract a validated YAML spec from a folder of PDFs/XLSXs/CSVs
+- `screen_deals` — filter and rank a directory of deal specs without building each one
+- `compute_tax` — corporate tax (effective rate + total) across seven jurisdictions
+- `export_pptx` / `export_docx` — generate a summary deck or a written memo from a model
+- Market-data tools: `data_providers_status`, `quote`, `history`, `fundamentals`, `search_filings`, `entity_lookup`, `search_securities` (free providers work out of the box; paid/institutional ones activate via API keys)
+
+## Install
+
+- `pip install "modelforge-finance[mcp,export]"`
+- CLI: `modelforge build <spec.yaml>` then `modelforge qc <workbook.xlsx>`
+- MCP client config: `{ "mcpServers": { "modelforge": { "command": "modelforge-mcp" } } }`
+
+## Links
+
+- Repository: https://github.com/Whatsonyourmind/modelforge
+- Package: https://pypi.org/project/modelforge-finance/
+- MCP server source: https://github.com/Whatsonyourmind/modelforge/blob/main/modelforge/mcp_server.py
+- Docs: https://github.com/Whatsonyourmind/modelforge/tree/main/docs

@@ -130,6 +130,28 @@ class GraphStore:
                     frontier.append(erow["src"])
         return hops
 
+    def list_sources(self, model_id: str | None = None) -> list[dict]:
+        """Return all SOURCE nodes across the database (or for a specific model).
+
+        Each entry is a dict of {id, label, **payload} where payload carries
+        the doc, page, publisher, date, URL, and verified fields written by the
+        template builder.
+        """
+        with self._conn() as c:
+            if model_id is not None:
+                rows = c.execute(
+                    "SELECT id, label, payload FROM nodes WHERE kind='source' AND model_id=? ORDER BY id",
+                    (model_id,),
+                ).fetchall()
+            else:
+                rows = c.execute(
+                    "SELECT id, label, payload FROM nodes WHERE kind='source' ORDER BY id"
+                ).fetchall()
+        return [
+            {"id": r["id"], "label": r["label"], **json.loads(r["payload"])}
+            for r in rows
+        ]
+
     def stats(self, model_id: str) -> dict[str, int]:
         with self._conn() as c:
             node_counts = dict(
