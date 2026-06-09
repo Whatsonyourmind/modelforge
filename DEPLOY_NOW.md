@@ -40,7 +40,7 @@ gh repo view            # confirm GitHub remote authenticated
 2. **New project**:
    - Name: `modelforge-prod`
    - Database password: generate a strong one, save to `~/.claude/secrets/supabase.env`
-   - Region: `Frankfurt` (eu-central-1) for Italian users
+   - Region: `Frankfurt` (eu-central-1) for EU data residency
    - Pricing plan: **Free**
 3. Wait ~2 min for provisioning. When ready:
    - **Settings → API**: copy the `Project URL` and `anon` and `service_role` keys

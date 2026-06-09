@@ -3,7 +3,7 @@ title: SOC 2 Type II Vendor Comparison for ModelForge
 date: 2026-04-18
 type: research
 author: Whatsonyourmind
-context: Solo founder, Italian boutique credit fund customers, Python/FastAPI/Docker stack, EU residency required
+context: Solo founder, customers requiring EU data residency, Python/FastAPI/Docker stack
 ---
 
 # SOC 2 Type II Vendor Comparison — ModelForge
@@ -28,19 +28,19 @@ EU-native alternatives exist (Orbiq, Conformscan, Matproof) but lack auditor eco
 |---|---|---|---|
 | GRC platform (Sprinto) | $5,000 | $7,000 | Year 1 list; expect 10–20% discount via YC/founder programs |
 | SOC 2 Type II audit (small fintech) | $15,000 | $25,000 | Johanson, Insight Assurance, Prescient sit at low end; A-LIGN/Schellman at high end ([soc2auditors.org](https://soc2auditors.org/soc-2-audit-cost/), [Cavanex](https://cavanex.com/blog/soc-2-compliance-cost-2026)) |
-| Pen test (Astra / Cobalt one-shot) | $1,500 | $5,000 | Required-ish; fund customers will ask |
+| Pen test (Astra / Cobalt one-shot) | $1,500 | $5,000 | Required-ish; enterprise customers will ask |
 | Background check (1 person) | $30 | $100 | Checkr / Certn |
 | Secrets manager (Doppler / 1Password CLI) | $0 | $300 | Free tiers cover solo; budget for prod |
 | Endpoint MDM (Sprinto includes; else Kandji/Jamf) | $0 | $500 | $0 if Sprinto |
 | Misc legal / DPA templates | $500 | $1,500 | Privacy policy, MSA, DPA |
 | **Year 1 total** | **~$22k** | **~$39k** | Estimates; see citations |
 
-Realistic target: **$25–30k all-in**. A US-style auditor (Schellman) pushes it to $40–50k. Italian customers care more about *having the report* than the auditor logo, so optimize for cost.
+Realistic target: **$25–30k all-in**. A US-style auditor (Schellman) pushes it to $40–50k. Most customers care more about *having the report* than the auditor logo, so optimize for cost.
 
 ## 3. First 30-Day Action Plan
 
 **Week 1 — Scope + sign vendor**
-- Decide scope: **CC-series only (CC1–CC9)** plus **Confidentiality**. Skip Availability/Privacy/Processing Integrity for v1 — credit funds rarely require them; can add at next renewal.
+- Decide scope: **CC-series only (CC1–CC9)** plus **Confidentiality**. Skip Availability/Privacy/Processing Integrity for v1 — most customers rarely require them; can add at next renewal.
 - Sign Sprinto, kick off onboarding call. Connect GitHub, AWS account (even if empty), Google Workspace, the Mac.
 - Buy Doppler or 1Password CLI; rotate every secret currently in `.env` files; commit `.env.example` only.
 - Enable MFA on every vendor (GitHub, AWS, Google, Stripe, Doppler, domain registrar, Sprinto itself).
@@ -67,7 +67,7 @@ Realistic target: **$25–30k all-in**. A US-style auditor (Schellman) pushes it
 - **Access log review when you're solo**: document a weekly self-review ritual; file the screenshots in evidence. Auditors accept "self-review with documented timestamp" as a compensating control.
 - **MFA on every vendor**: includes obscure ones (domain registrar, Substack, monitoring tools). One missing = audit finding.
 - **Secrets management**: never commit creds. Use **Doppler** (best DX for FastAPI) or **1Password CLI** (`op run -- uvicorn ...`). Docker secrets only work with Swarm; for plain `docker compose` use env files mounted from Doppler. Audit GitHub secret-scanning history.
-- **Vendor list discipline**: every new SaaS = update inventory same day. Set a calendar reminder. SafeBase / Vanta Trust portal can publish your sub-processor list to fund customers (a deal accelerator).
+- **Vendor list discipline**: every new SaaS = update inventory same day. Set a calendar reminder. SafeBase / Vanta Trust portal can publish your sub-processor list to customers (a deal accelerator).
 - **BCP/DR**: required even for n=1. Write a "founder bus factor" plan naming a successor / escrow agent.
 - **Peer code review at n=1**: AI review (Codex/Cursor/Claude Code) + documented process + sample screenshots. Backup: hire a Fiverr/Upwork engineer at $50/PR for monthly token reviews — creates a real second pair of eyes audit trail.
 - **Change management on single-committer repo**: branch protection + required PR (you PR yourself from feature branch to main) + AI review = auditable trail.
@@ -77,13 +77,13 @@ Realistic target: **$25–30k all-in**. A US-style auditor (Schellman) pushes it
 
 **Pick Sprinto** + **Insight Assurance** (or **Johanson Group**) as auditor.
 
-Justification: Sprinto's $5–7k pricing, included compliance manager (solo founders need a human, not just a dashboard), and EU residency option fit ModelForge's pre-revenue solo reality better than Vanta/Drata, and the GitHub/Docker/AWS integration coverage is sufficient for a Python/FastAPI stack. **Flip to Vanta if** an Italian credit-fund customer explicitly names Vanta in procurement (it happens — Vanta brand recognition in EU enterprise procurement is ~3x Drata's), or if you raise institutional money inside 12 months and need the Vanta logo on your trust page.
+Justification: Sprinto's $5–7k pricing, included compliance manager (solo founders need a human, not just a dashboard), and EU residency option fit ModelForge's pre-revenue solo reality better than Vanta/Drata, and the GitHub/Docker/AWS integration coverage is sufficient for a Python/FastAPI stack. **Flip to Vanta if** a customer explicitly names Vanta in procurement (it happens — Vanta brand recognition in EU enterprise procurement is ~3x Drata's), or if you raise institutional money inside 12 months and need the Vanta logo on your trust page.
 
 ## 6. Auditor Pre-Shortlist
 
 1. **Insight Assurance** — startup-friendly pricing ($15–22k typical SOC 2 Type II), strong Sprinto/Drata partnership, fast turnaround, fintech experience. Best price/fit.
 2. **Johanson Group** — frequently cited as best-value startup SOC 2 auditor; $12–20k range; SaaS/fintech native ([soc2auditors.org](https://soc2auditors.org/soc-2-audit-cost/)).
-3. **Schellman** — premium logo, dedicated [Financial Services & Fintech practice](https://www.schellman.com/industries/financial-services-and-fintech), recognisable to European institutional buyers; $30–50k. Use only if a fund customer demands a tier-1 auditor name.
+3. **Schellman** — premium logo, dedicated [Financial Services & Fintech practice](https://www.schellman.com/industries/financial-services-and-fintech), widely recognised in enterprise procurement; $30–50k. Use only if a customer demands a tier-1 auditor name.
 
 Honourable mention: **BARR Advisory** ($25–50k, cloud-native focus, Drata partner) for the upgrade path post-v1.0 hosted SaaS.
 
