@@ -70,11 +70,14 @@ def irr(
     """
     if not cashflows:
         raise ValueError("cashflows must be non-empty")
-    has_sign_change = any(
-        a * b < 0 for a, b in zip(cashflows, cashflows[1:])
-    )
-    if not has_sign_change:
-        raise ValueError("cashflows must have at least one sign change")
+    # IRR exists only if there is at least one positive AND one negative
+    # cashflow. Check the SET, not adjacent pairs: a canonical PE/LBO stream
+    # like [-equity, 0, 0, 0, 0, exit] has its sign change separated by zeros
+    # and must NOT be rejected (the old adjacent-pair guard wrongly did).
+    if not (any(cf > 0 for cf in cashflows) and any(cf < 0 for cf in cashflows)):
+        raise ValueError(
+            "cashflows must contain at least one positive and one negative value"
+        )
 
     rate = guess
     for _ in range(max_iter):

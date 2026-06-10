@@ -76,8 +76,16 @@ def test_irr_finds_10_pct_for_known_stream():
 
 
 def test_irr_requires_sign_change():
-    with pytest.raises(ValueError, match="sign change"):
+    # all-positive stream has no negative cashflow → IRR undefined
+    with pytest.raises(ValueError, match="positive and one negative"):
         irr([100, 110, 120])
+
+
+def test_irr_handles_sign_change_separated_by_zeros():
+    # canonical PE/LBO stream: invest at t0, no interim flows, exit at tN.
+    # Regression guard for the adjacent-pair sign-change bug (2026-06-10).
+    result = irr([-100, 0, 0, 0, 260])
+    assert result == pytest.approx(0.269823, abs=1e-5)
 
 
 def test_irr_rejects_empty():
