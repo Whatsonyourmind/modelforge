@@ -1,21 +1,25 @@
-"""HGB Carve-out template — Template 15 (v0.11 BETA).
+"""HGB Carve-out template — Template 15 (v0.12).
 
-⚠️ v0.11 BETA — first-cut Hinzurechnungen + GewSt math shipped.
-   DTA/DTL recon refinement, § 252-256 Anlagevermögen valuation rules,
-   BilMoG pension provisions remain v0.12 scope.
+⚠️ v0.12 — Hinzurechnungen + GewSt math + standalone-EBITDA carve-out bridge
+   + carve-out EV shipped. DTA/DTL recon refinement, § 252-256 Anlagevermögen
+   valuation rules, and BilMoG pension provisions remain future scope.
    DACH accounting-expert review recommended before production use.
 
-FEATURE SCOPE (honest-label): this is a 3-statement model + a German
-   tax-overlay (HGB ↔ IFRS reconciliation with § 8 GewStG + GewSt build). It
-   does NOT ship a carve-out EV bridge (standalone-EBITDA bridge → EV via
-   multiple/DCF) or a TSA time-boundary. That boundary is stated in the
-   HGB-Recon "Out-of-scope" section so the deliverable cannot silently
-   overclaim a full carve-out valuation.
+FEATURE SCOPE: this is a 3-statement model + a German tax-overlay (HGB ↔ IFRS
+   reconciliation with § 8 GewStG + GewSt build) + a carve-out standalone-EBITDA
+   bridge and carve-out Enterprise Value. When `spec.carveout_bridge` is
+   supplied the template emits a Carve-out Bridge worksheet:
+   reported EBITDA → +allocated corporate costs → −dis-synergies/stranded →
+   −TSA cost (time-bounded, excluded from steady-state) → −one-time separation
+   → standalone adjusted EBITDA; a steady-state run-rate that excludes the
+   transitory TSA + one-time lines; and carve-out EV = run-rate standalone
+   EBITDA × entry multiple.
 
 Pattern: this template wraps the existing 3-statement builder, forcing the
-secondary language to DE, and appends an HGB-Reconciliation worksheet that
+secondary language to DE, appends an HGB-Reconciliation worksheet that
 implements § 8 GewStG Hinzurechnungen and a per-period Gewerbesteuer build
-that flows back to the effective-tax-rate reconciliation.
+that flows back to the effective-tax-rate reconciliation, and (optionally)
+appends the Carve-out Bridge worksheet described above.
 """
 
 from __future__ import annotations
@@ -25,7 +29,12 @@ from pathlib import Path
 from modelforge.builder import layout, styles
 from modelforge.builder.base_workbook import build_base_workbook
 from modelforge.builder.i18n import apply_runtime_secondary_lang, reset_runtime_secondary_lang
-from modelforge.builder.sheets import compliance as compliance_sheet, generic_qc, ts_model
+from modelforge.builder.sheets import (
+    carveout_bridge as carveout_bridge_sheet,
+    compliance as compliance_sheet,
+    generic_qc,
+    ts_model,
+)
 
 
 def _build_hgb_recon_sheet(wb, spec, ts_refs: dict) -> None:
@@ -35,7 +44,7 @@ def _build_hgb_recon_sheet(wb, spec, ts_refs: dict) -> None:
       1. § 8 GewStG Hinzurechnungen (interest add-back)
       2. Gewerbesteuer build (per-period)
       3. Effective tax rate reconciliation (KSt + SolZ + GewSt vs spec)
-      4. Notes — v0.12 scope (DTA/DTL refinement, § 252-256, BilMoG)
+      4. Notes — future scope (DTA/DTL refinement, § 252-256, BilMoG)
     """
     ws = wb.create_sheet("HGB-Recon")
     layout.set_column_widths(ws, label_width=48, it_width=42, year_width=14)
@@ -308,16 +317,16 @@ def _build_hgb_recon_sheet(wb, spec, ts_refs: dict) -> None:
             styles.style_formula(c, number_format="0.0%;[Red]-0.0%")
     r += 2
 
-    # ── Section 4: Notes — v0.12 scope ────────────────────────────────
+    # ── Section 4: Notes — future scope ───────────────────────────────
     layout.write_section_header(
         ws, r,
-        "Out-of-scope for v0.11 (v0.12 roadmap)",
-        "Außerhalb v0.11 — Roadmap v0.12",
+        "Out-of-scope for this version (future roadmap)",
+        "Außerhalb dieser Version — Roadmap",
     )
     r += 1
     notes = [
-        ("Carve-out EV bridge & standalone EBITDA bridge (NOT shipped)",
-         "Carve-out-EV-Brücke / Standalone-EBITDA-Brücke (nicht enthalten)"),
+        ("Carve-out EV bridge & standalone EBITDA bridge → see Carve-out Bridge sheet",
+         "Carve-out-EV-Brücke / Standalone-EBITDA-Brücke → Blatt 'Carve-out Bridge'"),
         ("Anlagevermögen valuation",
          "Bewertung HGB §§ 252-256 vs IFRS 16 / IAS 36 (impairment)"),
         ("Inventory — strenges Niederstwertprinzip",
@@ -344,7 +353,9 @@ def build(spec, out_path: Path | str, graph_db_path=None):
     """Build an HGB carve-out workbook.
 
     Forces secondary_lang="de" so all rendered labels are German.
-    Renders 3-statement base + HGB-Recon sheet (§ 8 GewStG + ETR recon).
+    Renders 3-statement base + HGB-Recon sheet (§ 8 GewStG + ETR recon) and,
+    when ``spec.carveout_bridge`` is supplied, a Carve-out Bridge sheet
+    (standalone-EBITDA bridge + carve-out Enterprise Value).
     """
     apply_runtime_secondary_lang("de")
     try:
@@ -373,6 +384,27 @@ def build(spec, out_path: Path | str, graph_db_path=None):
                 ("Total L&E > 0 every period", "Passivsumme > 0 je Periode",
                  f"=IF(SUMPRODUCT(('Model'!D{tle_row}:{last_col}{tle_row}>0)*1)={n},1,0)"),
             ]
+
+            # Carve-out Bridge (only when the spec supplies the block). Built
+            # BEFORE the QC sheet so QC can reference its live integrity checks.
+            if getattr(spec, "carveout_bridge", None) is not None:
+                cb_ws = wb.create_sheet("Carve-out Bridge")
+                cb_refs = carveout_bridge_sheet.build(cb_ws, spec)
+                _captured["cb_refs"] = cb_refs
+                SH = f"'{cb_ws.title}'"
+                col = carveout_bridge_sheet.VAL_COL
+                checks += [
+                    ("Carve-out bridge parts sum to (standalone − reported)",
+                     "Carve-out-Brücke: Komponenten = (Standalone − Berichtet)",
+                     f"=IF({SH}!{col}{cb_refs['chk_parts']}=1,1,0)"),
+                    ("Carve-out run-rate excludes TSA + one-time",
+                     "Carve-out Run-Rate ohne TSA / Einmalkosten",
+                     f"=IF({SH}!{col}{cb_refs['chk_runrate']}=1,1,0)"),
+                    ("Carve-out EV = run-rate EBITDA × entry multiple",
+                     "Carve-out EV = Run-Rate-EBITDA × Multiplikator",
+                     f"=IF({SH}!{col}{cb_refs['chk_ev']}=1,1,0)"),
+                ]
+
             qc_ws = wb.create_sheet("QC")
             generic_qc.build(qc_ws, checks)
 

@@ -72,14 +72,24 @@ debt:
     { id: A-022, name: senior_margin_bps, label: { en: "Senior margin (bps)", it: "Margine senior" }, unit: bps, base: 200, worst: 225, best: 175, rationale: "PwC Italian infra PF Q1 2026 — Green Taxonomy spread benefit.", confidence: H, source_id: S-005 }
   arrangement_fee_pct:
     { id: A-023, name: senior_arrangement_pct, label: { en: "Arrangement fee %", it: "Strutturazione %" }, unit: pct, base: 0.0125, rationale: "1-1.5% PF infra.", confidence: H, source_id: S-005 }
-  # v0.3: sculpted level-debt-service amortization + lender-style DSCR-target
-  # debt sizing. Solver caps at user-supplied senior_amount and sizes down if
-  # target DSCR requires it.
+  # v0.12: GENUINE CFADS-driven DSCR sculpting. The senior debt is sized and
+  # its per-year principal shaped so the realised DSCR is FLAT at the sculpt
+  # target every amortizing year (interest tax-shield + maintenance capex
+  # accounted for), amortising to exactly 0. The senior amount is solved as the
+  # sum of scheduled principal, CAPPED at senior_amount (70% LTV) above. With
+  # target 1.75x the sculpt binds at €30.85M (≈68.6% gearing, below the cap),
+  # so DSCR is flat at 1.75x. NB the *sculpt* target (sponsor sizing, 1.75x) is
+  # deliberately above the *covenant* DSCR floors below (lender hard minimum
+  # 1.20-1.30x) — standard PF structure: the loan is sized to a comfortable
+  # base coverage, the covenant trips only on a deeper shortfall.
+  # debt_sizing_mode=fixed_amount: senior_amount above is the LTV cap (70% of
+  # capex); the sculpt profile sizes the actual draw to the DSCR target WITHIN
+  # that cap (the genuine sculpt supersedes the legacy level-DS pre-solve).
   amortization_profile: sculpted_dscr_target
-  debt_sizing_mode: dscr_target
+  debt_sizing_mode: fixed_amount
   dsra_months: 6
   target_dscr_base:
-    { id: A-080, name: target_dscr_base, label: { en: "Target DSCR (BASE sizing)", it: "DSCR target (dimensionamento BASE)" }, unit: x, base: 1.30, rationale: "Market-standard BASE DSCR for Italian solar PF.", confidence: H, source_id: S-005 }
+    { id: A-080, name: target_dscr_base, label: { en: "Sculpt target DSCR (BASE sizing)", it: "DSCR obiettivo sculpting (dimensionamento BASE)" }, unit: x, base: 1.75, rationale: "Sponsor base-case sculpt coverage for Italian solar PF — sizes the loan so realised DSCR is flat at 1.75x (≈68.6% gearing, within the 70% LTV cap). Above the 1.20-1.30x lender covenant floors by design.", confidence: H, source_id: S-005 }
 
 covenant:
   threshold_by_year:

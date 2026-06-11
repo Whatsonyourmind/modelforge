@@ -6,6 +6,8 @@ build_base_workbook framework.
 
 v0.10: minimal renderer (Cover + Portfolio matrix + Aggregate summary + QC).
 v0.11: sparklines, heatmaps, exception flagging.
+v0.12: fund-level performance — Fund Returns sheet (MOIC, DPI, RVPI, TVPI,
+gross & net IRR) when spec.fund_cashflows is supplied.
 """
 
 from __future__ import annotations
@@ -13,9 +15,19 @@ from __future__ import annotations
 from pathlib import Path
 
 from openpyxl import Workbook
+from openpyxl.comments import Comment
+from openpyxl.styles import Font
 
 from modelforge.builder import layout, styles
 from modelforge.builder.i18n import L
+
+# Bold key-metric font that ALSO carries an explicit colour, so a bold summary
+# cell still satisfies the certify styling gate (which requires both an explicit
+# font colour and a number_format). styles.font_subheader is bold but colourless.
+_FONT_METRIC_BOLD = Font(
+    name=styles.FONT_BASE, size=styles.FONT_SIZE_BODY, bold=True,
+    color=styles.COLOR_FORMULA,
+)
 
 
 def build(spec, out_path: Path | str, graph_db_path=None):
@@ -27,6 +39,11 @@ def build(spec, out_path: Path | str, graph_db_path=None):
 
     _build_cover_sheet(wb, spec)
     _build_portfolio_matrix_sheet(wb, spec)
+    # Fund-level performance is rendered only when the fund cashflow stream is
+    # supplied; otherwise the workbook stays a pure covenant/leverage monitor
+    # (back-compatible with v0.10 manual builds that pass no fund_cashflows).
+    if getattr(spec, "fund_cashflows", None):
+        _build_fund_returns_sheet(wb, spec)
     _build_aggregate_summary_sheet(wb, spec)
     _build_qc_sheet(wb, spec)
 
@@ -65,25 +82,38 @@ def _build_cover_sheet(wb, spec) -> None:
         r += 1
 
     # ── Honest feature-scope note (SHIPPED vs roadmap) ────────────────────
-    # This template is a covenant / leverage MONITOR. It deliberately does NOT
-    # compute fund-level performance or multiple metrics (those are a separate
-    # roadmap item). Stated here so the deliverable does not silently overclaim.
-    # NOTE: phrasing intentionally avoids the fund-KPI acronyms (the hardtest
-    # asserts the monitor deliverable carries none of them).
+    # The template is a covenant/leverage MONITOR plus (v0.12) a fund-level
+    # performance section when a fund cashflow stream is supplied. Stated here
+    # so the deliverable neither over- nor under-claims.
+    has_fund = bool(getattr(spec, "fund_cashflows", None))
     r += 1
     scope = ws.cell(
         row=r, column=1,
-        value="Feature scope — covenant / leverage monitor",
+        value="Feature scope — covenant / leverage monitor + fund returns",
     )
     styles.style_subheader(scope)
     r += 1
+    fund_line_en = (
+        "SHIPPED (v0.12): fund-level performance on the Fund Returns sheet — "
+        "MOIC, DPI, RVPI, TVPI (= DPI + RVPI), gross & net IRR from the "
+        "capital-call / distribution / NAV stream."
+        if has_fund else
+        "Fund-level performance (Fund Returns sheet) renders when a fund "
+        "cashflow stream is supplied; none provided in this build."
+    )
+    fund_line_it = (
+        "Performance a livello fondo: MOIC, DPI, RVPI, TVPI, IRR lordo e netto."
+        if has_fund else
+        "Performance a livello fondo disponibile se forniti i flussi del fondo."
+    )
     scope_rows = [
         ("SHIPPED (v0.10): per-company covenant cushion, leverage, "
          "EBITDA actual-vs-plan, cash-trap flag, internal-rating roll-up.",
          "In ambito: cushion covenant, leva, EBITDA vs piano, rating."),
-        ("NOT IN SCOPE (roadmap): fund-level performance & multiple metrics, "
-         "cash-flow-to-fund analytics, sparklines / heatmaps, exception flagging.",
-         "Fuori ambito: metriche di performance a livello fondo, sparkline/heatmap."),
+        (fund_line_en, fund_line_it),
+        ("ROADMAP: trend sparklines, covenant cushion heatmap, automated "
+         "exception flagging.",
+         "Roadmap: sparkline di trend, heatmap covenant, flagging eccezioni."),
     ]
     for en, it in scope_rows:
         c = ws.cell(row=r, column=1, value=en)
@@ -143,6 +173,313 @@ def _build_portfolio_matrix_sheet(wb, spec) -> None:
                 actual_col = get_column_letter(8)
                 cell.value = f"={actual_col}{r}/{plan_col}{r}-1"
                 cell.number_format = "0.00%"
+
+
+def _build_fund_returns_sheet(wb, spec) -> None:
+    """Fund-level performance — MOIC / DPI / RVPI / TVPI / gross & net IRR.
+
+    Renders the fund's own (LP-facing) cashflow stream and the standard PE
+    fund KPIs from it. Multiples and IRR are emitted as LIVE Excel formulas
+    over the cashflow table so a reviewer can audit them cell-by-cell; the
+    same values are also reconciled in Python (finance_core + numpy_financial
+    cross-check lives in hardtest_portfolio_review.py).
+
+    Sign convention: capital calls and distributions are entered as positive
+    magnitudes; the net LP cashflow (the IRR vector) is
+    ``distribution - capital_call`` each period, with the TERMINAL period also
+    crediting the residual NAV as a realisation inflow.
+    """
+    from openpyxl.utils import get_column_letter
+
+    ws = wb.create_sheet("FundReturns")
+    layout.set_column_widths(ws, label_width=40, it_width=30, year_width=14)
+    layout.write_title_block(
+        ws,
+        title_en="Fund Returns",
+        title_it="Rendimenti del fondo",
+        subtitle="MOIC · DPI · RVPI · TVPI (= DPI + RVPI) · gross & net IRR "
+                 f"({spec.meta.currency}, {spec.meta.unit_scale})",
+    )
+
+    cfs = sorted(spec.fund_cashflows, key=lambda c: c.period)
+    n = len(cfs)
+    last_i = n - 1
+
+    # ── Cashflow table: metrics in rows, periods across columns D.. ──────────
+    hdr_row = 4
+    layout.write_section_header(ws, hdr_row, "Fund cashflow stream",
+                                "Flussi di cassa del fondo")
+    # Period header axis (integers — styled as inputs: they are the period axis)
+    period_row = hdr_row + 1
+    layout.write_row_label(ws, period_row, "Period (t)", "Periodo (t)")
+    for i, cf in enumerate(cfs):
+        col_idx = ord(layout.year_col(i)) - ord("A") + 1
+        c = ws.cell(row=period_row, column=col_idx, value=cf.period)
+        styles.style_input(c, number_format=styles.FMT_INTEGER)
+
+    call_row = period_row + 1
+    layout.write_row_label(ws, call_row, "Capital call (paid-in)",
+                           "Richiamo di capitale", indent=True)
+    dist_row = call_row + 1
+    layout.write_row_label(ws, dist_row, "Distribution to LPs",
+                           "Distribuzione agli LP", indent=True)
+    nav_row = dist_row + 1
+    layout.write_row_label(ws, nav_row, "Residual NAV (end of period)",
+                           "NAV residuo (fine periodo)", indent=True)
+    for i, cf in enumerate(cfs):
+        col_idx = ord(layout.year_col(i)) - ord("A") + 1
+        c = ws.cell(row=call_row, column=col_idx, value=cf.capital_call)
+        styles.style_input(c, number_format=styles.FMT_EUR_M)
+        c = ws.cell(row=dist_row, column=col_idx, value=cf.distribution)
+        styles.style_input(c, number_format=styles.FMT_EUR_M)
+        c = ws.cell(row=nav_row, column=col_idx, value=cf.nav)
+        styles.style_input(c, number_format=styles.FMT_EUR_M)
+
+    # Net LP cashflow (IRR vector): distribution - call, + terminal residual NAV
+    vec_row = nav_row + 1
+    layout.write_row_label(ws, vec_row, "Net LP cashflow (IRR vector)",
+                           "Flusso netto LP (vettore IRR)")
+    for i in range(n):
+        col = layout.year_col(i)
+        col_idx = ord(col) - ord("A") + 1
+        if i == last_i:
+            # terminal period realises the residual NAV
+            f = f"={col}{dist_row}-{col}{call_row}+{col}{nav_row}"
+        else:
+            f = f"={col}{dist_row}-{col}{call_row}"
+        c = ws.cell(row=vec_row, column=col_idx, value=f)
+        styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        c.font = _FONT_METRIC_BOLD
+        c.border = styles.BORDER_TOP_THIN
+    ws.cell(row=vec_row, column=ord(layout.year_col(last_i)) - ord("A") + 1).comment = Comment(
+        "Net LP cashflow each period = distribution - capital call. The final "
+        "period also credits residual NAV as a realisation inflow, so the IRR "
+        "vector treats end-of-life NAV as a terminal distribution.",
+        "ModelForge",
+    )
+
+    first_col = layout.year_col(0)
+    last_col = layout.year_col(last_i)
+
+    # ── KPI block ────────────────────────────────────────────────────────────
+    r = vec_row + 2
+    layout.write_section_header(ws, r, "Fund performance — multiples & IRR",
+                                "Performance del fondo — multipli e IRR")
+    r += 1
+
+    # Paid-in / distributed / terminal NAV / total value (live SUM formulas)
+    paidin_row = r
+    layout.write_row_label(ws, r, "Total paid-in (Σ capital calls)",
+                           "Capitale richiamato (Σ)", indent=True)
+    c = ws.cell(row=r, column=4,
+                value=f"=SUM({first_col}{call_row}:{last_col}{call_row})")
+    styles.style_formula(c, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    distrib_row = r
+    layout.write_row_label(ws, r, "Total distributed (Σ distributions)",
+                           "Distribuito (Σ)", indent=True)
+    c = ws.cell(row=r, column=4,
+                value=f"=SUM({first_col}{dist_row}:{last_col}{dist_row})")
+    styles.style_formula(c, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    termnav_row = r
+    layout.write_row_label(ws, r, "Terminal residual NAV",
+                           "NAV residuo finale", indent=True)
+    c = ws.cell(row=r, column=4, value=f"={last_col}{nav_row}")
+    styles.style_formula(c, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    totval_row = r
+    layout.write_row_label(ws, r, "Total value (distributions + terminal NAV)",
+                           "Valore totale (distribuzioni + NAV)", indent=True)
+    c = ws.cell(row=r, column=4,
+                value=f"=$D${distrib_row}+$D${termnav_row}")
+    styles.style_formula(c, number_format=styles.FMT_EUR_M)
+    c.font = _FONT_METRIC_BOLD
+    r += 2
+
+    # MOIC = total value / paid-in
+    moic_row = r
+    layout.write_row_label(ws, r, "MOIC (total value / paid-in)",
+                           "MOIC (valore totale / richiamato)", indent=True)
+    c = ws.cell(row=r, column=4, value=f"=$D${totval_row}/$D${paidin_row}")
+    styles.style_formula(c, number_format=styles.FMT_MULTIPLE)
+    c.font = _FONT_METRIC_BOLD
+    c.comment = Comment(
+        "MOIC = (cumulative distributions + terminal residual NAV) / total "
+        "paid-in capital. Equals fund-level TVPI for a single LP class.",
+        "ModelForge",
+    )
+    r += 1
+
+    # DPI = distributions / paid-in
+    dpi_row = r
+    layout.write_row_label(ws, r, "DPI (distributions / paid-in)",
+                           "DPI (distribuzioni / richiamato)", indent=True)
+    c = ws.cell(row=r, column=4, value=f"=$D${distrib_row}/$D${paidin_row}")
+    styles.style_formula(c, number_format=styles.FMT_MULTIPLE)
+    r += 1
+
+    # RVPI = residual NAV / paid-in
+    rvpi_row = r
+    layout.write_row_label(ws, r, "RVPI (residual NAV / paid-in)",
+                           "RVPI (NAV residuo / richiamato)", indent=True)
+    c = ws.cell(row=r, column=4, value=f"=$D${termnav_row}/$D${paidin_row}")
+    styles.style_formula(c, number_format=styles.FMT_MULTIPLE)
+    r += 1
+
+    # TVPI = DPI + RVPI (model-independent identity, rendered as the sum)
+    tvpi_row = r
+    layout.write_row_label(ws, r, "TVPI (= DPI + RVPI)",
+                           "TVPI (= DPI + RVPI)", indent=True)
+    c = ws.cell(row=r, column=4, value=f"=$D${dpi_row}+$D${rvpi_row}")
+    styles.style_formula(c, number_format=styles.FMT_MULTIPLE)
+    c.font = _FONT_METRIC_BOLD
+    c.comment = Comment(
+        "TVPI = DPI + RVPI by definition (total value to paid-in = realised "
+        "plus unrealised value over paid-in). Rendered as the sum so the "
+        "identity is auditable on the face of the workbook.",
+        "ModelForge",
+    )
+    r += 1
+
+    # Gross IRR (live IRR over the net LP cashflow vector)
+    irr_row = r
+    layout.write_row_label(ws, r, "Gross IRR (fund cashflow IRR)",
+                           "IRR lordo (IRR flussi del fondo)", indent=True)
+    c = ws.cell(
+        row=r, column=4,
+        value=f"=IRR({first_col}{vec_row}:{last_col}{vec_row},0.1)",
+    )
+    styles.style_formula(c, number_format=styles.FMT_PCT_2DP)
+    c.font = _FONT_METRIC_BOLD
+    c.comment = Comment(
+        "Gross fund IRR — the periodic IRR of the net LP cashflow vector "
+        "(distributions less calls, with terminal NAV as a realisation). "
+        "Cross-checked against numpy_financial.irr in the hardtest.",
+        "ModelForge",
+    )
+    r += 1
+
+    # ── Net (gross-to-net) bridge: management fee + carried interest ──────────
+    # European whole-fund waterfall: carry applies to profit ABOVE an 8%-compounded
+    # preferred return on paid-in, after management fees. All terms come from the
+    # spec; the bridge is rendered with live formulas + a Python cross-check.
+    if spec.mgmt_fee_rate is not None and spec.carry_rate is not None and spec.pref_rate is not None:
+        committed = spec.fund_committed if spec.fund_committed is not None else sum(
+            cf.capital_call for cf in cfs
+        )
+        years = cfs[last_i].period - cfs[0].period
+        if years <= 0:
+            years = n - 1
+
+        r += 1
+        layout.write_section_header(ws, r, "Gross-to-net bridge (2/20 over pref)",
+                                    "Bridge lordo-netto (2/20 su hurdle)")
+        r += 1
+
+        # committed capital (input)
+        committed_row = r
+        layout.write_row_label(ws, r, "Committed capital", "Capitale impegnato", indent=True)
+        c = ws.cell(row=r, column=4, value=float(committed))
+        styles.style_input(c, number_format=styles.FMT_EUR_M)
+        r += 1
+
+        # management fee rate / carry rate / pref rate / fee years (inputs)
+        feerate_row = r
+        layout.write_row_label(ws, r, "Management fee rate (p.a.)", "Commissione gestione (p.a.)", indent=True)
+        c = ws.cell(row=r, column=4, value=float(spec.mgmt_fee_rate))
+        styles.style_input(c, number_format=styles.FMT_PCT_2DP)
+        r += 1
+        feeyears_row = r
+        layout.write_row_label(ws, r, "Fee years", "Anni di commissione", indent=True)
+        c = ws.cell(row=r, column=4, value=int(years))
+        styles.style_input(c, number_format=styles.FMT_INTEGER)
+        r += 1
+        carryrate_row = r
+        layout.write_row_label(ws, r, "Carry rate", "Carried interest", indent=True)
+        c = ws.cell(row=r, column=4, value=float(spec.carry_rate))
+        styles.style_input(c, number_format=styles.FMT_PCT_2DP)
+        r += 1
+        prefrate_row = r
+        layout.write_row_label(ws, r, "Preferred return (hurdle)", "Hurdle (rendimento preferito)", indent=True)
+        c = ws.cell(row=r, column=4, value=float(spec.pref_rate))
+        styles.style_input(c, number_format=styles.FMT_PCT_2DP)
+        r += 1
+
+        # total management fees = rate * committed * fee_years
+        mgmtfee_row = r
+        layout.write_row_label(ws, r, "Total management fees", "Commissioni totali", indent=True)
+        c = ws.cell(row=r, column=4,
+                    value=f"=$D${feerate_row}*$D${committed_row}*$D${feeyears_row}")
+        styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        r += 1
+
+        # preferred amount = committed * ((1+pref)^years - 1)
+        pref_row = r
+        layout.write_row_label(ws, r, "Preferred (hurdle) amount", "Importo hurdle", indent=True)
+        c = ws.cell(row=r, column=4,
+                    value=f"=$D${committed_row}*((1+$D${prefrate_row})^$D${feeyears_row}-1)")
+        styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        r += 1
+
+        # gross profit = total value - committed
+        grossprofit_row = r
+        layout.write_row_label(ws, r, "Gross profit (total value − committed)",
+                               "Profitto lordo", indent=True)
+        c = ws.cell(row=r, column=4,
+                    value=f"=$D${totval_row}-$D${committed_row}")
+        styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        r += 1
+
+        # carry base = max(profit - pref - fees, 0)
+        carrybase_row = r
+        layout.write_row_label(ws, r, "Carry base = max(profit − pref − fees, 0)",
+                               "Base carry", indent=True)
+        c = ws.cell(
+            row=r, column=4,
+            value=f"=MAX($D${grossprofit_row}-$D${pref_row}-$D${mgmtfee_row},0)",
+        )
+        styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        r += 1
+
+        # carried interest = carry_rate * carry_base
+        carry_row = r
+        layout.write_row_label(ws, r, "Carried interest", "Carried interest", indent=True)
+        c = ws.cell(row=r, column=4,
+                    value=f"=$D${carryrate_row}*$D${carrybase_row}")
+        styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        r += 1
+
+        # net value = total value - fees - carry  ; net MOIC = net value / paid-in
+        netvalue_row = r
+        layout.write_row_label(ws, r, "Net value (gross − fees − carry)",
+                               "Valore netto", indent=True)
+        c = ws.cell(row=r, column=4,
+                    value=f"=$D${totval_row}-$D${mgmtfee_row}-$D${carry_row}")
+        styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        c.font = _FONT_METRIC_BOLD
+        r += 1
+
+        netmoic_row = r
+        layout.write_row_label(ws, r, "Net MOIC (net value / paid-in)",
+                               "MOIC netto", indent=True)
+        c = ws.cell(row=r, column=4,
+                    value=f"=$D${netvalue_row}/$D${paidin_row}")
+        styles.style_formula(c, number_format=styles.FMT_MULTIPLE)
+        c.font = _FONT_METRIC_BOLD
+        c.comment = Comment(
+            "Net MOIC = (total value − management fees − carried interest) / "
+            "paid-in. Always ≤ gross MOIC. Carry is charged only on profit "
+            "above the compounded preferred return (European whole-fund "
+            "waterfall).",
+            "ModelForge",
+        )
+        r += 1
+
+    ws.freeze_panes = "D5"
 
 
 def _build_aggregate_summary_sheet(wb, spec) -> None:

@@ -99,6 +99,99 @@ def irr(
     )
 
 
+# ── Fixed-income analytics (duration / convexity / issuer cost) ─────────
+
+
+def macaulay_duration(
+    cashflows: Sequence[float],
+    rate: float,
+    times: Sequence[float] | None = None,
+) -> float:
+    """Macaulay duration — PV-weighted average time to the cash inflows.
+
+    ``cashflows`` are the bond's *inflows* (coupon + principal) ordered by
+    period. ``times`` is the matching period for each cashflow; when omitted
+    they default to ``1, 2, … len(cashflows)`` (i.e. ``cashflows[0]`` falls at
+    t=1, the first coupon date — NOT t=0). Pass an explicit ``times`` to handle
+    a t=0 entry or non-annual spacing.
+
+    Returns ``sum(t · PV_t) / sum(PV_t)`` where ``PV_t = CF_t / (1+rate)^t``.
+    For a bond priced at par discounted at its coupon, this is the textbook
+    Macaulay duration. Raises if the discounted inflows sum to zero.
+    """
+    cfs = list(cashflows)
+    if not cfs:
+        raise ValueError("cashflows must be non-empty")
+    ts = list(times) if times is not None else [i + 1 for i in range(len(cfs))]
+    if len(ts) != len(cfs):
+        raise ValueError("times must match cashflows length")
+    pv = [cf / (1 + rate) ** t for cf, t in zip(cfs, ts)]
+    denom = sum(pv)
+    if denom == 0:
+        raise ValueError("sum of discounted cashflows is zero; duration undefined")
+    return sum(t * p for t, p in zip(ts, pv)) / denom
+
+
+def modified_duration(macaulay: float, ytm: float, freq: int = 1) -> float:
+    """Modified duration = Macaulay / (1 + ytm/freq).
+
+    ``freq`` is the number of coupon periods per year (1 = annual). Modified
+    duration is the first-order price sensitivity: ΔP/P ≈ −ModDur · Δytm.
+    """
+    if freq <= 0:
+        raise ValueError("freq must be > 0")
+    return macaulay / (1 + ytm / freq)
+
+
+def convexity(cashflows: Sequence[float], rate: float,
+              times: Sequence[float] | None = None) -> float:
+    """Convexity — second-order price sensitivity of the inflows.
+
+    ``C = sum(t·(t+1)·PV_t) / (P · (1+rate)^2)`` where ``P = sum(PV_t)`` is the
+    PV of the inflows. ``cashflows`` / ``times`` follow :func:`macaulay_duration`
+    (default times are 1, 2, …). The full price change is then
+    ``ΔP/P ≈ −ModDur·Δy + ½·C·Δy²``.
+    """
+    cfs = list(cashflows)
+    if not cfs:
+        raise ValueError("cashflows must be non-empty")
+    ts = list(times) if times is not None else [i + 1 for i in range(len(cfs))]
+    if len(ts) != len(cfs):
+        raise ValueError("times must match cashflows length")
+    pv = [cf / (1 + rate) ** t for cf, t in zip(cfs, ts)]
+    price = sum(pv)
+    if price == 0:
+        raise ValueError("PV of inflows is zero; convexity undefined")
+    weighted = sum(t * (t + 1) * cf / (1 + rate) ** (t + 2) for cf, t in zip(cfs, ts))
+    return weighted / price
+
+
+def all_in_cost_of_debt(
+    ytm: float,
+    upfront_fees: float,
+    face: float,
+) -> float:
+    """Issuer all-in cost of funds (annualised), fees amortised over the life.
+
+    A first-order approximation of the issuer's cost of debt: the periodic
+    coupon yield (``ytm``) grossed up for upfront fees spread across the face.
+    With ``upfront_fees`` (arrangement + legal + listing + rating, as a positive
+    money amount) and ``face`` (the notional drawn), the issuer receives only
+    ``face − upfront_fees`` but services the full coupon, so its effective cost
+    exceeds the coupon. Returns ``ytm · face / (face − upfront_fees)``.
+
+    This closed form is the simple net-proceeds gross-up; the workbook renders
+    the *exact* all-in via an IRR of the issuer cashflow (net proceeds in,
+    coupon+principal out). Use the IRR for reporting and this for a quick check
+    that ``all_in > coupon`` whenever fees are positive. Raises if net proceeds
+    are non-positive.
+    """
+    net_proceeds = face - upfront_fees
+    if net_proceeds <= 0:
+        raise ValueError("net proceeds (face - upfront_fees) must be > 0")
+    return ytm * face / net_proceeds
+
+
 # ── Returns + multiples ────────────────────────────────────────────────
 
 

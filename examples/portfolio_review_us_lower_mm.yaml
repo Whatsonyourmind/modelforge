@@ -32,6 +32,47 @@ fund_name: "Lower-MM Credit Fund III (anonymized)"
 fund_vintage: 2023
 fund_aum: 1850.0
 
+# ── Fund-level performance (v0.12) ──────────────────────────────────────────
+# LP-facing cashflow stream by fund year (period 0 = vintage). Capital calls,
+# distributions and end-of-period residual NAV are all POSITIVE magnitudes;
+# the builder forms the net IRR vector (distribution - capital_call) and
+# appends the terminal NAV as a realisation inflow. Numbers are chosen clean so
+# every KPI is hand-checkable (the hardtest re-derives them from scratch):
+#   Total called     = 250 + 300 + 200 + 100        = 850.0
+#   Total distributed= 0 + 40 + 160 + 400           = 600.0
+#   Terminal NAV (period 3)                          = 900.0
+#   Total value      = 600 + 900                     = 1500.0
+#   => fund MOIC/TVPI = 1500 / 850 = 1.764705882...
+#      DPI  = 600 / 850 = 0.705882353...
+#      RVPI = 900 / 850 = 1.058823529...  (DPI + RVPI == TVPI, exact)
+#   IRR vector = [-250, -260, -40, 1200]  (terminal credits the 900 NAV)
+#   Gross-to-net (2/20 over 8% pref, committed 1000, 3 fee-years):
+#      mgmt fees = 0.02*1000*3 = 60 ; pref = 1000*((1.08^3)-1) = 259.712
+#      profit = 500 ; carry base = max(500-259.712-60,0) = 180.288
+#      carry = 0.20*180.288 = 36.0576 ; net value = 1500-60-36.0576 = 1403.9424
+#      net MOIC = 1403.9424 / 850 = 1.651697...  (< gross MOIC)
+fund_committed: 1000.0
+mgmt_fee_rate: 0.02
+carry_rate: 0.20
+pref_rate: 0.08
+fund_cashflows:
+  - period: 0
+    capital_call: 250.0
+    distribution: 0.0
+    nav: 245.0
+  - period: 1
+    capital_call: 300.0
+    distribution: 40.0
+    nav: 560.0
+  - period: 2
+    capital_call: 200.0
+    distribution: 160.0
+    nav: 720.0
+  - period: 3
+    capital_call: 100.0
+    distribution: 400.0
+    nav: 900.0
+
 portfolio:
   - portco_id: PC-001
     name: "SaaS-Co A"

@@ -226,6 +226,18 @@ class ProjectFinanceSpec(BaseModel):
             raise ValueError(
                 "debt.target_dscr_base is required when debt.debt_sizing_mode == 'dscr_target'"
             )
+        # v0.12 (US-PF-sculpt): genuine CFADS-driven DSCR sculpting also needs a
+        # target. The sculpt is driven by the amortization_profile (independent
+        # of debt_sizing_mode), so guard it explicitly: a sculpted_dscr_target
+        # schedule with no target_dscr_base is unsolvable.
+        if (
+            self.debt.amortization_profile == "sculpted_dscr_target"
+            and self.debt.target_dscr_base is None
+        ):
+            raise ValueError(
+                "debt.target_dscr_base is required when "
+                "debt.amortization_profile == 'sculpted_dscr_target'"
+            )
         return self
 
     def all_assumptions(self) -> list[Assumption]:

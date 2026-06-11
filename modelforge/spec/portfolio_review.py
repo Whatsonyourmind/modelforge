@@ -10,6 +10,11 @@ leverage trend, EBITDA actual-vs-plan, next covenant test, cash-trap status.
 v0.10 PREVIEW — feature-complete spec, minimal renderer.
 v0.11 adds: trend sparklines, covenant cushion heatmap, automated
 exception flagging, narrative comment fields.
+
+v0.12 — fund-level performance: capital-call / distribution / NAV cashflow
+stream feeds a Fund Returns sheet (MOIC, DPI, RVPI, TVPI == DPI+RVPI, gross
+IRR; net IRR/MOIC when 2/20-over-pref terms are supplied). The monitor is no
+longer covenant-only.
 """
 
 from __future__ import annotations
@@ -56,6 +61,23 @@ class PortcoLine(BaseModel):
     """Optional brief commentary for the IC."""
 
 
+class FundCashflow(BaseModel):
+    """One period of the fund's own (LP-facing) cashflow stream.
+
+    Capital calls and distributions are entered as POSITIVE magnitudes (the
+    sign convention for the IRR vector is applied by the builder: a period's
+    net LP cashflow is ``distribution - capital_call``, and the terminal NAV is
+    appended as a realisation inflow). ``nav`` is the fund's residual net asset
+    value AT THE END of the period — only the final period's NAV enters TVPI /
+    IRR as residual value (interim NAVs are carried for the J-curve / audit).
+    """
+
+    period: int = Field(ge=0, description="0-indexed period (year) of the fund's life")
+    capital_call: float = Field(default=0.0, ge=0.0, description="Capital drawn this period (paid-in), positive")
+    distribution: float = Field(default=0.0, ge=0.0, description="Cash distributed to LPs this period, positive")
+    nav: float = Field(default=0.0, ge=0.0, description="Residual fund NAV at end of period, positive")
+
+
 class PortfolioReviewSpec(BaseModel):
     """Quarterly portfolio review — N portcos × metrics matrix.
 
@@ -79,3 +101,29 @@ class PortfolioReviewSpec(BaseModel):
     fund_name: str = ""
     fund_vintage: Optional[int] = None
     fund_aum: Optional[float] = None
+
+    # ── Fund-level performance (v0.12) ───────────────────────────────────────
+    fund_cashflows: list[FundCashflow] = Field(
+        default_factory=list,
+        description="Fund-level capital-call / distribution / NAV stream. When "
+        "non-empty, the workbook emits a Fund Returns sheet (MOIC, DPI, RVPI, "
+        "TVPI, gross & net IRR). Empty = covenant-monitor-only (back-compat).",
+    )
+    mgmt_fee_rate: Optional[float] = Field(
+        default=None, ge=0.0, le=0.10,
+        description="Annual management fee on committed capital (e.g. 0.02 = 2%). "
+        "Drives the gross-to-net bridge when set with carry_rate.",
+    )
+    carry_rate: Optional[float] = Field(
+        default=None, ge=0.0, le=0.50,
+        description="Carried-interest rate (e.g. 0.20 = 20%) above the preferred return.",
+    )
+    pref_rate: Optional[float] = Field(
+        default=None, ge=0.0, le=0.30,
+        description="LP preferred return / hurdle (e.g. 0.08 = 8%), European whole-fund waterfall.",
+    )
+    fund_committed: Optional[float] = Field(
+        default=None, gt=0.0,
+        description="Committed capital for fee/carry base, in meta.unit_scale. "
+        "Defaults to total capital called when omitted.",
+    )

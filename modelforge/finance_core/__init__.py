@@ -25,8 +25,10 @@ from modelforge.finance_core.currency import (
     format_smart,
 )
 from modelforge.finance_core.formulas import (
+    all_in_cost_of_debt,
     apply_growth,
     cagr,
+    convexity,
     dpi,
     dscr,
     exit_multiple_terminal_value,
@@ -34,6 +36,8 @@ from modelforge.finance_core.formulas import (
     irr,
     levered_beta,
     ltv,
+    macaulay_duration,
+    modified_duration,
     moic,
     npv,
     pmt,
@@ -100,6 +104,11 @@ __all__ = [
     "levered_beta",
     "cagr",
     "apply_growth",
+    # Fixed-income analytics
+    "macaulay_duration",
+    "modified_duration",
+    "convexity",
+    "all_in_cost_of_debt",
     # Currency
     "eur_m_to_eur",
     "eur_k_to_eur",

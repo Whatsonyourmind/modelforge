@@ -239,3 +239,17 @@ hgb_assumptions:
   gewerbesteuer_hebesatz: 400.0  # National DE average — adjust to municipality
   soli_applicable: true
   enable_hgb_steuer_recon: true
+
+# Carve-out standalone-EBITDA bridge + carve-out EV (EUR millions).
+# All magnitudes POSITIVE; the builder applies the bridge signs:
+#   standalone adjusted (during TSA) = 11.2 + 1.8 - 2.6 - 0.9 - 1.5 = 8.0
+#   run-rate (steady-state)          = 11.2 + 1.8 - 2.6             = 10.4   (TSA + one-time excluded)
+#   carve-out EV                     = 10.4 x 8.0                   = 83.2
+carveout_bridge:
+  reported_ebitda: 11.2            # carve-out perimeter EBITDA in seller's group books (= target LFY)
+  allocated_corporate_costs: 1.8   # parent overhead that does NOT transfer — add-back (+)
+  dis_synergies: 2.6               # recurring stranded standalone costs (own ERP/HR/finance) (-)
+  tsa_costs: 0.9                   # Transition Service Agreement, transition only (-), excl. from run-rate
+  tsa_period_years: 2.0            # TSA window length (time-boundary documentation)
+  one_time_separation_costs: 1.5   # one-off stand-up (IT clone, rebrand, entity setup) (-), excl. from run-rate
+  entry_multiple: 8.0              # EV / standalone-EBITDA paid at entry, on the run-rate base

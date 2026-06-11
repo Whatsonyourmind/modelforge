@@ -25,14 +25,32 @@ precompute_cfads_base(spec)
     Revenue_t × (1 - opex_pct) - tax = CFADS_t. Returns list of length
     operating_years. Used as input to solve_dscr_target_debt.
 
+v0.12 (US-PF-sculpt): genuine CFADS-driven DSCR sculpting.
+    sculpt_dscr_target_schedule(spec)
+        Solve the FULL coupled debt schedule for amortization_profile=
+        sculpted_dscr_target so the realised DSCR (as the workbook actually
+        renders it: average-balance interest, EBIT−interest tax shield,
+        maintenance capex) is FLAT at the target every amortizing operating
+        year, while the balance amortises to exactly 0 and never goes
+        negative. The senior amount is *solved* (sum of scheduled principal,
+        capped at the user's senior_amount), not assumed. Returns
+        (senior_amount, principal_pct_schedule, dscr_binds).
+
 Design notes
 ------------
 - Sculpted schedules are written into the workbook as *percentages* of the
   senior_amount named range, so if the user subsequently edits the
   Assumptions BASE/Worst/Best, scenario scaling still works.
-- Binary search is preferred over Newton: CFADS is effectively independent
-  of debt quantum in this model (no interest tax shield implemented yet on
-  CFADS), so DSCR is monotone in P. Search always terminates.
+- The legacy ``level_debt_service_*`` helpers + ``solve_dscr_target_debt``
+  binary search remain for the level-debt-service profiles and back-compat.
+  Their numeric contract is unchanged (CFADS independent of P, monotone DSCR).
+- True DSCR sculpting is NOT monotone-in-P and NOT a binary search: the
+  schedule, the debt quantum, and the interest tax-shield are mutually
+  coupled. ``sculpt_dscr_target_schedule`` resolves the circularity by
+  fixed-point iteration on (P, principal-schedule) until it converges — the
+  same way a live workbook with iterative calc would settle. The sizing CFADS
+  is now reconciled to the rendered-sheet CFADS (EBIT−interest tax, minus
+  maintenance capex), removing the prior sizer-vs-sheet tax-base mismatch.
 - Tolerance is in EUR m (default 0.01 = €10k).
 """
 
@@ -203,3 +221,177 @@ def precompute_cfads_base(spec) -> List[float]:
         tax = -max(ebitda, 0.0) * tax_rate
         cfads.append(ebitda + tax)
     return cfads
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# v0.12 — genuine CFADS-driven DSCR sculpting
+# ──────────────────────────────────────────────────────────────────────────
+def _render_pf_cashflow_and_debt(spec, P: float, pct_schedule: List[float]) -> dict:
+    """Reproduce the EXACT numerics pf_cashflow.build + pf_debt.build emit,
+    for a candidate senior amount ``P`` and principal-pct schedule.
+
+    This is the in-Python twin of the rendered workbook used to make the
+    sculpt self-consistent with what the sheet actually computes:
+
+      * interest_t = -avg_balance_t * rate         (average-balance convention)
+      * tax_t      = -max(EBIT_t + interest_t, 0) * tax_rate   (interest shield)
+      * CFADS_t    = EBITDA_t + tax_t + ΔWC_t + maint_t
+      * debt_service_t = interest_t + amort_t      (both ≤ 0)
+      * DSCR_t     = CFADS_t / |debt_service_t|
+
+    Returns arrays indexed over the full timeline (length c+o). Crucially the
+    SIZING CFADS here is the SAME definition the sheet renders (EBIT−interest
+    tax, minus maintenance capex), reconciling the prior sizer-vs-sheet
+    tax-base mismatch (the old precompute_cfads_base taxed EBITDA directly and
+    ignored D&A, the interest shield and maintenance capex).
+    """
+    c = spec.horizon.construction_years
+    o = spec.horizon.operating_years
+    n = c + o
+
+    capex = spec.construction.total_capex_eur_m.base
+    phasing = [p.base for p in spec.construction.capex_phasing_pct]
+    rev1 = spec.operating.availability_payment_eur_m_yr1.base
+    rev_idx = spec.operating.revenue_indexation_pct.base
+    opex_pct = spec.operating.opex_pct_revenue.base
+    maint_pct = spec.operating.maintenance_reserve_pct_revenue.base
+    tax_rate = spec.equity.effective_tax_rate.base
+    deg = getattr(spec.operating, "panel_degradation_pct_annual", None)
+    deg = deg.base if deg is not None else 0.0
+    nwc = getattr(spec.operating, "nwc_pct_revenue", None)
+    nwc = nwc.base if nwc is not None else 0.0
+    rate = spec.debt.reference_rate.base + spec.debt.margin_bps.base / 10000.0
+
+    # Debt roll-forward (mirrors pf_debt: drawdown on phasing, amort = -P*pct)
+    opening = [0.0] * n
+    drawdown = [0.0] * n
+    amort = [0.0] * n
+    closing = [0.0] * n
+    for i in range(c):
+        drawdown[i] = P * phasing[i]
+    for i in range(n):
+        opening[i] = closing[i - 1] if i > 0 else 0.0
+        if i >= c:
+            op = i - c
+            amort[i] = -P * pct_schedule[op] if op < len(pct_schedule) else 0.0
+        closing[i] = opening[i] + drawdown[i] + amort[i]
+    avg = [(opening[i] + closing[i]) / 2.0 for i in range(n)]
+    interest = [-avg[i] * rate for i in range(n)]
+    debt_service = [interest[i] + amort[i] for i in range(n)]
+
+    # Operating walk (mirrors pf_cashflow exactly)
+    revenue = [0.0] * n
+    cfads = [0.0] * n
+    dscr: List[float | None] = [None] * n
+    for i in range(c, n):
+        t = i - c
+        if t == 0:
+            rev_t = rev1
+        else:
+            rev_t = revenue[i - 1] * (1.0 + rev_idx) * (1.0 - deg)
+        revenue[i] = rev_t
+        opex = -rev_t * opex_pct
+        ebitda = rev_t + opex
+        da = -capex / o
+        ebit = ebitda + da
+        taxable = ebit + interest[i]                 # interest negative
+        tax = -max(taxable, 0.0) * tax_rate
+        maint = -rev_t * maint_pct
+        if t == 0:
+            d_wc = -rev_t * nwc
+        else:
+            d_wc = -(rev_t - revenue[i - 1]) * nwc
+        cfads[i] = ebitda + tax + d_wc + maint
+        ds = abs(debt_service[i])
+        dscr[i] = (cfads[i] / ds) if ds > 1e-9 else None
+
+    return dict(
+        opening=opening, closing=closing, amort=amort, interest=interest,
+        debt_service=debt_service, cfads=cfads, dscr=dscr, rate=rate,
+        c=c, o=o, n=n,
+    )
+
+
+def sculpt_dscr_target_schedule(
+    spec,
+    tol: float = 1e-10,
+    max_iter: int = 500,
+) -> tuple[float, List[float], bool]:
+    """Solve a genuine DSCR-sculpted principal schedule.
+
+    Sizes the senior debt and shapes each operating-year principal so that the
+    REALISED DSCR — exactly as pf_cashflow/pf_debt render it — is flat at the
+    BASE target every *amortizing* operating year, the balance amortises to 0,
+    and the balance never goes negative.
+
+    Mechanics (per amortizing year t):
+        |debt_service_t| = CFADS_t / target          (flat-DSCR condition)
+        principal_t      = CFADS_t / target − |interest_t|
+    Grace years: principal 0 (interest-only → DSCR naturally > target).
+    Post-amort years: principal 0.
+
+    CFADS_t and interest_t are mutually coupled (interest shields tax, which
+    moves CFADS; the principal schedule moves the balance, which moves
+    interest), so the schedule is found by fixed-point iteration on
+    (P, principal-$) until P converges. Converges in ~10-15 iterations for
+    well-posed PF inputs.
+
+    Sizing is the textbook DSCR-sculpt: P = Σ scheduled principal (so it
+    amortises to exactly 0). When that exceeds the user's senior_amount cap,
+    the cap binds: principal is rescaled to amortise the capped P to 0 and the
+    realised DSCR floats ABOVE target (honest — LTV, not DSCR, is then the
+    binding constraint).
+
+    Returns (senior_amount, principal_pct_schedule, dscr_binds) where the pct
+    schedule is each year's principal as a fraction of senior_amount (sums to
+    1.0) and dscr_binds is True iff the DSCR target is the binding constraint
+    (i.e. realised DSCR is flat at target).
+    """
+    o = spec.horizon.operating_years
+    grace = spec.debt.grace_years
+    amort_years = spec.debt.tenor_operating_years - spec.debt.grace_years
+    if amort_years <= 0:
+        raise ValueError("tenor must exceed grace for a sculpted schedule")
+    if spec.debt.target_dscr_base is None:
+        raise ValueError("sculpted_dscr_target requires debt.target_dscr_base")
+    target = spec.debt.target_dscr_base.base
+    cap = spec.debt.amount.base
+    c = spec.horizon.construction_years
+    last_amort = grace + amort_years - 1  # 0-based op index of last amort year
+
+    # Seed: start at the cap with a flat principal guess; iterate to the fixed
+    # point where principal_t = CFADS_t/target − |interest_t|.
+    P = cap
+    principal = [0.0] * o
+    binds = True
+    for _ in range(max_iter):
+        pct = [p / P if P > 0 else 0.0 for p in principal]
+        m = _render_pf_cashflow_and_debt(spec, P, pct)
+        interest = m["interest"]
+        cfads = m["cfads"]
+        new_principal = [0.0] * o
+        for op in range(o):
+            i = c + op
+            if op < grace or op > last_amort:
+                new_principal[op] = 0.0
+            else:
+                required_ds = cfads[i] / target          # flat-DSCR condition
+                prin = required_ds - abs(interest[i])
+                new_principal[op] = max(prin, 0.0)
+        new_P = sum(new_principal)
+        if new_P > cap + 1e-12:
+            # Cap binds — rescale to amortise the capped P to exactly 0.
+            scale = cap / new_P if new_P > 0 else 0.0
+            new_principal = [p * scale for p in new_principal]
+            new_P = cap
+            binds = False
+        else:
+            binds = True
+        dP = abs(new_P - P)
+        principal = new_principal
+        P = new_P
+        if dP < tol:
+            break
+
+    pct_schedule = [p / P if P > 0 else 0.0 for p in principal]
+    return P, pct_schedule, binds
