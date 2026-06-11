@@ -107,6 +107,19 @@ def write_scenario_banner(ws: Worksheet, row: int = 3) -> None:
     from openpyxl.formatting.rule import CellIsRule
     from openpyxl.styles import PatternFill, Font
 
+    # Defensive: the CHOOSE below references the workbook-level `scenario_index`
+    # named range. Templates with a Cover scenario toggle register it (cover.py);
+    # templates with a custom cover (e.g. portfolio_review) do not — and without
+    # the name the banner renders #REF!. Register a constant BASE (2) fallback
+    # when it is missing so every sheet's banner resolves cleanly.
+    wb = ws.parent
+    if wb is not None and "scenario_index" not in wb.defined_names:
+        from openpyxl.workbook.defined_name import DefinedName
+
+        wb.defined_names["scenario_index"] = DefinedName(
+            name="scenario_index", attr_text="2"
+        )
+
     c_lbl = ws.cell(row=row, column=1, value="ACTIVE SCENARIO →")
     c_lbl.font = Font(name=FONT_BASE_LOCAL, size=10, bold=True, color="555555")
     c_lbl.alignment = styles.align_right

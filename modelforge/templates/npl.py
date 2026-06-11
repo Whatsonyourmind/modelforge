@@ -21,10 +21,33 @@ def build(spec, out_path: Path | str, graph_db_path=None):
         from modelforge.builder import layout
         y = spec.horizon.collection_years
         n = y + 1
+        first_col = layout.year_col(0)
         last_col = layout.year_col(n - 1)
         equity_cf_row = int(wf_refs["equity_cf_row"])
         net_row = int(wf_refs["net_collections_row"])
         curve_row = int(wf_refs["cum_collection_pct_row"])
+        gross_row = int(wf_refs["annual_gross_collections_row"])
+        serv_row = int(wf_refs["servicing_fee_row"])
+        legal_row = int(wf_refs["legal_fee_row"])
+        setup_row = int(wf_refs["setup_fee_row"])
+        tape_row = int(wf_refs["data_tape_row"])
+
+        # Unit_scale-aware tolerance (€10k absolute).
+        tol = generic_qc.fmt_tol(spec)
+
+        # Conservation law — every period: net collections to the fund equals
+        # gross collections net of servicing + legal fees, plus the one-off
+        # setup + data-tape costs (which are zero except at t=0). I.e. cash in
+        # == cash out, no leak/double-count anywhere in the waterfall. Counted
+        # across all n periods via SUMPRODUCT == n.
+        W = "'CollectionWaterfall'!"
+        rng = lambda rr: f"{W}{first_col}{rr}:{last_col}{rr}"
+        cons_formula = (
+            f"=IF(SUMPRODUCT((ABS({rng(net_row)}"
+            f"-({rng(gross_row)}+{rng(serv_row)}+{rng(legal_row)}"
+            f"+{rng(setup_row)}+{rng(tape_row)}))<={tol})*1)={n},1,0)"
+        )
+
         checks = [
             ("Purchase price is a fraction of GBV", "Prezzo è frazione di GBV",
              f"=IF('CollectionWaterfall'!D{int(wf_refs['purchase_row'])}<'CollectionWaterfall'!D{int(wf_refs['gbv_row'])},1,0)"),
@@ -33,6 +56,9 @@ def build(spec, out_path: Path | str, graph_db_path=None):
             ("Equity CF at t=0 negative (capital contribution)",
              "CF equity a t=0 negativo",
              f"=IF('CollectionWaterfall'!D{equity_cf_row}<0,1,0)"),
+            ("Conservation: net collections = gross − servicing − legal − one-offs (each period)",
+             "Conservazione: recuperi netti = lordi − fee servicing/legali − una tantum",
+             cons_formula),
         ]
         qc_ws = wb.create_sheet("QC")
         generic_qc.build(qc_ws, checks)

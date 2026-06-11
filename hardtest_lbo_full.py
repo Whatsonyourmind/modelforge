@@ -348,25 +348,59 @@ def trim(cf):
     last = max(i for i, v in enumerate(cf) if abs(v) > 1e-12)
     return cf[:last + 1]
 
+# LBO-EQUITY UNIFICATION (v0.11): the sponsor t0 equity OUTFLOW in the returns/
+# IRR series must equal the S&U equity PLUG — the true new money the deal needs
+# (Total Uses − debt drawn − rollover = exp_sponsor_plug = 44.3) — NOT the fixed
+# capital-structure spec input (35.0). Prior builder code outflowed 35.0 in the
+# IRR series while the S&U balanced to 44.3, so the reported IRR/MoIC were on a
+# DIFFERENT equity base than the deal requires. We assert the t0 outflow on BOTH
+# sides equals the SAME spec-derived plug, then reconcile IRR/MoIC to
+# numpy_financial on a CF vector whose t0 is the spec-derived plug (independent
+# of model output). The expected side stays clean-room: exp_sponsor_plug is from
+# the YAML (uses − debt − rollover), the inflows are the model's exit/recap
+# proceeds that checks (d)/(EXIT EV) already validate against spec-derived
+# proj-EBITDA, and npf.irr is the third-party reference.
+
+# t0 outflow on the IRR side must equal the spec-derived plug (unification).
+check("sponsor t0 IRR outflow == S&U plug (new money, spec-derived)",
+      -strat_cf[0], exp_sponsor_plug,
+      detail_extra=(f"model t0={-strat_cf[0]:.4f} "
+                    f"plug={exp_sponsor_plug:.4f} "
+                    f"(fixed cap input would be {sponsor_eq})"))
+
+# Build the INDEPENDENT expected sponsor CF vector: t0 = -plug (spec-derived),
+# interim/exit inflows = the model's (validated-elsewhere) positive flows. This
+# makes the expected IRR depend on the spec plug at t0, so it would FAIL if the
+# builder still outflowed the fixed 35.0 instead of the unified 44.3.
+def with_plug_t0(model_cf):
+    v = list(model_cf)
+    v[0] = -exp_sponsor_plug
+    return trim(v)
+
 strat_cf_trim = trim(strat_cf)
-npf_irr_strat = npf.irr(strat_cf_trim)
-print(f"\n   strategic CF (trimmed) = {[round(x,4) for x in strat_cf_trim]}")
-print(f"   numpy_financial.irr = {npf_irr_strat:.6f}  "
+strat_cf_indep = with_plug_t0(strat_cf)
+npf_irr_strat = npf.irr(strat_cf_indep)
+print(f"\n   strategic CF (model, trimmed) = {[round(x,4) for x in strat_cf_trim]}")
+print(f"   strategic CF (plug-t0 indep)  = {[round(x,4) for x in strat_cf_indep]}")
+print(f"   numpy_financial.irr (plug-t0) = {npf_irr_strat:.6f}  "
       f"model IRR cell = {irr_strat:.6f}")
-check("equity IRR (strategic) reconciles to numpy_financial.irr",
+check("equity IRR (strategic) reconciles to npf on UNIFIED plug equity",
       irr_strat, npf_irr_strat, tol=RATE_ABS)
 
-ipo_cf_trim = trim(ipo_cf)
-npf_irr_ipo = npf.irr(ipo_cf_trim)
-check("equity IRR (IPO) reconciles to numpy_financial.irr",
+ipo_cf_indep = with_plug_t0(ipo_cf)
+npf_irr_ipo = npf.irr(ipo_cf_indep)
+check("equity IRR (IPO) reconciles to npf on UNIFIED plug equity",
       irr_ipo, npf_irr_ipo, tol=RATE_ABS)
 
 # (h) MOIC == exit equity / entry equity (independent).
-#     entry equity invested by sponsor = -CF[0]; exit equity = sum positive CF.
-entry_equity_invested = -strat_cf_trim[0]
+#     entry equity invested by sponsor = the S&U plug (spec-derived new money),
+#     NOT -CF[0]. exit equity = sum of positive CFs (model inflows validated by
+#     the EXIT EV / recap checks). Using the plug here keeps the MoIC expectation
+#     non-circular and on the SAME equity base as the unified IRR series.
+entry_equity_invested = exp_sponsor_plug
 exit_equity_strat = sum(v for v in strat_cf_trim if v > 0)
 exp_moic_strat = exit_equity_strat / entry_equity_invested
-check("MoIC strategic == sum(+CF)/-CF0 (exit eq / entry eq)",
+check("MoIC strategic == sum(+CF)/plug equity (exit eq / new money)",
       moic_strat, exp_moic_strat)
 
 # (i) VALUE-CREATION BRIDGE: EBITDA-growth + multiple-change + deleveraging

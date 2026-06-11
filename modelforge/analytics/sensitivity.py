@@ -56,6 +56,36 @@ from modelforge.analytics.factors import SensitivityFactor, default_factors_for
 from modelforge.builder import styles
 
 
+# ─── Static-snapshot honesty banner ──────────────────────────────────────────
+
+
+def write_static_snapshot_banner(ws: Worksheet, row: int) -> None:
+    """Write the bilingual 'STATIC SNAPSHOT' honesty banner into ``row``.
+
+    Used on analytics sheets whose shadow/MC/2D output cells are
+    pre-computed at build time (literal values, NOT live Excel
+    formulas). The banner makes it unmistakable that those numbers do
+    NOT recompute when the user flips ``scenario_index`` or edits a
+    driver — the only way to refresh is to rebuild from the spec.
+
+    Occupies a SINGLE existing row (no layout shift) carrying both the
+    EN primary text and the IT subline (i18n system), styled with the
+    distinct ``style_static_value`` fill/font so the row reads as a
+    warning, not as a live input.
+    """
+    from modelforge.builder.i18n import L as _L
+    label = _L("static_snapshot_banner")
+    c = ws.cell(row=row, column=1, value=f"{label.en}  |  {label.it}")
+    c.font = styles.Font(
+        name=styles.FONT_BASE, size=styles.FONT_SIZE_BODY,
+        bold=True, italic=True, color="9C5700",
+    )
+    c.fill = styles.fill_static
+    c.alignment = styles.Alignment(
+        horizontal="left", vertical="center", wrap_text=False,
+    )
+
+
 # ─── Primary output auto-detection ────────────────────────────────────────────
 # Ordered by priority — first exact match on col-A label wins per sheet.
 
@@ -403,14 +433,25 @@ def _emit_sheet(
     # Scenario banner at row 3 (bulge convention — audit_suite.py enforces)
     from modelforge.builder import layout as _layout
     _layout.write_scenario_banner(ws, row=3)
-    sub = ws.cell(
-        row=4, column=1,
-        value=(
-            f"Tornado on {primary_loc.label}. Base output and driver values "
-            f"are live via named ranges — rebuild or flip scenario to refresh."
-        ),
-    )
-    sub.font = styles.font_label_it
+    if shadow is not None:
+        # Shadow path: Low/High Δ are pre-computed STATIC values written at
+        # build time — they do NOT recompute on a scenario flip. Replace the
+        # (previously misleading) "flip scenario to refresh" subtitle with the
+        # honest static-snapshot banner so the frozen deltas are never mistaken
+        # for live cells.
+        write_static_snapshot_banner(ws, row=4)
+    else:
+        # Elasticity path: every Low/High Δ is a live Excel formula off
+        # primary_output, so flipping the scenario genuinely refreshes them.
+        sub = ws.cell(
+            row=4, column=1,
+            value=(
+                f"Tornado on {primary_loc.label}. Base output, driver values "
+                f"and Low/High Δ are live Excel formulas off named ranges — "
+                f"rebuild or flip scenario to refresh."
+            ),
+        )
+        sub.font = styles.font_label_it
 
     # ── Summary card (read-live): base output + factor count
     ws.cell(row=5, column=1, value="Primary output").font = styles.font_subheader
@@ -496,16 +537,20 @@ def _emit_sheet(
 
         # J / K: deltas — shadow (exact numeric) or elasticity (formula)
         if shadow is not None and i - 1 < len(shadow.low_deltas):
+            # STATIC: exact shadow-engine deltas are pre-computed literals,
+            # not live formulas. Style as static_value (grey/italic) so they
+            # are visually distinct from blue live inputs.
             ld = ws.cell(row=r, column=10, value=shadow.low_deltas[i - 1])
-            styles.style_input(ld, number_format=styles.FMT_PCT_2DP)
+            styles.style_static_value(ld, number_format=styles.FMT_PCT_2DP)
             ld.comment = Comment(
                 f"Exact Δ from shadow engine: primary_output shocked by "
                 f"'{f.driver_name}' * (1+{f.low_shock:+.1%}). "
-                f"Method=shadow (full Python recompute, not elasticity).",
+                f"Method=shadow (full Python recompute, not elasticity). "
+                f"STATIC snapshot — does not recompute on scenario flip.",
                 "ModelForge",
             )
             hd = ws.cell(row=r, column=11, value=shadow.high_deltas[i - 1])
-            styles.style_input(hd, number_format=styles.FMT_PCT_2DP)
+            styles.style_static_value(hd, number_format=styles.FMT_PCT_2DP)
             hd.comment = Comment(
                 f"Exact Δ from shadow engine: primary_output shocked by "
                 f"'{f.driver_name}' * (1+{f.high_shock:+.1%}). "
@@ -864,40 +909,11 @@ def append_generic_2d_tables(
     row_elast = _elasticity_for(row_factor.driver_name)
     col_elast = _elasticity_for(col_factor.driver_name)
 
-    sens_ws = wb["SensitivityAnalysis"]
-    start_row = sens_ws.max_row + 3
-
-    # ── Title with =TABLE() marker (satisfies audit #83)
-    title = sens_ws.cell(
-        row=start_row, column=1,
-        value=(
-            f"2D Data Table: {row_factor.label} × {col_factor.label}  "
-            f"=TABLE({row_factor.driver_name}, {col_factor.driver_name})  "
-            f"(linear elasticity: rows={row_elast:+.2f}, cols={col_elast:+.2f})"
-        ),
-    )
-    title.font = styles.font_title
-    start_row += 1
-    subtitle = sens_ws.cell(
-        row=start_row, column=1,
-        value=(
-            "Each cell = primary_output × (1 + row_shock × row_elasticity + "
-            "col_shock × col_elasticity). Shocks + elasticity live via "
-            "named ranges sensitivity_shock_1..5 (editable inputs)."
-        ),
-    )
-    subtitle.font = styles.font_label_it
-    start_row += 2
-
-    # v0.8.9 US-583: register shock_1..5 as workbook-level named ranges
-    # so every 2D block in the workbook (and downstream exports) reads
-    # the same shock grid. First call wins — subsequent blocks reuse.
-    shock_names = [f"sensitivity_shock_{i+1}" for i in range(len(shocks))]
-
     # v0.8.9 US-590: when a shadow engine exists for this model_type,
     # recompute each 2D matrix cell via compute_primary_output(spec,
     # overrides). Produces EXACT numeric 2D — not linear elasticity.
-    # Fallback to elasticity formula when shadow unavailable.
+    # Fallback to elasticity formula when shadow unavailable. Computed up
+    # front so the block subtitle / banner can describe the real path.
     shadow_grid: list[list[float]] | None = None
     try:
         from modelforge.shadow import (
@@ -934,6 +950,42 @@ def append_generic_2d_tables(
     except Exception:
         shadow_grid = None  # safety net — never block the build
 
+    sens_ws = wb["SensitivityAnalysis"]
+    start_row = sens_ws.max_row + 3
+
+    # ── Title with =TABLE() marker (satisfies audit #83)
+    title = sens_ws.cell(
+        row=start_row, column=1,
+        value=(
+            f"2D Data Table: {row_factor.label} × {col_factor.label}  "
+            f"=TABLE({row_factor.driver_name}, {col_factor.driver_name})  "
+            f"(linear elasticity: rows={row_elast:+.2f}, cols={col_elast:+.2f})"
+        ),
+    )
+    title.font = styles.font_title
+    start_row += 1
+    if shadow_grid is not None:
+        # Shadow path: the body cells are pre-computed STATIC values — flag
+        # them honestly instead of claiming the whole grid is live.
+        write_static_snapshot_banner(sens_ws, row=start_row)
+    else:
+        subtitle = sens_ws.cell(
+            row=start_row, column=1,
+            value=(
+                "Each cell = primary_output × (1 + row_shock × row_elasticity "
+                "+ col_shock × col_elasticity), a live Excel formula. Shocks + "
+                "elasticity live via named ranges sensitivity_shock_1..5 "
+                "(editable inputs)."
+            ),
+        )
+        subtitle.font = styles.font_label_it
+    start_row += 2
+
+    # v0.8.9 US-583: register shock_1..5 as workbook-level named ranges
+    # so every 2D block in the workbook (and downstream exports) reads
+    # the same shock grid. First call wins — subsequent blocks reuse.
+    shock_names = [f"sensitivity_shock_{i+1}" for i in range(len(shocks))]
+
     # ── Column header row: col-axis shocks as input cells + named ranges
     corner = sens_ws.cell(
         row=start_row, column=2,
@@ -958,15 +1010,19 @@ def append_generic_2d_tables(
         rc.font = styles.font_subheader
         for j, cs in enumerate(shocks):
             if shadow_grid is not None:
-                # Exact numeric from shadow engine (method=shadow-2d)
+                # Exact numeric from shadow engine (method=shadow-2d). These
+                # are pre-computed STATIC literals — style as static_value so
+                # they are visually distinct from blue live inputs (they do
+                # NOT recompute on a scenario flip).
                 v = shadow_grid[i][j]
                 cell = sens_ws.cell(row=rr, column=3 + j, value=v)
-                styles.style_input(cell, number_format=styles.FMT_PCT_2DP)
+                styles.style_static_value(cell, number_format=styles.FMT_PCT_2DP)
                 if i == 0 and j == 0:
                     cell.comment = Comment(
                         "method=shadow-2d — exact Python recompute via "
                         "per-template shadow engine. Non-linear; reflects "
-                        "full model response to joint driver shocks.",
+                        "full model response to joint driver shocks. "
+                        "STATIC snapshot — does not recompute on scenario flip.",
                         "ModelForge",
                     )
             else:
@@ -997,5 +1053,6 @@ __all__ = [
     "append_sensitivity_sheet",
     "append_dcf_2d_tables",
     "append_generic_2d_tables",
+    "write_static_snapshot_banner",
     "PrimaryOutputLoc",
 ]

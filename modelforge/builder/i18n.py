@@ -415,6 +415,35 @@ LABELS: dict[str, Label] = {
     ),
 
     # ---------- Sheet titles (v0.11 — analytics modules use these) ----------
+    # Static-snapshot banner — analytics sheets whose shadow/MC/2D outputs are
+    # pre-computed at build time (NOT live Excel formulas). Honesty banner so a
+    # reviewer never mistakes a frozen number for a cell that recomputes.
+    "static_snapshot_banner": Label(
+        en=("STATIC SNAPSHOT — computed at build time (seed/scenario fixed). "
+            "Does NOT recompute when you change scenario_index or drivers. "
+            "To refresh: rebuild from the spec."),
+        it=("ISTANTANEA STATICA — calcolata in fase di build (seed/scenario "
+            "fissi). NON si ricalcola se modifichi scenario_index o i driver. "
+            "Per aggiornare: ricostruisci dalla specifica."),
+        de=("STATISCHER SNAPSHOT — zur Build-Zeit berechnet (Seed/Szenario "
+            "fixiert). Wird NICHT neu berechnet, wenn Sie scenario_index oder "
+            "Treiber ändern. Zum Aktualisieren: aus der Spezifikation neu bauen."),
+        es=("INSTANTÁNEA ESTÁTICA — calculada en tiempo de build (semilla/"
+            "escenario fijos). NO se recalcula al cambiar scenario_index o los "
+            "drivers. Para actualizar: reconstruir desde la especificación."),
+        sv=("STATISK ÖGONBLICKSBILD — beräknad vid build-tid (frö/scenario "
+            "fast). Räknas INTE om när du ändrar scenario_index eller drivare. "
+            "För att uppdatera: bygg om från specifikationen."),
+        no=("STATISK ØYEBLIKKSBILDE — beregnet ved build-tid (frø/scenario "
+            "fast). Beregnes IKKE på nytt når du endrer scenario_index eller "
+            "drivere. For å oppdatere: bygg på nytt fra spesifikasjonen."),
+        da=("STATISK ØJEBLIKSBILLEDE — beregnet ved build-tid (seed/scenarie "
+            "fast). Genberegnes IKKE når du ændrer scenario_index eller "
+            "drivere. For at opdatere: genopbyg fra specifikationen."),
+        nl=("STATISCHE MOMENTOPNAME — berekend tijdens build (seed/scenario "
+            "vast). Wordt NIET herberekend wanneer u scenario_index of drivers "
+            "wijzigt. Vernieuwen: opnieuw bouwen vanuit de specificatie."),
+    ),
     "monte_carlo_title": Label(
         en="Monte Carlo Simulation",
         it="Simulazione Monte Carlo", de="Monte-Carlo-Simulation",

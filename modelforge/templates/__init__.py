@@ -121,6 +121,19 @@ def build_model(
     except Exception:
         pass
 
+    # Reproducibility: this AutoColor save (and any save above) re-stamps
+    # docProps/core.xml + zip mtimes with the wall clock. Re-pin them to the
+    # deterministic instant LAST so two builds of the same spec are
+    # byte-identical. (No-op-safe; honors SOURCE_DATE_EPOCH / wall-clock env.)
+    if with_reproducibility:
+        try:
+            from modelforge.analytics.reproducibility import finalize_determinism
+            finalize_determinism(
+                xlsx_path, spec, spec_source_bytes=spec_source_bytes,
+            )
+        except Exception:
+            pass
+
     # D2: write the per-build manifest sidecar (spec + sources + workbook
     # hashes + build chain) AFTER all post-processors have run, so the
     # workbook_sha256 reflects the FINAL bytes auditors will receive.

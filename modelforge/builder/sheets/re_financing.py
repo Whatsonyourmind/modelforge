@@ -1,4 +1,13 @@
-"""RE senior mortgage + equity waterfall sheet."""
+"""RE senior mortgage + equity waterfall sheet.
+
+SCOPE / HONEST-LABEL (v0.7): the LP/GP waterfall rendered here is a *simplified
+illustrative* allocation — LP preferred return + GP catch-up + 80/20 promote on
+the residual — NOT a full tier-by-tier (multi-hurdle) waterfall. The 8% pref and
+the 80/20 split are hardcoded PLACEHOLDERS (styled as static/placeholder values,
+not live blue inputs) pending v0.8 parameterization from ``spec.waterfall.tiers``.
+A high-contrast PLACEHOLDER banner is emitted on the sheet (row 4) so the
+deliverable does not silently overclaim a full waterfall.
+"""
 
 from __future__ import annotations
 
@@ -17,6 +26,26 @@ def build(ws: Worksheet, spec, dcf_refs: dict[str, str], dcf_sheet: str) -> dict
         subtitle="Senior mortgage, LP/GP promote structure",
     )
     layout.write_scenario_banner(ws, row=3)
+
+    # ── PLACEHOLDER banner (row 4, otherwise unused) ──────────────────────
+    # Honest-label: the LP/GP waterfall rendered below is a v0.7 *simplified
+    # illustrative* allocation (LP preferred return + GP catch-up + 80/20
+    # promote), NOT a full tier-by-tier waterfall. The 8% preferred return is a
+    # PLACEHOLDER, not a live deal input. Stated up-front so the deliverable
+    # does not silently overclaim. (No computed number is changed.)
+    banner = ws.cell(
+        row=4, column=1,
+        value=("v0.7 SIMPLIFIED WATERFALL (illustrative): LP pref + GP catch-up "
+               "+ 80/20 promote — NOT a full tier-by-tier waterfall; 8% pref is a "
+               "PLACEHOLDER, not a live input."),
+    )
+    banner.font = styles.font_warning
+    banner.fill = styles.fill_check_bad
+    banner.alignment = styles.align_left
+    ws.cell(
+        row=4, column=2,
+        value="Waterfall semplificato v0.7 (illustrativo) — pref 8% segnaposto.",
+    ).font = styles.font_label_it
 
     yr_row = 5
     for i in range(n):
@@ -168,17 +197,19 @@ def build(ws: Worksheet, spec, dcf_refs: dict[str, str], dcf_sheet: str) -> dict
     # Implementation uses running-balance approach per period.
     layout.write_section_header(
         ws, r,
-        "v0.7 Waterfall: preferred return + GP catchup + 80/20 promote",
-        "Waterfall: rendimento preferenziale + catchup + promote",
+        "v0.7 Waterfall (SIMPLIFIED / ILLUSTRATIVE): pref + GP catchup + 80/20 promote",
+        "Waterfall v0.7 (semplificato/illustrativo): pref + catchup + promote",
     )
     r += 1
 
-    # Pref return rate (hardcoded 8%; parameterize via Assumption in v0.8)
+    # Pref return rate (hardcoded 8% PLACEHOLDER; parameterize via Assumption in
+    # v0.8). Styled as a static/placeholder value (grey), NOT a blue live input,
+    # so a reviewer is not misled into treating 8% as a deal-supplied pref.
     rows["pref_return"] = r
-    layout.write_row_label(ws, r, "LP preferred return (compounded)",
-                           "Rendimento preferenziale LP (composto)", indent=True)
+    layout.write_row_label(ws, r, "LP preferred return (PLACEHOLDER 8%, compounded)",
+                           "Rendimento preferenziale LP (segnaposto 8%, composto)", indent=True)
     cc = ws.cell(row=r, column=4, value=0.08)
-    styles.style_input(cc, number_format=styles.FMT_PCT_2DP)
+    styles.style_static_value(cc, number_format=styles.FMT_PCT_2DP)
     cc.comment = openpyxl.comments.Comment(
         "LP receives 8% preferred return compounded annually on contributed "
         "capital before any GP promote. European waterfall (deal-by-deal: "
@@ -188,10 +219,10 @@ def build(ws: Worksheet, spec, dcf_refs: dict[str, str], dcf_sheet: str) -> dict
     r += 1
 
     rows["promote_split_lp"] = r
-    layout.write_row_label(ws, r, "LP share of residual (post-catchup)",
-                           "Quota LP residuo (post-catchup)", indent=True)
+    layout.write_row_label(ws, r, "LP share of residual (PLACEHOLDER 80/20, post-catchup)",
+                           "Quota LP residuo (segnaposto 80/20, post-catchup)", indent=True)
     cc = ws.cell(row=r, column=4, value=0.80)
-    styles.style_input(cc, number_format=styles.FMT_PCT_2DP)
+    styles.style_static_value(cc, number_format=styles.FMT_PCT_2DP)
     r += 2
 
     # Total distributions to equity over hold (from equity_cf)

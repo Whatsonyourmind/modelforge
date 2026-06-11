@@ -397,6 +397,34 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
                       "Target standalone net income — from spec (contribution analysis)")
     hist_row += 1
 
+    # Standalone projection growth assumptions — previously hard-coded inside
+    # the projection formulas (3% / 4% / 3%), now visible + overridable named
+    # inputs. Defaults preserve historical behaviour exactly.
+    acq_rev_g = getattr(spec, "acquirer_revenue_growth_pct", 0.03)
+    tgt_rev_g = getattr(spec, "target_revenue_growth_pct", 0.04)
+    comb_int_g = getattr(spec, "combined_interest_growth_pct", 0.03)
+    write_named_input(hist_row, "Acquirer revenue growth (p.a.)",
+                      "Crescita ricavi acquirer (annua)",
+                      acq_rev_g, styles.FMT_PCT_2DP,
+                      "acq_revenue_growth_pct",
+                      "Acquirer standalone revenue growth — from spec "
+                      "(default 3%); overridable assumption")
+    hist_row += 1
+    write_named_input(hist_row, "Target revenue growth (p.a.)",
+                      "Crescita ricavi target (annua)",
+                      tgt_rev_g, styles.FMT_PCT_2DP,
+                      "tgt_revenue_growth_pct",
+                      "Target standalone revenue growth — from spec "
+                      "(default 4%); overridable assumption")
+    hist_row += 1
+    write_named_input(hist_row, "Combined interest growth (p.a.)",
+                      "Crescita interessi combinati (annua)",
+                      comb_int_g, styles.FMT_PCT_2DP,
+                      "combined_int_growth_pct",
+                      "Combined standalone interest growth — from spec "
+                      "(default 3%); overridable assumption")
+    hist_row += 1
+
     # Year headers move below the historical block
     yr_row = hist_row + 1
     for i in range(p):
@@ -415,12 +443,14 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
     for i in range(p):
         col = layout.year_col(i)
         col_idx = ord(col) - ord("A") + 1
-        # Acquirer grows 3% p.a. off named FY0 input
+        # Acquirer grows at named, overridable revenue-growth assumption
+        # (default 3%) off named FY0 input
         c = ws.cell(row=r, column=col_idx,
-                    value=f"=acq_revenue_fy0*(1+0.03)^{i+1}")
+                    value=f"=acq_revenue_fy0*(1+acq_revenue_growth_pct)^{i+1}")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
     ws.cell(row=r, column=4).comment = Comment(
-        "Acquirer revenue grows 3% p.a. off named FY0 input", "ModelForge")
+        "Acquirer revenue grows at acq_revenue_growth_pct p.a. (default 3%, "
+        "overridable on this sheet) off named FY0 input", "ModelForge")
     r += 1
     layout.write_row_label(ws, r, "Target revenue", "Ricavi target")
     out["tgt_rev"] = r
@@ -428,10 +458,11 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
         col = layout.year_col(i)
         col_idx = ord(col) - ord("A") + 1
         c = ws.cell(row=r, column=col_idx,
-                    value=f"=tgt_revenue_fy0*(1+0.04)^{i+1}")
+                    value=f"=tgt_revenue_fy0*(1+tgt_revenue_growth_pct)^{i+1}")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
     ws.cell(row=r, column=4).comment = Comment(
-        "Target revenue grows 4% p.a. off named FY0 input", "ModelForge")
+        "Target revenue grows at tgt_revenue_growth_pct p.a. (default 4%, "
+        "overridable on this sheet) off named FY0 input", "ModelForge")
     r += 1
     layout.write_row_label(ws, r, "Revenue synergies", "Sinergie di ricavo", indent=True)
     out["syn_rev"] = r
@@ -572,10 +603,11 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
         col = layout.year_col(i)
         col_idx = ord(col) - ord("A") + 1
         c = ws.cell(row=r, column=col_idx,
-                    value=f"=-combined_int_fy0*(1+0.03)^{i+1}")
+                    value=f"=-combined_int_fy0*(1+combined_int_growth_pct)^{i+1}")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
     ws.cell(row=r, column=4).comment = Comment(
-        "Combined standalone interest grown 3% p.a. off named FY0 input",
+        "Combined standalone interest grown at combined_int_growth_pct p.a. "
+        "(default 3%, overridable on this sheet) off named FY0 input",
         "ModelForge")
     r += 1
 

@@ -37,6 +37,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 try:
     from mcp.server.fastmcp import FastMCP
 except ImportError as e:
@@ -45,7 +47,11 @@ except ImportError as e:
         "(adds `mcp>=1.12.0` to your environment)."
     ) from e
 
-from modelforge.templates import REGISTRY, PREVIEW_TEMPLATES, build_model
+# NOTE: the template builder is imported under an alias so the global name
+# `build_model` is NOT shadowed by the `build_model` *tool* defined below.
+# Without the alias the tool would recursively call itself instead of the
+# real template factory.
+from modelforge.templates import REGISTRY, PREVIEW_TEMPLATES, build_model as _build_model
 from modelforge.qc import run_qc
 
 log = logging.getLogger("modelforge.mcp")
@@ -102,15 +108,40 @@ def build_model(spec_path: str, output_dir: str | None = None) -> dict[str, Any]
     source-tagged inputs. Takes spec_path and optional output_dir; returns
     {xlsx, graph_db, spec, ok} or {error}.
     """
-    spec = _resolve_path(spec_path)
-    if not spec.exists():
-        return {"error": f"spec file not found: {spec}"}
+    spec_file = _resolve_path(spec_path)
+    if not spec_file.exists():
+        return {"error": f"spec file not found: {spec_file}"}
 
     out_dir = _resolve_path(output_dir) if output_dir else Path("output").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    # Mirror the CLI build path: read the YAML bytes, parse, resolve the typed
+    # Pydantic spec class for the declared model_type, validate, then build.
+    # Passing the *parsed spec* (not a Path) is required — the template factory
+    # dispatches on spec.model_type. Passing spec_source_bytes makes the
+    # reproducibility / manifest hashes deterministic and verifiable.
     try:
-        xlsx, graph = build_model(spec, out_dir)
+        from modelforge.cli import _load_spec_class
+    except ImportError as e:
+        return {"error": f"spec loader unavailable: {e!r}"}
+
+    try:
+        spec_bytes = spec_file.read_bytes()
+        raw = yaml.safe_load(spec_bytes)
+        model_type = raw.get("model_type", "unitranche")
+        spec_class = _load_spec_class(model_type)
+        spec = spec_class.model_validate(raw)
+    except Exception as e:
+        log.exception("spec parse failed")
+        return {"error": f"spec parse failed: {e!r}"}
+
+    out_xlsx = out_dir / f"{spec_file.stem}.xlsx"
+    try:
+        xlsx, graph = _build_model(
+            spec, out_xlsx,
+            spec_source_bytes=spec_bytes,
+            spec_source_path=spec_file,
+        )
     except Exception as e:
         log.exception("build_model failed")
         return {"error": f"build failed: {e!r}"}
@@ -118,7 +149,7 @@ def build_model(spec_path: str, output_dir: str | None = None) -> dict[str, Any]
     return {
         "xlsx": str(xlsx),
         "graph_db": str(graph),
-        "spec": str(spec),
+        "spec": str(spec_file),
         "ok": True,
     }
 

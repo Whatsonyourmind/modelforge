@@ -5,6 +5,13 @@
    BilMoG pension provisions remain v0.12 scope.
    DACH accounting-expert review recommended before production use.
 
+FEATURE SCOPE (honest-label): this is a 3-statement model + a German
+   tax-overlay (HGB ↔ IFRS reconciliation with § 8 GewStG + GewSt build). It
+   does NOT ship a carve-out EV bridge (standalone-EBITDA bridge → EV via
+   multiple/DCF) or a TSA time-boundary. That boundary is stated in the
+   HGB-Recon "Out-of-scope" section so the deliverable cannot silently
+   overclaim a full carve-out valuation.
+
 Pattern: this template wraps the existing 3-statement builder, forcing the
 secondary language to DE, and appends an HGB-Reconciliation worksheet that
 implements § 8 GewStG Hinzurechnungen and a per-period Gewerbesteuer build
@@ -309,6 +316,8 @@ def _build_hgb_recon_sheet(wb, spec, ts_refs: dict) -> None:
     )
     r += 1
     notes = [
+        ("Carve-out EV bridge & standalone EBITDA bridge (NOT shipped)",
+         "Carve-out-EV-Brücke / Standalone-EBITDA-Brücke (nicht enthalten)"),
         ("Anlagevermögen valuation",
          "Bewertung HGB §§ 252-256 vs IFRS 16 / IAS 36 (impairment)"),
         ("Inventory — strenges Niederstwertprinzip",

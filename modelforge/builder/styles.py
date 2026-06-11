@@ -34,6 +34,8 @@ COLOR_CHECK_BAD = "FFC7CE"   # Pale red
 COLOR_SUBHEADER = "D9E1F2"   # Pale navy sub-header
 COLOR_HISTORICAL = "FFF2CC"  # Pale yellow — historical (actuals)
 COLOR_PROJECTED = "FFFFFF"   # White — projected
+COLOR_STATIC_FILL = "F2F2F2" # Light grey — pre-computed static (non-formula) output
+COLOR_STATIC_TEXT = "595959" # Dark grey — static-value font
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -98,6 +100,12 @@ font_subheader = Font(name=FONT_BASE, size=FONT_SIZE_BODY, bold=True)
 font_title = Font(name=FONT_BASE, size=FONT_SIZE_TITLE, bold=True)
 font_label_en = Font(name=FONT_BASE, size=FONT_SIZE_BODY, bold=False)
 font_label_it = Font(name=FONT_BASE, size=FONT_SIZE_BODY - 1, italic=True, color="666666")
+# Static (pre-computed, non-formula) numeric output. Italic + dark grey so a
+# reviewer can tell at a glance that the cell is NOT a live formula — it was
+# computed in Python and hardcoded. Distinct from blue inputs (which a user
+# may legitimately override) and black formulas (which recalc live).
+font_static = Font(name=FONT_BASE, size=FONT_SIZE_BODY, italic=True,
+                   color=COLOR_STATIC_TEXT)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -109,6 +117,7 @@ fill_subheader = PatternFill("solid", fgColor=COLOR_SUBHEADER)
 fill_check_ok = PatternFill("solid", fgColor=COLOR_CHECK_OK)
 fill_check_bad = PatternFill("solid", fgColor=COLOR_CHECK_BAD)
 fill_historical = PatternFill("solid", fgColor=COLOR_HISTORICAL)
+fill_static = PatternFill("solid", fgColor=COLOR_STATIC_FILL)
 fill_none = PatternFill()
 
 
@@ -142,6 +151,22 @@ def style_formula(cell, number_format: str = FMT_EUR_M) -> None:
 
 def style_xref(cell, number_format: str = FMT_EUR_M) -> None:
     cell.font = font_xref
+    cell.number_format = number_format
+    cell.alignment = align_right
+
+
+def style_static_value(cell, number_format: str = FMT_EUR_M) -> None:
+    """Style a pre-computed, non-formula numeric output.
+
+    For values that were computed in Python and written as a literal (not a
+    live ``=`` formula). Uses a distinct light-grey fill + italic dark-grey
+    font so a reviewer can immediately distinguish a hardcoded precomputed
+    output from a blue user input or a black live formula. Carries an explicit
+    number_format so the cell is never an "unstyled numeric" (the certify
+    gate's styling-gap check).
+    """
+    cell.font = font_static
+    cell.fill = fill_static
     cell.number_format = number_format
     cell.alignment = align_right
 

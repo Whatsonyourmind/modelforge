@@ -245,15 +245,14 @@ def build_cmd(spec_path: Path, out_path: Path | None,
         )
 
 
-@main.command("list-templates")
-def list_templates_cmd() -> None:
-    """List all available model templates."""
-    from modelforge.templates import REGISTRY
-    tbl = Table(title="ModelForge templates")
-    tbl.add_column("model_type", style="bold")
-    tbl.add_column("Description")
-    tbl.add_column("Status")
-    descriptions = {
+def _template_description(name: str) -> str:
+    """Best-effort one-line description for a model_type.
+
+    Prefers a curated blurb; otherwise falls back to the first line of the
+    template module's docstring so newly-added templates self-document
+    instead of showing a blank cell.
+    """
+    curated = {
         "unitranche": "Italian mid-market unitranche LBO (senior direct lending)",
         "minibond": "Italian minibond pricing + investor returns",
         "credit_memo": "Credit memo with covenant headroom + LGD + recovery analysis",
@@ -263,13 +262,137 @@ def list_templates_cmd() -> None:
         "structured_credit": "Securitization tranche waterfall (senior/mezz/junior)",
         "three_statement": "Classic 3-statement corporate model (P&L + BS + CFS)",
     }
-    for name in [
-        "unitranche", "minibond", "credit_memo", "project_finance",
-        "real_estate", "npl", "structured_credit", "three_statement",
-    ]:
-        status = "[green]OK[/green]" if name in REGISTRY else "[yellow]planned[/yellow]"
-        tbl.add_row(name, descriptions.get(name, ""), status)
+    if name in curated:
+        return curated[name]
+    try:
+        import importlib
+        mod = importlib.import_module(f"modelforge.templates.{name}")
+        doc = (mod.__doc__ or "").strip()
+        if doc:
+            return doc.splitlines()[0].strip()
+    except Exception:
+        pass
+    return ""
+
+
+@main.command("list-templates")
+def list_templates_cmd() -> None:
+    """List all available model templates."""
+    from modelforge.templates import PREVIEW_TEMPLATES, REGISTRY
+    tbl = Table(title="ModelForge templates")
+    tbl.add_column("model_type", style="bold")
+    tbl.add_column("Description")
+    tbl.add_column("Status")
+    # Registry-driven so every shipped template shows — the loader map and
+    # the template registry are kept in lockstep, so all 16 appear here.
+    for name in sorted(REGISTRY):
+        if name in PREVIEW_TEMPLATES:
+            status = "[yellow]preview[/yellow]"
+        else:
+            status = "[green]OK[/green]"
+        tbl.add_row(name, _template_description(name), status)
     console.print(tbl)
+
+
+@main.command("validate")
+@click.argument("spec_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--max-errors", default=5, show_default=True, type=int,
+              help="Maximum number of errors to show.")
+def validate_cmd(spec_path: Path, max_errors: int) -> None:
+    """Validate a YAML spec without building — fast pre-flight check.
+
+    Parses the spec, resolves its model_type, and runs full Pydantic
+    validation. On success prints a one-line OK and exits 0. On failure
+    prints up to --max-errors friendly, plain-language fixes (e.g.
+    "Missing required field: operating.ebitda_margin_by_year") and exits 1.
+    """
+    from pydantic import ValidationError
+    from modelforge.spec.errors import format_validation_error
+
+    try:
+        raw = yaml.safe_load(spec_path.read_bytes())
+    except yaml.YAMLError as e:
+        console.print(f"[red]YAML parse error in {spec_path.name}:[/red] {e}")
+        sys.exit(1)
+    if not isinstance(raw, dict):
+        console.print(f"[red]{spec_path.name} is not a YAML mapping "
+                      f"(expected a spec document).[/red]")
+        sys.exit(1)
+
+    model_type = raw.get("model_type", "unitranche")
+    try:
+        SpecClass = _load_spec_class(model_type)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(1)
+
+    try:
+        SpecClass.model_validate(raw)
+    except ValidationError as e:
+        console.print(f"[red]{format_validation_error(e, limit=max_errors)}[/red]")
+        sys.exit(1)
+
+    console.print(f"[green]OK[/green] {spec_path.name} is a valid "
+                  f"[bold]{model_type}[/bold] spec.")
+    sys.exit(0)
+
+
+@main.command("schema")
+@click.argument("model_type")
+@click.option("--indent", default=2, show_default=True, type=int,
+              help="JSON indent width.")
+def schema_cmd(model_type: str, indent: int) -> None:
+    """Print the JSON Schema for a model_type (for IDE autocomplete).
+
+    Pipe to a file and reference it from your editor's YAML schema mapping
+    to get inline completion + validation while authoring a spec:
+
+        modelforge schema dcf > dcf.schema.json
+    """
+    import json
+    try:
+        SpecClass = _load_spec_class(model_type)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(1)
+    schema = SpecClass.model_json_schema()
+    # Plain stdout (not rich) so the output is valid, pipeable JSON.
+    print(json.dumps(schema, indent=indent, ensure_ascii=False))
+
+
+@main.command("scaffold")
+@click.argument("model_type")
+@click.option("-o", "--output", "out_path", type=click.Path(path_type=Path),
+              default=None, help="Write to a file instead of stdout.")
+def scaffold_cmd(model_type: str, out_path: Path | None) -> None:
+    """Emit a starter YAML spec skeleton for a model_type.
+
+    Prints a ready-to-edit spec seeded from a shipped example, with a banner
+    reminding you to replace the illustrative placeholder values and
+    source IDs with your deal's real figures. Then:
+
+        modelforge scaffold dcf -o my_dcf.yaml
+        modelforge validate my_dcf.yaml
+    """
+    from modelforge.spec.scaffold import scaffold_yaml
+    try:
+        SpecClass = _load_spec_class(model_type)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(1)
+    try:
+        text = scaffold_yaml(model_type, SpecClass)
+    except KeyError:
+        console.print(f"[red]No scaffold available for {model_type!r}.[/red]")
+        sys.exit(1)
+
+    if out_path is not None:
+        out_path.write_text(text, encoding="utf-8")
+        console.print(f"[green]Scaffold written:[/green] {out_path}")
+        console.print(f"[dim]Next: modelforge validate {out_path}[/dim]")
+    else:
+        # Plain stdout so it pipes cleanly to a file.
+        print(text)
 
 
 @main.command("qc")
@@ -279,6 +402,92 @@ def qc_cmd(xlsx_path: Path) -> None:
     report = run_qc(xlsx_path)
     report.print()
     sys.exit(0 if report.all_pass else 1)
+
+
+@main.command("certify")
+@click.argument("target", type=click.Path(exists=True, path_type=Path))
+@click.option("--out", "out_path", type=click.Path(path_type=Path), default=None,
+              help="Output .xlsx path when TARGET is a spec. "
+                   "Defaults to output/<spec_stem>.xlsx.")
+@click.option("--max-gaps", default=8, show_default=True, type=int,
+              help="Max styling-gap cells to list.")
+def certify_cmd(target: Path, out_path: Path | None, max_gaps: int) -> None:
+    """Certify a workbook has zero formula errors (the "no #REF!" gate).
+
+    TARGET may be a built ``.xlsx`` or a ``.yaml``/``.yml`` spec. When a spec
+    is given it is built first (no Trust/Moat injection), then audited. The
+    auditor recomputes every formula with the third-party ``formulas`` engine
+    and reports any Excel error cell (#REF!/#DIV0!/#VALUE!/#NAME?/#NUM!/#N/A)
+    plus numeric cells lacking a font colour or number_format.
+
+    Prints CERTIFIED (zero errors, no styling gaps), WARN (zero errors but
+    some styling gaps), or FAIL (≥1 formula error). Exits 0 unless any
+    formula-error cell is found (then exits 1).
+    """
+    from modelforge.qc import audit_workbook
+
+    if target.suffix.lower() in (".yaml", ".yml"):
+        spec_bytes = target.read_bytes()
+        raw = yaml.safe_load(spec_bytes)
+        model_type = raw.get("model_type", "unitranche")
+        try:
+            SpecClass = _load_spec_class(model_type)
+        except ValueError as e:
+            console.print(f"[red]{e}[/red]")
+            sys.exit(2)
+        spec = SpecClass.model_validate(raw)
+        if out_path is None:
+            out_path = Path("output") / f"{target.stem}.xlsx"
+        xlsx, _ = build_model(
+            spec, out_path,
+            spec_source_bytes=spec_bytes,
+            spec_source_path=target,
+        )
+        console.print(f"[green]Built:[/green] {xlsx}  [dim]({model_type})[/dim]")
+        audit_target = xlsx
+    else:
+        audit_target = target
+
+    report = audit_workbook(audit_target)
+    s = report.summary()
+
+    verdict = report.verdict
+    if verdict == "CERTIFIED":
+        badge = "[bold green]CERTIFIED[/bold green]"
+    elif verdict == "WARN":
+        badge = "[bold yellow]WARN[/bold yellow]"
+    else:
+        badge = "[bold red]FAIL[/bold red]"
+
+    console.print(
+        f"{badge}  {Path(audit_target).name}  "
+        f"errors={s['error_cells']}  style-gaps={s['style_gaps']}  "
+        f"numeric-cells={s['numeric_cells']}  "
+        f"(recalc {'ran' if s['recalc_ran'] else 'skipped'})"
+    )
+
+    if report.error_cells:
+        tbl = Table(title="Formula-error cells")
+        tbl.add_column("Cell", style="bold")
+        tbl.add_column("Error")
+        tbl.add_column("Found via")
+        for e in report.error_cells[:20]:
+            tbl.add_row(e.ref, e.error, e.source)
+        console.print(tbl)
+        if report.n_errors > 20:
+            console.print(f"[dim]… and {report.n_errors - 20} more.[/dim]")
+
+    if report.style_gaps and max_gaps > 0:
+        shown = report.style_gaps[:max_gaps]
+        gap_refs = ", ".join(f"{g.ref} ({g.reason})" for g in shown)
+        more = (f" … and {report.n_style_gaps - max_gaps} more"
+                if report.n_style_gaps > max_gaps else "")
+        console.print(f"[yellow]Styling gaps:[/yellow] {gap_refs}{more}")
+
+    for n in report.notes:
+        console.print(f"[dim]note: {n}[/dim]")
+
+    sys.exit(0 if report.passed else 1)
 
 
 @main.command("sources")
