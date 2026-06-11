@@ -112,11 +112,24 @@ def build_model(
     # v0.8.7 US-505: Macabacus AutoColor parity — must run LAST so it
     # colours every formula (including those written by sensitivity /
     # MC / risk / reproducibility post-processors).
+    #
+    # v1.1 US-555: immediately after AutoColor (same load/save), the
+    # deterministic auto-styler closes the remaining styling gaps — numeric/
+    # formula cells that still lack an explicit font colour or number_format.
+    # It runs AFTER AutoColor so the cross-sheet green survives (those cells
+    # already carry an explicit colour, so the styler never recolours them),
+    # and BEFORE finalize_determinism + the manifest hash below, so the
+    # styled bytes are exactly what gets timestamp-pinned and hashed. The
+    # styler is clock/RNG-free, so a same-spec rebuild stays byte-identical.
     try:
         from openpyxl import load_workbook as _load
-        from modelforge.builder.styles import auto_color_xrefs as _autocolor
+        from modelforge.builder.styles import (
+            auto_color_xrefs as _autocolor,
+            auto_style_gaps as _autostyle,
+        )
         _wb = _load(xlsx_path, keep_links=True)
         _autocolor(_wb)
+        _autostyle(_wb)
         _wb.save(xlsx_path)
     except Exception:
         pass

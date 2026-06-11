@@ -97,7 +97,7 @@ shares_outstanding_m_assum:
   label:
     en: Shares outstanding (m)
     it: Azioni in circolazione (m)
-  unit: x
+  unit: count
   base: 226.0
   worst: 226.0
   best: 226.0

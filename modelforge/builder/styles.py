@@ -55,6 +55,7 @@ FMT_PCT_2DP = "0.00%;[Red](0.00%);0.00%"
 FMT_MULTIPLE = "0.00\"x\";[Red](0.00\"x\");\"-\""
 FMT_YEARS = "0.0\" y\""
 FMT_INTEGER = "#,##0;[Red](#,##0);-"
+FMT_NUMBER_2DP = '_(* #,##0.00_);[Red]_(* (#,##0.00);_(* "-"??_);_(@_)'  # plain 2dp, no unit
 FMT_BPS = "#,##0\" bps\";[Red](#,##0\" bps\")"
 FMT_DATE = "dd-mmm-yyyy"
 FMT_YEAR = "yyyy"
@@ -305,3 +306,237 @@ def auto_color_xrefs(wb) -> int:
                         )
                         promoted += 1
     return promoted
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v1.1 US-555 — Deterministic post-build auto-styler (close styling gaps)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# ``workbook_audit`` flags a value-bearing numeric/formula cell as a "styling
+# gap" when it lacks EITHER an explicit font colour OR a number_format (i.e.
+# its number_format is still the openpyxl default ``General``). The builders
+# style the vast majority of cells explicitly, but a long tail relies on
+# default styling (cash-flow tails written as ``=0``, QC flag cells, index
+# counters, scenario-banner text formulas, etc.).
+#
+# ``auto_style_gaps`` is a deterministic post-build pass that closes those
+# gaps WITHOUT touching any cell value or formula — it only ever sets
+# ``cell.font`` (colour), ``cell.number_format``. It runs AFTER
+# ``auto_color_xrefs`` so the cross-sheet green it applied survives (those
+# cells already carry an explicit colour and are therefore never recoloured).
+#
+# Colour rule
+# -----------
+# A gap cell missing an explicit colour gets the black formula colour
+# (``COLOR_FORMULA``), preserving the cell's existing font name/size/bold/
+# italic. Inputs (blue) and xrefs (green) already carry an explicit colour, so
+# they are left untouched.
+#
+# Number-format rule (inference, never a blind guess)
+# ---------------------------------------------------
+# A gap cell whose number_format is ``General`` is repaired by INFERRING the
+# right format so a % cell is never forced to currency or vice-versa:
+#   1. A formula whose top-level result is a text label (scenario banner
+#      ``=CHOOSE(...,"BASE",...)``, a ``=IF(...,"PASS","FAIL")`` flag, a string
+#      concatenation) gets the text format ``@`` — the correct format for a
+#      text-returning cell, and not a numeric one.
+#   2. Otherwise inherit the dominant explicit numeric format used by OTHER
+#      cells in the SAME ROW (financial rows are format-homogeneous).
+#   3. Else inherit the dominant explicit numeric format of the SAME COLUMN
+#      (financial schedules are column-homogeneous too — this catches the
+#      ``=0`` tail of a debt/cash-flow column whose header rows are styled).
+#   4. Else fall back to a neutral integer accounting format (``FMT_INTEGER``)
+#      — used only for true orphans (QC 1/0 flags, index counters) that have
+#      no row or column peer. Integer is deliberately neutral: it never
+#      implies currency or percent.
+#
+# The pass is purely a function of the workbook's existing cell contents and
+# styles — no clock, no RNG — so a same-spec rebuild stays byte-identical.
+
+# Quoted-string detector for the text-formula heuristic.
+import re as _re
+
+_QUOTED_STR_RE = _re.compile(r'"[^"]*"')
+# Functions whose canonical use here returns a string LABEL (scenario banner,
+# pass/fail flags, concatenations). Conservative: we only treat the cell as
+# text when a quoted string literal is also present in the formula.
+_TEXT_FUNC_PREFIXES = (
+    "=CHOOSE(", "=IF(", "=IFS(", "=IFERROR(", "=TEXT(", "=CONCAT", "=T(",
+    "=UPPER(", "=LOWER(", "=PROPER(", "=LEFT(", "=RIGHT(", "=MID(", "=TRIM(",
+    "=SUBSTITUTE(", "=REPT(",
+)
+
+
+def _has_explicit_color(cell) -> bool:
+    """True iff the cell carries an explicit string RGB font colour.
+
+    Mirrors the workbook auditor's ``has_color`` predicate exactly so the
+    styler's notion of "already coloured" matches what the gate measures.
+    """
+    fc = getattr(cell.font, "color", None)
+    rgb = getattr(fc, "rgb", None) if fc is not None else None
+    return isinstance(rgb, str) and len(rgb) >= 6
+
+
+def _has_explicit_format(cell) -> bool:
+    """True iff the cell carries a non-default number_format."""
+    nf = cell.number_format
+    return bool(nf) and nf != "General"
+
+
+def _is_value_bearing(value) -> bool:
+    """True for a numeric literal or an ``=`` formula (the audited universe)."""
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, (int, float)):
+        return True
+    return isinstance(value, str) and value.startswith("=")
+
+
+def _formula_returns_text(value) -> bool:
+    """Heuristic: does this formula's top-level result render as a TEXT label?
+
+    Used to assign the text format ``@`` instead of a numeric format. We only
+    say "text" when a quoted string literal is present AND the formula is
+    either a pure concatenation (``&``) or led by a function whose use here is
+    label-producing. Conservative by design: a false negative just falls
+    through to numeric inference (still a sensible format), while a false
+    positive (numeric cell tagged ``@``) is what we must avoid.
+    """
+    if not (isinstance(value, str) and value.startswith("=")):
+        return False
+    if not _QUOTED_STR_RE.search(value):
+        return False
+    if "&" in value:
+        return True
+    up = value.upper()
+    return up.startswith(_TEXT_FUNC_PREFIXES)
+
+
+def _dominant_explicit_format(cells) -> str | None:
+    """Most common non-default number_format among value-bearing ``cells``.
+
+    Deterministic tie-break: among formats with the max count, the
+    lexicographically smallest is chosen, so the result never depends on
+    iteration/insertion order.
+    """
+    counts: dict[str, int] = {}
+    for c in cells:
+        if not _is_value_bearing(c.value):
+            continue
+        nf = c.number_format
+        if nf and nf != "General":
+            counts[nf] = counts.get(nf, 0) + 1
+    if not counts:
+        return None
+    best = max(counts.items(), key=lambda kv: (kv[1], [-ord(ch) for ch in kv[0]]))
+    # The key above maximizes count, then prefers the lexicographically
+    # smallest format string for a stable, order-independent tie-break.
+    return best[0]
+
+
+# Formats that are SAFE to inherit onto a gap cell because they preserve the
+# value's magnitude (plain accounting / integer — no ×100, no unit suffix, no
+# currency symbol, no date coercion). A semantic format (%, "x" multiple, bps,
+# years, currency, scientific, date) must NEVER be inherited onto a cell that
+# happens to share a row/column with it — that is how a 5.8x leverage renders
+# as "580%" or a count of 6 renders as "700%". Those cells fall through to a
+# non-distorting value-based neutral format instead.
+_SAFE_INHERIT_FORMATS = frozenset({
+    FMT_EUR_M, FMT_EUR_K, FMT_EUR_ACTUAL, FMT_INTEGER, FMT_NUMBER_2DP,
+})
+
+
+def _neutral_format_for_value(value) -> str:
+    """A magnitude-preserving format chosen from the cell's own value.
+
+    Never distorts: a whole number → integer; a decimal → plain 2dp; a formula
+    (whose result we cannot read here) → plain 2dp. A percentage stored as 0.05
+    shows as ``0.05`` (honest raw value), never as ``5%`` applied to the wrong
+    cell.
+    """
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if float(value).is_integer():
+            return FMT_INTEGER
+        return FMT_NUMBER_2DP
+    return FMT_NUMBER_2DP
+
+
+def _infer_number_format(ws, cell, row_fmt_cache, col_fmt_cache) -> str:
+    """Infer the number_format for a General gap cell (see module notes).
+
+    Inherit a row/column format ONLY when it is magnitude-preserving (in
+    ``_SAFE_INHERIT_FORMATS``); otherwise use a value-based neutral format so a
+    semantic format (%, multiple, currency, …) is never stamped onto a cell of
+    different meaning.
+    """
+    if _formula_returns_text(cell.value):
+        return "@"
+    r = cell.row
+    if r not in row_fmt_cache:
+        row_fmt_cache[r] = _dominant_explicit_format(ws[r])
+    row_fmt = row_fmt_cache[r]
+    if row_fmt in _SAFE_INHERIT_FORMATS:
+        return row_fmt
+    col = cell.column_letter
+    if col not in col_fmt_cache:
+        col_fmt_cache[col] = _dominant_explicit_format(ws[col])
+    col_fmt = col_fmt_cache[col]
+    if col_fmt in _SAFE_INHERIT_FORMATS:
+        return col_fmt
+    return _neutral_format_for_value(cell.value)
+
+
+def auto_style_gaps(wb) -> int:
+    """Close styling gaps deterministically; never touch values/formulas.
+
+    For every worksheet, every value-bearing cell (numeric literal or ``=``
+    formula) that lacks an explicit font colour OR a number_format gets:
+
+      * the black formula colour if it has no explicit colour (xref-green and
+        blue inputs already carry one and are left as-is), and
+      * an inferred number_format (text ``@`` for label formulas; else the
+        dominant explicit format of the same row, then column; else a neutral
+        integer accounting format) if its format is still ``General``.
+
+    Run AFTER ``auto_color_xrefs`` (so green survives) and BEFORE the
+    determinism/manifest finalisation (so the styled bytes are what gets
+    hashed). Idempotent and clock/RNG-free → same-spec rebuild is
+    byte-identical.
+
+    Returns the count of cells whose styling was changed.
+    """
+    fixed = 0
+    for ws in wb.worksheets:
+        # Per-sheet caches so the row/column dominant-format scan runs once
+        # per row/column, not once per gap cell.
+        row_fmt_cache: dict[int, str | None] = {}
+        col_fmt_cache: dict[str, str | None] = {}
+        for row in ws.iter_rows():
+            for c in row:
+                if not _is_value_bearing(c.value):
+                    continue
+                needs_color = not _has_explicit_color(c)
+                needs_format = not _has_explicit_format(c)
+                if not (needs_color or needs_format):
+                    continue
+
+                if needs_color:
+                    f = c.font
+                    c.font = Font(
+                        name=f.name or FONT_BASE,
+                        size=f.size or FONT_SIZE_BODY,
+                        color=COLOR_FORMULA,
+                        bold=bool(getattr(f, "bold", False)),
+                        italic=bool(getattr(f, "italic", False)),
+                        underline=getattr(f, "underline", None),
+                        strike=bool(getattr(f, "strike", False)),
+                    )
+
+                if needs_format:
+                    c.number_format = _infer_number_format(
+                        ws, c, row_fmt_cache, col_fmt_cache,
+                    )
+
+                fixed += 1
+    return fixed
