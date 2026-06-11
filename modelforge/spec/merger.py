@@ -109,6 +109,18 @@ class MergerSpec(BaseModel):
     deal: DealStructure
     synergies: Synergies
 
+    # Standalone projection growth rates. Previously hard-coded inside the
+    # ProForma sheet formula strings (3% / 4% / 3%), which made them invisible
+    # to the analyst and untraceable to an auditor even though they drive the
+    # accretion/dilution conclusion. Now OPTIONAL spec fields with those exact
+    # defaults, so behaviour is byte-identical when absent. When set, they are
+    # emitted as named-range assumption cells on the ProForma sheet and the
+    # revenue / standalone-interest projection formulas read the named range
+    # (override is live + visible on the sheet).
+    acquirer_revenue_growth_pct: float = 0.03
+    target_revenue_growth_pct: float = 0.04
+    combined_interest_growth_pct: float = 0.03
+
     # v0.7 additions — bulge-tier merger rigor
     ppa: PPAAllocation | None = None
     break_fees: BreakFees | None = None

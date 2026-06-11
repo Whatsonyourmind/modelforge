@@ -76,18 +76,26 @@ def build(spec, out_path: Path | str, graph_db_path=None):
         dsra_balance_row = int(debt_refs["dsra_balance_row"])
         first_op_col = layout.year_col(c)
 
+        # Unit_scale-aware tolerances. Historically hardcoded as if the
+        # workbook were always in EUR millions: €10k (0.01) for DSRA funding
+        # and €100k (0.1) for residual debt. fmt_tol renders the same absolute
+        # amount in the active unit_scale, so the check no longer passes a
+        # materially-unfunded DSRA / unrepaid debt at "thousands"/"actual".
+        tol_10k = generic_qc.fmt_tol(spec)              # €10k
+        tol_100k = generic_qc.fmt_tol(spec, 100_000.0)  # €100k
+
         checks = [
             ("Capex negative all construction years", "Capex negativo in costruzione",
              f"=IF(COUNTIF('ProjectCashFlow'!D{capex_row}:{layout.year_col(c-1)}{capex_row},\"<=0\")={c},1,0)"),
             ("Debt fully amortized by end of operating", "Debito rimborsato a fine operativa",
-             f"=IF('DebtDSCR'!{layout.year_col(n-1)}{closing_row}<=0.1,1,0)"),
+             f"=IF('DebtDSCR'!{layout.year_col(n-1)}{closing_row}<={tol_100k},1,0)"),
             ("No DSCR breaches (active scenario)", "Nessuna violazione DSCR",
              f"=IF({debt_refs['total_breach_cell']}=0,1,0)"),
             # v0.3 QC-14: DSRA fully funded by end of operating year 1
             (f"DSRA funded to target by O1 (within €10k)",
              f"DSRA finanziata al target entro O1 (±€10k)",
              f"=IF(ABS('DebtDSCR'!{first_op_col}{dsra_balance_row}"
-             f"-'DebtDSCR'!{first_op_col}{dsra_target_row})<0.01,1,0)"),
+             f"-'DebtDSCR'!{first_op_col}{dsra_target_row})<{tol_10k},1,0)"),
             ("Equity IRR >= target IRR - 200bps", "IRR equity >= target - 200bps",
              "=1"),  # placeholder; could reference EquityReturns
         ]

@@ -724,8 +724,16 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
             col_idx = 4 + y
             col_letter = chr(ord("A") + col_idx - 1)
             if y == 0:
-                # Sponsor equity investment at close (negative)
-                formula = f"=-D{refs['cap_sponsor_eq']}"
+                # LBO-EQUITY FIX (v0.11): the sponsor t0 equity outflow MUST be
+                # the S&U balancing plug (true new money invested = Total Uses −
+                # debt drawn − rollover), NOT the fixed capital-structure input
+                # cell `cap_sponsor_eq`. Prior code outflowed `cap_sponsor_eq`
+                # (35.0 spec input) while the S&U plug requires 44.3, so the
+                # reported equity IRR/MoIC were computed on a DIFFERENT equity
+                # number than the deal actually needs. Pointing at the plug cell
+                # (`sources_sponsor_eq`, row 10) unifies the two: the IRR series
+                # now consumes the same new-money cheque the S&U balances to.
+                formula = f"=-D{refs['sources_sponsor_eq']}"
             else:
                 # Dividend during hold: via recap in recap_year (if enabled),
                 # else 0. Exit proceeds if y == exit_year.

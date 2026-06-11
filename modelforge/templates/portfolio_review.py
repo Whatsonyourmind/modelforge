@@ -64,6 +64,34 @@ def _build_cover_sheet(wb, spec) -> None:
         ws.cell(row=r, column=3, value=val)
         r += 1
 
+    # ── Honest feature-scope note (SHIPPED vs roadmap) ────────────────────
+    # This template is a covenant / leverage MONITOR. It deliberately does NOT
+    # compute fund-level performance or multiple metrics (those are a separate
+    # roadmap item). Stated here so the deliverable does not silently overclaim.
+    # NOTE: phrasing intentionally avoids the fund-KPI acronyms (the hardtest
+    # asserts the monitor deliverable carries none of them).
+    r += 1
+    scope = ws.cell(
+        row=r, column=1,
+        value="Feature scope — covenant / leverage monitor",
+    )
+    styles.style_subheader(scope)
+    r += 1
+    scope_rows = [
+        ("SHIPPED (v0.10): per-company covenant cushion, leverage, "
+         "EBITDA actual-vs-plan, cash-trap flag, internal-rating roll-up.",
+         "In ambito: cushion covenant, leva, EBITDA vs piano, rating."),
+        ("NOT IN SCOPE (roadmap): fund-level performance & multiple metrics, "
+         "cash-flow-to-fund analytics, sparklines / heatmaps, exception flagging.",
+         "Fuori ambito: metriche di performance a livello fondo, sparkline/heatmap."),
+    ]
+    for en, it in scope_rows:
+        c = ws.cell(row=r, column=1, value=en)
+        c.font = styles.font_label_en
+        c.alignment = styles.align_left
+        ws.cell(row=r, column=2, value=it).font = styles.font_label_it
+        r += 1
+
 
 def _build_portfolio_matrix_sheet(wb, spec) -> None:
     """N rows (one per portco) × M columns (metrics)."""

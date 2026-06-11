@@ -73,9 +73,15 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
 
     If context is absent, emits an illustrative 3-facility example with
     default stages 1/2/3 — the structure is what matters for the audit;
-    the numbers are placeholders the analyst overrides.
+    the numbers are placeholders the analyst overrides. In that case a
+    high-contrast "PLACEHOLDER — replace with actual facility data" banner is
+    rendered (row 4) so the example PD/LGD/EAD are never mistaken for real data.
     """
     context = context or {}
+    # When the caller does NOT pass real per-facility data, we fall back to an
+    # illustrative example set. Track that so a high-contrast PLACEHOLDER banner
+    # is rendered (the example PD/LGD/EAD must not be mistaken for real data).
+    using_placeholder = not context.get("facilities")
     facilities = context.get("facilities") or _example_facilities(spec)
 
     layout.set_column_widths(
@@ -87,6 +93,25 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
         "Per-facility ECL = PD × LGD × EAD × DF; SICR triggers; "
         "forward-looking macro scenarios; POCI for NPL.",
     )
+
+    # ── PLACEHOLDER banner (row 4, otherwise unused) ──────────────────────
+    # Honest-label: when no real per-facility data is supplied, the Section-2
+    # facility rows below carry ILLUSTRATIVE PD/LGD/EAD. Make that unmissable so
+    # the example numbers are never mistaken for actual portfolio data. The
+    # band/structure is the audit deliverable; the analyst replaces the inputs.
+    if using_placeholder:
+        b = ws.cell(
+            row=4, column=1,
+            value=("PLACEHOLDER — replace with actual facility data. The PD / LGD / "
+                   "EAD below are ILLUSTRATIVE examples, NOT real exposures."),
+        )
+        b.font = styles.font_warning
+        b.fill = styles.fill_check_bad
+        b.alignment = styles.align_left
+        ws.cell(
+            row=4, column=2,
+            value="SEGNAPOSTO — sostituire con dati reali (PD/LGD/EAD illustrativi).",
+        ).font = styles.font_label_it
 
     r = 5
 

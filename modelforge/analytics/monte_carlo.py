@@ -234,13 +234,11 @@ def _emit_sheet(
                  "would blow up)"
                  if result.delta_mode == "absolute"
                  else "fractional (× base = absolute)")
-    ws.cell(
-        row=4, column=1,
-        value=(
-            f"{result.n_runs:,}-run {result.distribution} simulation on "
-            f"{primary_loc.label}. Method: {method_tag}. Δ mode: {delta_tag}."
-        ),
-    ).font = styles.font_label_it
+    # Row 4: honest STATIC-SNAPSHOT banner. Every MC statistic below is a
+    # pre-computed literal from a FIXED seed + the as-built scenario — none
+    # of it recomputes when the user flips scenario_index or edits a driver.
+    from modelforge.analytics.sensitivity import write_static_snapshot_banner
+    write_static_snapshot_banner(ws, row=4)
 
     # ── Base output reference
     ws.cell(row=5, column=1, value="Base output").font = styles.font_subheader
@@ -248,6 +246,17 @@ def _emit_sheet(
     c_base = ws.cell(row=5, column=3, value="=primary_output")
     styles.style_formula(c_base, number_format=styles.FMT_PCT_2DP)
     c_base.font = styles.font_subheader
+
+    # Method / Δ-mode / seed provenance (row 6 — describes the FIXED build-time
+    # run that produced the static stats below).
+    ws.cell(
+        row=6, column=1,
+        value=(
+            f"{result.n_runs:,}-run {result.distribution} simulation on "
+            f"{primary_loc.label}. Method: {method_tag}. Δ mode: {delta_tag}. "
+            f"Seed={MCConfig().seed}."
+        ),
+    ).font = styles.font_label_it
 
     # ── Distribution stats
     stats_row = 8
@@ -274,13 +283,17 @@ def _emit_sheet(
     for i, (label, frac) in enumerate(rows):
         r = stats_row + 1 + i
         ws.cell(row=r, column=1, value=label).font = styles.font_subheader
-        # Col B — delta (fractional or absolute per result.delta_mode)
+        # Col B — delta (fractional or absolute per result.delta_mode).
+        # STATIC: pre-computed at build time from a FIXED seed + as-built
+        # scenario — style as static_value (grey/italic) so it is visually
+        # distinct from a blue live input and never looks recomputable.
         fc = ws.cell(row=r, column=2, value=frac)
-        styles.style_input(fc, number_format=styles.FMT_PCT_2DP)
+        styles.style_static_value(fc, number_format=styles.FMT_PCT_2DP)
         fc.comment = Comment(
             f"Computed from {result.n_runs:,} {result.distribution} draws "
-            f"across {len(factors)} factors. Seed={20260417}. "
-            f"Method={result.method}. Δ mode={result.delta_mode}.",
+            f"across {len(factors)} factors. Seed={MCConfig().seed}. "
+            f"Method={result.method}. Δ mode={result.delta_mode}. "
+            f"STATIC snapshot — does not recompute on scenario flip.",
             "ModelForge",
         )
         # Col C — absolute output. Formula differs by delta_mode:
@@ -302,10 +315,21 @@ def _emit_sheet(
     counts, edges = np.histogram(result.samples, bins=_N_BINS)
     for i in range(_N_BINS):
         r = hist_row + 2 + i
-        ws.cell(row=r, column=1, value=float(edges[i])).number_format = styles.FMT_PCT_2DP
-        ws.cell(row=r, column=2, value=float(edges[i + 1])).number_format = styles.FMT_PCT_2DP
-        cc = ws.cell(row=r, column=3, value=int(counts[i]))
-        cc.number_format = styles.FMT_INTEGER
+        # Bin edges + counts are also pre-computed STATIC literals — style
+        # them as static_value so the whole histogram block reads as a frozen
+        # build-time snapshot, not editable live data.
+        styles.style_static_value(
+            ws.cell(row=r, column=1, value=float(edges[i])),
+            number_format=styles.FMT_PCT_2DP,
+        )
+        styles.style_static_value(
+            ws.cell(row=r, column=2, value=float(edges[i + 1])),
+            number_format=styles.FMT_PCT_2DP,
+        )
+        styles.style_static_value(
+            ws.cell(row=r, column=3, value=int(counts[i])),
+            number_format=styles.FMT_INTEGER,
+        )
     hist_first = hist_row + 2
     hist_last = hist_row + 2 + _N_BINS - 1
 

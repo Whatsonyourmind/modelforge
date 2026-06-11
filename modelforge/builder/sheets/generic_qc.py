@@ -12,6 +12,42 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 from modelforge.builder import styles, layout
 
+# Absolute QC tolerance, expressed in EUR. €10,000 == 0.01 at unit_scale
+# "millions" (the historical hardcoded default). The same absolute amount
+# scales to different *workbook-unit* magnitudes depending on meta.unit_scale.
+_QC_ABS_TOLERANCE_EUR = 10_000.0
+
+# Workbook-units per EUR (i.e. divide an absolute-EUR amount by this to get
+# the value as it appears in the rendered workbook at the given scale).
+_UNIT_SCALE_FACTOR = {"actual": 1.0, "thousands": 1_000.0, "millions": 1_000_000.0}
+
+
+def qc_tolerance(spec, abs_eur: float = _QC_ABS_TOLERANCE_EUR) -> float:
+    """QC balance/funding tolerance expressed in *workbook units*.
+
+    The workbook renders values in ``spec.meta.unit_scale`` ("millions" by
+    default). A fixed absolute tolerance of ``abs_eur`` EUR therefore maps to
+    ``abs_eur / factor`` workbook units, so a materially-unbalanced model is
+    still caught at unit_scale "thousands"/"actual" (where the old hardcoded
+    0.01 was ~1000x / 1e6x too loose). At "millions" this returns 0.01,
+    preserving the historical behaviour byte-for-byte.
+    """
+    unit_scale = getattr(getattr(spec, "meta", None), "unit_scale", "millions")
+    factor = _UNIT_SCALE_FACTOR.get(unit_scale, 1_000_000.0)
+    return abs_eur / factor
+
+
+def fmt_tol(spec, abs_eur: float = _QC_ABS_TOLERANCE_EUR) -> str:
+    """``qc_tolerance`` rendered as a compact formula literal (no float noise).
+
+    Produces e.g. "0.01" (millions), "10" (thousands), "10000" (actual).
+    """
+    tol = qc_tolerance(spec, abs_eur)
+    if tol == int(tol):
+        return str(int(tol))
+    # millions case: keep the historical literal exactly.
+    return repr(tol)
+
 
 def build(ws: Worksheet, checks: list[tuple[str, str, str]]) -> dict[str, str]:
     layout.set_column_widths(ws, label_width=60, it_width=44, year_width=11, unit_width=6)
