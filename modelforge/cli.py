@@ -666,6 +666,71 @@ def verify_cmd(xlsx_path: Path, spec_path: Path | None) -> None:
     sys.exit(1)
 
 
+@main.command("monte-carlo")
+@click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--spec", "spec_path", type=click.Path(exists=True, path_type=Path),
+              required=True,
+              help="YAML spec the workbook was built from (drives factor "
+                   "selection + the shadow engine for the exact resim).")
+@click.option("--runs", "n_runs", type=int, default=None,
+              help="Number of Monte-Carlo draws. Default: MCConfig default (1000).")
+@click.option("--dist", "distribution",
+              type=click.Choice(["triangular", "normal", "lognormal"]),
+              default=None, help="Per-factor shock distribution. Default: triangular.")
+@click.option("--seed", "seed", type=int, default=None,
+              help="RNG seed. Default: MCConfig deterministic seed.")
+def monte_carlo_cmd(xlsx_path: Path, spec_path: Path,
+                    n_runs: int | None, distribution: str | None,
+                    seed: int | None) -> None:
+    """Refresh the MonteCarlo sheet on a built workbook.
+
+    Re-runs the SAMPLED Monte-Carlo simulation (a sampled distribution cannot
+    recompute inside vanilla Excel, so its stats + histogram are an honest
+    build-time snapshot) and re-writes the MonteCarlo sheet. The sheet also
+    carries a genuinely-LIVE parametric (normal-approx) band — P5/P50/P95/mean
+    as Excel formulas off ``primary_output`` + the editable ``mc_vol`` input —
+    which recomputes in-cell on a scenario flip or vol edit; this command
+    re-seeds ``mc_vol`` to the freshly-sampled std so the two blocks agree at
+    the as-built scenario.
+
+    This is the refresh path the snapshot banner points analysts to.
+    """
+    from modelforge.analytics.monte_carlo import (
+        MCConfig, append_monte_carlo_sheet,
+    )
+
+    spec_bytes = spec_path.read_bytes()
+    raw = yaml.safe_load(spec_bytes)
+    model_type = raw.get("model_type", "unitranche")
+    try:
+        SpecClass = _load_spec_class(model_type)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(2)
+    spec = SpecClass.model_validate(raw)
+
+    base = MCConfig()
+    config = MCConfig(
+        n_runs=n_runs if n_runs is not None else base.n_runs,
+        distribution=distribution if distribution is not None else base.distribution,
+        seed=seed if seed is not None else base.seed,
+    )
+
+    result = append_monte_carlo_sheet(xlsx_path, spec, config=config)
+    if result is None:
+        console.print(
+            f"[yellow]Monte-Carlo skipped:[/yellow] no locatable primary "
+            f"output / applicable factors in {xlsx_path.name}."
+        )
+        sys.exit(1)
+    console.print(
+        f"[green]Monte-Carlo refreshed:[/green] {result}  "
+        f"[dim]({config.n_runs:,}-run {config.distribution}, seed={config.seed}; "
+        f"sampled block = snapshot, parametric band = LIVE off primary_output/"
+        f"mc_vol)[/dim]"
+    )
+
+
 @main.command("roi")
 @click.option("--deals", "deals_per_year", type=int, default=20,
               show_default=True, help="Deals closed per year.")

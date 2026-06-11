@@ -39,13 +39,141 @@ def test_sheet_and_chart_present(built_unitranche):
     assert len(ws._charts) >= 1
 
 
+def _find_sampled_stats_header(ws):
+    """Row of the SAMPLED-block 'Statistic' header.
+
+    The MonteCarlo sheet now leads with the LIVE parametric band (which also
+    has a 'Statistic' header) and the SAMPLED snapshot block follows it. The
+    sampled header is the one whose col B reads 'Δ output (frac)'. Locating it
+    by label keeps the test robust to row-offset shifts from the parametric
+    band rather than re-pinning brittle literal row numbers.
+    """
+    for row in ws.iter_rows(min_col=1, max_col=2):
+        a, b = row[0].value, row[1].value
+        if (str(a).strip() == "Statistic"
+                and str(b).strip().startswith("Δ output")):
+            return row[0].row
+    raise AssertionError("SAMPLED stats header not found on MonteCarlo sheet")
+
+
 def test_distribution_stats_populated(built_unitranche):
     wb = load_workbook(built_unitranche)
     ws = wb["MonteCarlo"]
-    # Rows 9..17 hold Mean/Std/P5/P25/P50/P75/P95/Min/Max
-    for r in range(9, 18):
+    # The 9 SAMPLED stats (Mean/Std/P5/P25/P50/P75/P95/Min/Max) are static
+    # float literals (honest build-time snapshot) directly below the sampled
+    # 'Statistic' header, in col B. Locate the header by label, not a pinned
+    # row, since the LIVE parametric band now precedes the sampled block.
+    hdr = _find_sampled_stats_header(ws)
+    for r in range(hdr + 1, hdr + 10):
         v = ws.cell(row=r, column=2).value
-        assert v is not None and isinstance(v, float)
+        assert v is not None and isinstance(v, float), (
+            f"sampled stat at row {r} should be a static float snapshot, got {v!r}"
+        )
+
+
+def test_parametric_band_is_live(built_unitranche):
+    """The parametric band must be LIVE Excel formulas off primary_output + mc_vol.
+
+    A sampled MC cannot recompute in vanilla Excel, but the parametric
+    (normal-approx) downside band can. This asserts the band's P5/P50/P95/mean
+    cells are formulas referencing the live ``primary_output`` named range and
+    the editable ``mc_vol`` input — i.e. they are NOT frozen literals. The
+    upgrade over the prior all-static MC snapshot.
+    """
+    wb = load_workbook(built_unitranche)
+    ws = wb["MonteCarlo"]
+    # mc_vol named range must exist (the live volatility input).
+    assert "mc_vol" in wb.defined_names, "mc_vol named range missing"
+
+    # Collect the parametric stat formulas (labels end with '(LIVE)').
+    live_formulas = []
+    for row in ws.iter_rows(min_col=1, max_col=2):
+        a, b = row[0].value, row[1].value
+        if isinstance(a, str) and a.strip().endswith("(LIVE)") and a != "Parametric (LIVE)":
+            live_formulas.append((a.strip(), b))
+    # Expect Mean + P5 + P50 + P95.
+    labels = {lab for lab, _ in live_formulas}
+    assert {"Mean (LIVE)", "P5 (LIVE)", "P50 (LIVE)", "P95 (LIVE)"} <= labels, labels
+
+    # Every parametric stat is a formula (starts with '='); the percentile ones
+    # reference primary_output, NORM.S.INV and mc_vol (genuinely reactive).
+    for lab, formula in live_formulas:
+        assert isinstance(formula, str) and formula.startswith("="), (
+            f"{lab} must be a live formula, got {formula!r}"
+        )
+        assert "primary_output" in formula, f"{lab} must reference primary_output"
+        if lab != "Mean (LIVE)":
+            assert "NORM.S.INV" in formula and "mc_vol" in formula, (
+                f"{lab} must be a normal-approx band off mc_vol, got {formula!r}"
+            )
+
+
+def test_parametric_band_reacts_to_scenario(built_unitranche, tmp_path):
+    """PROOF of reactivity: the parametric band CHANGES when scenario_index flips,
+    while the SAMPLED snapshot stays frozen.
+
+    Evaluates the workbook with the ``formulas`` engine at scenario_index=2,
+    then re-evaluates at scenario_index=1, by editing the scenario control cell
+    (Cover!C17) in-file. The parametric P5/P50/P95 must move (a frozen snapshot
+    would not); the sampled stats must NOT move (they are an honest snapshot).
+    """
+    formulas = pytest.importorskip("formulas")
+    import shutil
+    import warnings
+
+    def _scenario_cell(wb):
+        dn = wb.defined_names.get("scenario_index")
+        # attr like "'Cover'!$C$17"
+        ref = dn.attr_text.split("!")[1].replace("$", "")
+        sheet = dn.attr_text.split("!")[0].strip("'")
+        return sheet, ref
+
+    def _eval(scenario):
+        src = built_unitranche
+        tmp = tmp_path / f"mc_scn_{scenario}.xlsx"
+        shutil.copy(src, tmp)
+        wb = load_workbook(tmp)
+        sheet, ref = _scenario_cell(wb)
+        wb[sheet][ref] = scenario
+        wb.save(tmp)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            xl = formulas.ExcelModel().loads(str(tmp)).finish()
+            sol = xl.calculate()
+        out = {}
+
+        def g(v):
+            v = getattr(v, "value", v)
+            try:
+                return float(v[0][0])
+            except Exception:
+                return float(v)
+
+        for k, v in sol.items():
+            ku = k.upper()
+            if "MONTECARLO" not in ku:
+                continue
+            # parametric P5/P50/P95 (col B rows 12/13/14) + sampled P5 (B20)
+            for cell, name in (("!B12", "par_P5"), ("!B13", "par_P50"),
+                               ("!B14", "par_P95"), ("!B20", "samp_P5")):
+                if ku.endswith(cell):
+                    out[name] = g(v)
+        return out
+
+    s2 = _eval(2)
+    s1 = _eval(1)
+    # Parametric band cells must CHANGE between scenarios (reactive).
+    for k in ("par_P5", "par_P50", "par_P95"):
+        assert k in s2 and k in s1, f"{k} not evaluated"
+        assert abs(s1[k] - s2[k]) > 1e-9, (
+            f"parametric {k} should react to scenario flip "
+            f"(s2={s2[k]}, s1={s1[k]})"
+        )
+    # Sampled snapshot must STAY frozen (it is an honest build-time snapshot).
+    if "samp_P5" in s2 and "samp_P5" in s1:
+        assert abs(s1["samp_P5"] - s2["samp_P5"]) < 1e-12, (
+            "sampled snapshot must not change on scenario flip"
+        )
 
 
 def test_deterministic_with_seed():

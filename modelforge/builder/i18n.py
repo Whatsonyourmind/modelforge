@@ -444,6 +444,41 @@ LABELS: dict[str, Label] = {
             "vast). Wordt NIET herberekend wanneer u scenario_index of drivers "
             "wijzigt. Vernieuwen: opnieuw bouwen vanuit de specificatie."),
     ),
+    # Live-approximation banner — sensitivity tornado / 2D grids whose Δ cells
+    # are LIVE Excel formulas off primary_output + editable shock/elasticity
+    # named ranges. They DO recompute on a scenario flip or driver edit. The
+    # linear-elasticity approximation is honestly flagged; the exact non-linear
+    # recompute is available via the CLI / dossier (shadow engine).
+    "live_approx_banner": Label(
+        en=("LIVE — linear-elasticity approximation off primary_output. "
+            "Recomputes when you change scenario_index or edit a driver/shock. "
+            "Exact non-linear recompute via the `modelforge` CLI / dossier."),
+        it=("LIVE — approssimazione a elasticità lineare su primary_output. "
+            "Si ricalcola quando cambi scenario_index o modifichi un driver/shock. "
+            "Ricalcolo esatto non lineare tramite la CLI `modelforge` / dossier."),
+        de=("LIVE — lineare Elastizitätsnäherung auf primary_output. Wird neu "
+            "berechnet, wenn Sie scenario_index ändern oder einen Treiber/Schock "
+            "bearbeiten. Exakte nichtlineare Neuberechnung über die `modelforge` "
+            "CLI / das Dossier."),
+        es=("LIVE — aproximación de elasticidad lineal sobre primary_output. "
+            "Se recalcula al cambiar scenario_index o editar un driver/shock. "
+            "Recálculo exacto no lineal mediante la CLI `modelforge` / dossier."),
+        sv=("LIVE — linjär elasticitetsapproximation på primary_output. Räknas "
+            "om när du ändrar scenario_index eller redigerar en drivare/chock. "
+            "Exakt icke-linjär omräkning via `modelforge`-CLI:t / dossiern."),
+        no=("LIVE — lineær elastisitetsapproksimasjon på primary_output. "
+            "Beregnes på nytt når du endrer scenario_index eller redigerer en "
+            "driver/sjokk. Eksakt ikke-lineær omberegning via `modelforge`-CLI / "
+            "dossieret."),
+        da=("LIVE — lineær elasticitetsapproksimation på primary_output. "
+            "Genberegnes når du ændrer scenario_index eller redigerer en "
+            "driver/chok. Eksakt ikke-lineær genberegning via `modelforge`-CLI / "
+            "dossieret."),
+        nl=("LIVE — lineaire elasticiteitsbenadering op primary_output. Wordt "
+            "herberekend wanneer u scenario_index wijzigt of een driver/schok "
+            "bewerkt. Exacte niet-lineaire herberekening via de `modelforge` "
+            "CLI / dossier."),
+    ),
     "monte_carlo_title": Label(
         en="Monte Carlo Simulation",
         it="Simulazione Monte Carlo", de="Monte-Carlo-Simulation",
