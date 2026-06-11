@@ -210,7 +210,7 @@ def main():
     check("Acquirer shares (named) == spec", ACQ_SHARES, act_acq_shares)
     gt_pf_shares = ACQ_SHARES + gt_new_shares()
     # Recover denominator the model used: pf_ni(Y1) / pf_eps(Y1)
-    act_pf_ni_y1 = val(sol, "ProForma", "D42")
+    act_pf_ni_y1 = val(sol, "ProForma", "D44")
     act_pf_eps_y1 = val(sol, "AccretionDilution", "D8")
     recovered_denom = act_pf_ni_y1 / act_pf_eps_y1
     check("[IDENTITY] proforma shares == acq + new (recovered from EPS)",
@@ -219,7 +219,7 @@ def main():
     print("\n=== C. PRO-FORMA NET INCOME (build-up, clean-room) ===")
     for i, col in enumerate(YEAR_COLS):
         check(f"Pro-forma NI Y{i+1}",
-              gt_proforma_ni(i), val(sol, "ProForma", f"{col}42"), tol=1e-4)
+              gt_proforma_ni(i), val(sol, "ProForma", f"{col}44"), tol=1e-4)
 
     print("\n=== D. PRO-FORMA EPS + ACCRETION/DILUTION (sign matters) ===")
     for i, col in enumerate(YEAR_COLS):

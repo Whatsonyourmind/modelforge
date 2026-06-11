@@ -42,9 +42,17 @@ def _sculpted_pct_schedule(spec) -> list[float]:
 
 def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
           cashflow_sheet: str) -> dict[str, str]:
+    from openpyxl.workbook.defined_name import DefinedName
+
     c = spec.horizon.construction_years
     o = spec.horizon.operating_years
     n = c + o
+
+    # v0.12 (US-PF-covenants): covenant thresholds + DSCR blank-guard, lifted
+    # from builder hardcodes to overridable spec named inputs. Resolved once
+    # here; defaults reproduce the prior literals (LLCR 1.50x / PLCR 1.75x /
+    # DSCR blank guard 0.001 EUR m), so behavior is backward-compatible.
+    _cov_thr = getattr(spec, "covenant_thresholds", None)
 
     profile = spec.debt.amortization_profile
     is_sculpted = profile in ("sculpted_level_debt_service", "sculpted_dscr_target")
@@ -237,6 +245,15 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
 
     cads_row = int(cashflow_refs["cads_row"])
 
+    # v0.12: DSCR blank-guard threshold lifted from hardcode (1E-6) to a visible,
+    # overridable spec named input (pf_dscr_blank_threshold). The input CELL is
+    # emitted later, in the "Reserves" section near the LLCR/PLCR thresholds, so
+    # inserting it does NOT shift the timeline rows above. We resolve its value
+    # here and the named range is referenced by the DSCR formula below; named
+    # ranges resolve at calc time independent of cell position.
+    _ds_blank_thr = (getattr(_cov_thr, "dscr_blank_threshold_eur_m", 0.001)
+                     if _cov_thr else 0.001)
+
     rows["dscr"] = r
     layout.write_row_label(ws, r, "DSCR (CADS / |debt service|)", "DSCR")
     for i in range(n):
@@ -246,15 +263,19 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
         else:
             cads_ref = f"'{cashflow_sheet}'!{col}{cads_row}"
             ds_ref = f"${col}${rows['debt_service']}"
-            # v0.7 fix: post-amortization operating years carry only a near-zero
-            # float residual debt service (~1e-8 from average-balance interest on
-            # a fully-repaid loan). Dividing CFADS by that residual exploded the
-            # DSCR cell to ~1.8e8, polluting MIN/AVERAGE. Treat |debt service|
-            # below 1e-6 EUR m (=€1) as "no debt service" and leave the cell
-            # blank — Excel's MIN/AVERAGE ignore text cells, so the summary
-            # statistics now cover only genuinely-levered operating years.
-            cc = ws.cell(row=r, column=col_idx,
-                         value=f'=IF(ABS({ds_ref})<1E-6,"",IFERROR({cads_ref}/ABS({ds_ref}),""))')
+            # v0.7 fix (v0.12 made overridable): post-amortization operating years
+            # carry only a near-zero float residual debt service (~1e-8 from
+            # average-balance interest on a fully-repaid loan). Dividing CFADS by
+            # that residual exploded the DSCR cell to ~1.8e8, polluting
+            # MIN/AVERAGE. Treat |debt service| below pf_dscr_blank_threshold
+            # (default 0.001 EUR m) as "no debt service" and leave the cell blank
+            # — Excel's MIN/AVERAGE ignore text cells, so the summary statistics
+            # now cover only genuinely-levered operating years.
+            cc = ws.cell(
+                row=r, column=col_idx,
+                value=(f'=IF(ABS({ds_ref})<pf_dscr_blank_threshold,"",'
+                       f'IFERROR({cads_ref}/ABS({ds_ref}),""))'),
+            )
             styles.style_formula(cc, number_format=styles.FMT_MULTIPLE)
     r += 1
 
@@ -349,11 +370,26 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
     ) if False else None  # skip comment if openpyxl not imported in this scope
     r += 1
 
-    # LLCR threshold
+    # LLCR threshold — lifted from hardcode (1.50x) to spec named input.
+    # v0.12: overridable via spec.covenant_thresholds.llcr_threshold;
+    # default 1.50x reproduces the prior literal (byte-identical).
+    _llcr_thr = getattr(_cov_thr, "llcr_threshold", 1.50) if _cov_thr else 1.50
     rows["llcr_threshold"] = r
     layout.write_row_label(ws, r, "LLCR threshold", "Soglia LLCR", indent=True)
-    cc = ws.cell(row=r, column=3, value=1.50)
+    cc = ws.cell(row=r, column=3, value=_llcr_thr)
     styles.style_input(cc, number_format=styles.FMT_MULTIPLE)
+    cc.comment = Comment(
+        "Loan Life Coverage Ratio covenant floor (BIWS / Edward Bodmer). "
+        "1.50x typical for PF senior lenders. Overridable via "
+        "spec.covenant_thresholds.llcr_threshold.",
+        "ModelForge",
+    )
+    if "pf_llcr_threshold" in ws.parent.defined_names:
+        del ws.parent.defined_names["pf_llcr_threshold"]
+    ws.parent.defined_names["pf_llcr_threshold"] = DefinedName(
+        name="pf_llcr_threshold",
+        attr_text=f"'{ws.title}'!$C${r}",
+    )
     r += 1
 
     # PLCR
@@ -366,11 +402,28 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
     cc.font = styles.font_subheader
     r += 1
 
-    # PLCR threshold
+    # PLCR threshold — lifted from hardcode (1.75x) to spec named input.
+    # v0.12: overridable via spec.covenant_thresholds.plcr_threshold;
+    # default 1.75x reproduces the prior literal (byte-identical). PLCR floor
+    # sits above LLCR because the project-life window adds post-loan tail cash.
+    _plcr_thr = getattr(_cov_thr, "plcr_threshold", 1.75) if _cov_thr else 1.75
     rows["plcr_threshold"] = r
     layout.write_row_label(ws, r, "PLCR threshold", "Soglia PLCR", indent=True)
-    cc = ws.cell(row=r, column=3, value=1.75)
+    cc = ws.cell(row=r, column=3, value=_plcr_thr)
     styles.style_input(cc, number_format=styles.FMT_MULTIPLE)
+    cc.comment = Comment(
+        "Project Life Coverage Ratio covenant floor (BIWS / Edward Bodmer). "
+        "1.75x typical; > LLCR floor because the project-life window adds "
+        "post-loan tail cash. Overridable via "
+        "spec.covenant_thresholds.plcr_threshold.",
+        "ModelForge",
+    )
+    if "pf_plcr_threshold" in ws.parent.defined_names:
+        del ws.parent.defined_names["pf_plcr_threshold"]
+    ws.parent.defined_names["pf_plcr_threshold"] = DefinedName(
+        name="pf_plcr_threshold",
+        attr_text=f"'{ws.title}'!$C${r}",
+    )
     r += 2
 
     # ── v0.7: additional bulge-tier PF reserves, cure, make-whole ──────────
@@ -546,6 +599,42 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
             cc = ws.cell(row=r, column=col_idx,
                          value=f"=${prior}${rows['dsra_balance']}-${col}${rows['dsra_balance']}")
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
+    # DSCR blank-guard threshold — lifted from hardcode (1E-6) to spec named
+    # input (pf_dscr_blank_threshold). Emitted at the BOTTOM of the sheet so it
+    # does not shift any timeline/summary rows above (which the cross-sheet wiring
+    # and tests reference by address). The DSCR formula above references this
+    # named range; named ranges resolve at calc time independent of cell
+    # position. Default 0.001 EUR m (=€1k) brackets the ~1e-8 post-amortization
+    # residual far below any genuinely-levered year (those run €0.3-3m), so the
+    # blank/solvent set is unchanged vs the prior 1E-6 literal.
+    r += 1
+    layout.write_section_header(
+        ws, r, "Covenant guards (model controls)",
+        "Controlli covenant (parametri modello)",
+    )
+    r += 1
+    rows["dscr_blank_threshold"] = r
+    layout.write_row_label(ws, r, "DSCR blank guard (min |debt service|, €m)",
+                           "Soglia DSCR vuoto (min |servizio debito|, €m)",
+                           indent=True)
+    cc = ws.cell(row=r, column=3, value=_ds_blank_thr)
+    styles.style_input(cc, number_format="0.000\" €m\"")
+    cc.comment = Comment(
+        "Absolute |debt service| floor (EUR m) below which a DSCR cell is left "
+        "blank. Guards against dividing CFADS by the ~1e-8 residual a "
+        "fully-repaid loan carries post-amortization (would explode the cell and "
+        "pollute MIN/AVERAGE). Overridable via "
+        "spec.covenant_thresholds.dscr_blank_threshold_eur_m.",
+        "ModelForge",
+    )
+    if "pf_dscr_blank_threshold" in ws.parent.defined_names:
+        del ws.parent.defined_names["pf_dscr_blank_threshold"]
+    ws.parent.defined_names["pf_dscr_blank_threshold"] = DefinedName(
+        name="pf_dscr_blank_threshold",
+        attr_text=f"'{ws.title}'!$C${r}",
+    )
     r += 1
 
     ws.freeze_panes = "D7"

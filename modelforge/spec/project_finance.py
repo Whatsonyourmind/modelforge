@@ -138,6 +138,32 @@ class DSCRCovenant(BaseModel):
     lock_up_threshold: Assumption  # below this, no dividend
 
 
+class CovenantThresholds(BaseModel):
+    """Forward-looking coverage covenant thresholds + DSCR blank guard.
+
+    v0.12 (US-PF-covenants): lifts three previously-hardcoded constants out of
+    the builder into visible, overridable named-input cells. Defaults reproduce
+    the prior literals byte-for-byte so omitting this block is fully
+    backward-compatible.
+
+      - llcr_threshold:  minimum Loan Life Coverage Ratio (BIWS / Edward Bodmer
+                         convention; 1.50x typical PF lender floor).
+      - plcr_threshold:  minimum Project Life Coverage Ratio (1.75x typical;
+                         PLCR > LLCR because it includes post-loan tail cash).
+      - dscr_blank_threshold_eur_m: absolute |debt service| floor (in EUR m)
+                         below which a DSCR cell is treated as "no debt service"
+                         and left blank. Post-amortization years carry only a
+                         ~1e-8 float residual; dividing CFADS by it explodes the
+                         cell and pollutes MIN/AVERAGE. Default 0.001 EUR m (=€1k)
+                         is a scale-aware absolute that brackets the residual far
+                         below any genuinely-levered year (those run €0.3-3m).
+    """
+
+    llcr_threshold: float = Field(default=1.50, gt=0.0)
+    plcr_threshold: float = Field(default=1.75, gt=0.0)
+    dscr_blank_threshold_eur_m: float = Field(default=0.001, gt=0.0)
+
+
 class EquityIRRTarget(BaseModel):
     target_irr: Assumption
     effective_tax_rate: Assumption
@@ -155,6 +181,18 @@ class ProjectFinanceSpec(BaseModel):
     debt: PFDebt
     covenant: DSCRCovenant
     equity: EquityIRRTarget
+
+    # v0.12 (US-PF-covenants): forward-coverage covenant thresholds + DSCR
+    # blank guard, lifted from builder hardcodes. Defaults reproduce prior
+    # literals (LLCR 1.50x / PLCR 1.75x / blank guard 1e-6 -> now 0.001 EUR m),
+    # so omitting the block is backward-compatible.
+    covenant_thresholds: CovenantThresholds = Field(default_factory=CovenantThresholds)
+
+    # v0.12: Major-Maintenance-Reserve sinking-fund build period (operating
+    # years per maintenance event cycle). Default 5 reproduces the prior
+    # builder literal; the MMR balance ramps over this many years then resets
+    # at each event year (MOD == 0).
+    mmr_build_years: int = Field(default=5, ge=1, le=30)
 
     # Historical not applicable (greenfield) — use zero-length list
     historical_revenue_eur_m: list[float] = Field(default_factory=list)

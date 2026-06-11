@@ -15,6 +15,8 @@ shown at face value).
 
 from __future__ import annotations
 
+from openpyxl.comments import Comment
+from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.worksheet import Worksheet
 
 from modelforge.builder import styles, layout
@@ -102,6 +104,38 @@ def build(
                 styles.style_formula(c, number_format=styles.FMT_EUR_M)
         r += 1
 
+        # Mandatory-amortization rate input (only for the mandatory_1pct
+        # profile). Lifted from a hard-coded literal 1% into a VISIBLE,
+        # styled, overridable named-input cell on the Debt sheet so the
+        # assumption is traceable and can be driven from the spec
+        # (amortization_rate_pct, default 0.01 == the historical 1%).
+        amort_rate_name: str | None = None
+        if tr.amortization == "mandatory_1pct":
+            amort_rate_pct = getattr(tr, "amortization_rate_pct", 0.01)
+            amort_rate_name = f"mandatory_amort_rate_t{tr_idx + 1}"
+            layout.write_row_label(
+                ws, r,
+                "Mandatory amortization rate (% of orig.)",
+                "Ammortamento obbligatorio (% capitale)",
+                indent=True,
+            )
+            ws.cell(row=r, column=3, value="%").font = styles.font_label_it
+            rate_cell = ws.cell(row=r, column=4, value=amort_rate_pct)
+            styles.style_input(rate_cell, number_format=styles.FMT_PCT_2DP)
+            rate_cell.comment = Comment(
+                "Mandatory per-period amortization as a % of the tranche's "
+                "original commitment (overridable; default 1.00%).",
+                "ModelForge",
+            )
+            wb = ws.parent
+            if amort_rate_name in wb.defined_names:
+                del wb.defined_names[amort_rate_name]
+            wb.defined_names[amort_rate_name] = DefinedName(
+                name=amort_rate_name,
+                attr_text=f"'{ws.title}'!$D${r}",
+            )
+            r += 1
+
         # Repayment / amortization
         block["repayment"] = r
         layout.write_row_label(ws, r, L("debt_repayment").en, L("debt_repayment").secondary, indent=True)
@@ -133,8 +167,10 @@ def build(
                     continue
             elif tr.amortization == "mandatory_1pct":
                 if h <= i < maturity_year:
-                    c = ws.cell(row=r, column=col_idx,
-                                value=f"=-{tr.amount.name}*1%")
+                    c = ws.cell(
+                        row=r, column=col_idx,
+                        value=f"=-{tr.amount.name}*{amort_rate_name}",
+                    )
                     styles.style_formula(c, number_format=styles.FMT_EUR_M)
                     continue
                 elif i == maturity_year:
@@ -274,7 +310,6 @@ def build(
         # v0.8.9 US-582: for sponsor_lbo, register the 6 tier named ranges
         # before the sweep formula is emitted (so cash_sweep_tiered works).
         if getattr(spec, "model_type", "") == "sponsor_lbo":
-            from openpyxl.workbook.defined_name import DefinedName
             wb = ws.parent
             tier_defaults = [
                 ("sweep_tier1_lev", 5.0, styles.FMT_MULTIPLE,
