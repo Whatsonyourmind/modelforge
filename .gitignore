@@ -42,3 +42,9 @@ PRD_*.md
 # build artifacts (do not commit wheels/sdists)
 dist/
 dist-*/
+
+# hard-test + benchmark scratch (generated; not source)
+benchmark/_*/
+examples/_*.yaml
+outputhardtest_*.txt
+output/*.txt

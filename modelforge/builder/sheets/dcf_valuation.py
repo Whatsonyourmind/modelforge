@@ -468,10 +468,13 @@ def build_valuation(ws: Worksheet, spec, fcf_refs: dict[str, int],
         ("Terminal value — exit EV/EBITDA", "Terminal value — EV/EBITDA uscita",
          f"='{fcf_sheet}'!{last_col}{ebitda_row}*exit_ev_ebitda_x",
          styles.FMT_EUR_M, "tv_exit"),
-        # v0.7 implied-g cross-check; now uses normalized FCF
-        ("Implied g — terminal (from exit multiple)",
-         "Implied g — terminale (da multiplo uscita)",
-         f"=wacc_rate-D{r+3}*(1+terminal_growth_pct)/D{r+5}",
+        # v0.7 implied-g cross-check; now uses normalized FCF.
+        # Closed-form perpetuity-g solve consistent with the exit-multiple TV:
+        # TV = CF0*(1+g)/(wacc-g)  =>  g = (wacc*TV - CF0)/(TV + CF0),
+        # where CF0 = normalized terminal FCF (D{r+3}) and TV = exit-multiple TV (D{r+5}).
+        ("Implied g (closed-form) — terminal (from exit multiple)",
+         "Implied g (forma chiusa) — terminale (da multiplo uscita)",
+         f"=(wacc_rate*D{r+5}-D{r+3})/(D{r+5}+D{r+3})",
          styles.FMT_PCT_2DP, "implied_g"),
         # Chosen TV — picked by named range (1=Gordon, 2=Exit; default Gordon)
         ("Terminal value — chosen", "Terminal value — scelto",

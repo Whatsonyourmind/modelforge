@@ -84,7 +84,7 @@ debt:
     trigger_leverage: { id: A-081, name: cash_sweep_trigger, label: { en: "Sweep trigger", it: "Soglia sweep" }, unit: x, base: 3.50, rationale: "Standard.", confidence: H, source_id: S-005 }
 
 covenants:
-  - name: { en: "Total Net Leverage", it: "Leva Netta" }
+  - name: { en: "Total Leverage", it: "Leva" }
     kind: leverage
     test_frequency: quarterly
     threshold_by_year:

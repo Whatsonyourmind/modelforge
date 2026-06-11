@@ -56,10 +56,24 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
         pct_schedule = _sculpted_pct_schedule(spec)
 
     layout.set_column_widths(ws, label_width=44, it_width=34, year_width=11, unit_width=6)
+    # v0.7 honesty fix: the "sculpted_*" profiles are implemented as a LEVEL
+    # DEBT SERVICE (annuity) amortization curve — they do NOT pin realised DSCR
+    # to a flat target (that would require CFADS-driven sculpting:
+    # principal_t = CFADS_t/target - interest_t). Under dscr_target sizing the
+    # senior amount is solved so the *minimum* DSCR equals the target; realised
+    # DSCR then rises above target in later years. Render an honest profile
+    # label so the deliverable stops claiming sculpting it does not perform.
+    _PROFILE_LABELS = {
+        "linear": "linear amortization",
+        "sculpted_level_debt_service": "level debt service (annuity)",
+        "sculpted_dscr_target": "level debt service (sized to min-DSCR target)",
+        "bullet": "bullet repayment",
+    }
+    profile_label = _PROFILE_LABELS.get(profile, profile)
     subtitle = (
         f"Commitment {spec.meta.currency} · "
         f"{c + spec.debt.tenor_operating_years - spec.debt.grace_years}y senior · "
-        f"{profile} · DSCR-driven"
+        f"{profile_label}"
     )
     layout.write_title_block(
         ws, title_en="Project Debt, DSCR & DSRA",
@@ -137,9 +151,11 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
                 if pct > 0:
                     cc = ws.cell(row=r, column=col_idx,
                                  value=f"=-{debt_amount}*{pct:.8f}")
-                    # Cell comment: solver provenance
+                    # Cell comment: solver provenance. NB: this is a LEVEL
+                    # DEBT SERVICE (annuity) curve, NOT DSCR-target sculpting —
+                    # realised DSCR is not flat at target (see sheet subtitle).
                     cc.comment = Comment(
-                        f"Sculpted level-debt-service amortization\n"
+                        f"Level-debt-service (annuity) amortization\n"
                         f"Operating year {op_idx + 1}: principal = {pct * 100:.3f}% of senior\n"
                         f"Solver: annuity at rate={spec.debt.reference_rate.base + spec.debt.margin_bps.base/10000:.4f}, "
                         f"{amort_years}y amort, {spec.debt.grace_years}y grace",
@@ -230,8 +246,15 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
         else:
             cads_ref = f"'{cashflow_sheet}'!{col}{cads_row}"
             ds_ref = f"${col}${rows['debt_service']}"
+            # v0.7 fix: post-amortization operating years carry only a near-zero
+            # float residual debt service (~1e-8 from average-balance interest on
+            # a fully-repaid loan). Dividing CFADS by that residual exploded the
+            # DSCR cell to ~1.8e8, polluting MIN/AVERAGE. Treat |debt service|
+            # below 1e-6 EUR m (=€1) as "no debt service" and leave the cell
+            # blank — Excel's MIN/AVERAGE ignore text cells, so the summary
+            # statistics now cover only genuinely-levered operating years.
             cc = ws.cell(row=r, column=col_idx,
-                         value=f"=IFERROR({cads_ref}/ABS({ds_ref}),0)")
+                         value=f'=IF(ABS({ds_ref})<1E-6,"",IFERROR({cads_ref}/ABS({ds_ref}),""))')
             styles.style_formula(cc, number_format=styles.FMT_MULTIPLE)
     r += 1
 
