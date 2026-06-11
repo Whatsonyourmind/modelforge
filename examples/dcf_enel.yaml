@@ -80,7 +80,7 @@ shares_outstanding_assum:
   id: A-502
   name: shares_outstanding_assum
   label: {en: Shares outstanding (m), it: Azioni in circolazione (m)}
-  unit: x
+  unit: count
   base: 10166.0
   worst: 10166.0
   best: 10166.0

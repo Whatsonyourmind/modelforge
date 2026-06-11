@@ -80,7 +80,7 @@ def build_deal_structure(ws: Worksheet, spec) -> dict[str, int]:
     refs["offer_px"] = r; r += 1
 
     write_input(r, "Target shares outstanding (m)", "Azioni target (m)",
-                spec.target_financials.shares_outstanding_m, styles.FMT_MULTIPLE,
+                spec.target_financials.shares_outstanding_m, styles.FMT_INTEGER,
                 "target_shares_m",
                 f"{spec.target_financials.shares_outstanding_m}m shares outstanding")
     refs["target_shares"] = r; r += 1
@@ -407,7 +407,7 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
     # Acquirer shares also named
     write_named_input(hist_row, "Acquirer shares outstanding (m)",
                       "Azioni acquirer (m)",
-                      spec.acquirer.shares_outstanding_m, styles.FMT_MULTIPLE,
+                      spec.acquirer.shares_outstanding_m, styles.FMT_INTEGER,
                       "acq_shares_m",
                       "Acquirer standalone share count")
     hist_row += 1
