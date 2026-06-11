@@ -137,8 +137,14 @@ def build_deal_structure(ws: Worksheet, spec) -> dict[str, int]:
 
     # v0.8 US-252: Exchange ratio with collar (bulge-bracket stock-deal
     # convention). For all-cash deals these rows still emit, showing the
-    # equivalent implied exchange ratio for disclosure. Collar bounds set
-    # at ±15% of reference acquirer price; walk-away at −20%.
+    # equivalent implied exchange ratio for disclosure. Collar bounds default
+    # to ±15% of reference acquirer price; walk-away at −20%. The three band
+    # multipliers were previously hard-coded literals (×0.85 / ×1.15 / ×0.80)
+    # inside the formula strings; they are now visible, named, overridable
+    # input cells driven by the spec (defaults preserve the prior bands).
+    collar_low = getattr(spec, "collar_low_pct", 0.85)
+    collar_high = getattr(spec, "collar_high_pct", 1.15)
+    walk_away = getattr(spec, "walk_away_pct", 0.80)
     ws.cell(row=r, column=1,
             value="Exchange ratio & collar").font = styles.font_subheader
     ws.cell(row=r, column=2,
@@ -152,26 +158,49 @@ def build_deal_structure(ws: Worksheet, spec) -> dict[str, int]:
                   f"=D{refs['offer_px']}*(1-cash_mix_pct)/acquirer_share_price_eur",
                   styles.FMT_MULTIPLE, highlight=True)
     refs["xr_ratio"] = r; r += 1
-    write_formula(r, "Collar — lower bound (acquirer px × 0.85)",
+    # Named collar-band multipliers (input cells) — overridable assumptions
+    write_input(r, "Collar — lower-band multiplier",
+                "Collar — moltiplicatore inferiore",
+                collar_low, styles.FMT_MULTIPLE,
+                "collar_low_pct",
+                "Collar lower-band multiplier on acquirer reference price "
+                "(default 0.85 = −15%); overridable assumption")
+    refs["collar_low_pct"] = r; r += 1
+    write_input(r, "Collar — upper-band multiplier",
+                "Collar — moltiplicatore superiore",
+                collar_high, styles.FMT_MULTIPLE,
+                "collar_high_pct",
+                "Collar upper-band multiplier on acquirer reference price "
+                "(default 1.15 = +15%); overridable assumption")
+    refs["collar_high_pct"] = r; r += 1
+    write_input(r, "Walk-away multiplier",
+                "Moltiplicatore walk-away",
+                walk_away, styles.FMT_MULTIPLE,
+                "walk_away_pct",
+                "Walk-away multiplier on acquirer reference price "
+                "(default 0.80 = −20%); overridable assumption")
+    refs["walk_away_pct"] = r; r += 1
+    write_formula(r, "Collar — lower bound (acquirer px × low mult.)",
                   "Collar — limite inferiore",
-                  "=acquirer_share_price_eur*0.85",
+                  "=acquirer_share_price_eur*collar_low_pct",
                   styles.FMT_EUR_ACTUAL)
     refs["collar_low"] = r; r += 1
-    write_formula(r, "Collar — upper bound (acquirer px × 1.15)",
+    write_formula(r, "Collar — upper bound (acquirer px × high mult.)",
                   "Collar — limite superiore",
-                  "=acquirer_share_price_eur*1.15",
+                  "=acquirer_share_price_eur*collar_high_pct",
                   styles.FMT_EUR_ACTUAL)
     refs["collar_high"] = r; r += 1
-    write_formula(r, "Walk-away threshold (acquirer px × 0.80)",
+    write_formula(r, "Walk-away threshold (acquirer px × walk mult.)",
                   "Soglia walk-away",
-                  "=acquirer_share_price_eur*0.80",
+                  "=acquirer_share_price_eur*walk_away_pct",
                   styles.FMT_EUR_ACTUAL)
     refs["walk_away"] = r
     ws.cell(row=r, column=4).comment = Comment(
         "Stock-deal collar convention: implied exchange ratio adjusts if "
-        "acquirer share price moves outside ±15% of reference. Below the "
-        "walk-away threshold, either party may terminate without break-fee "
-        "(per typical bulge-bracket merger agreement template).",
+        "acquirer share price moves outside the collar bands (default ±15% of "
+        "reference). Below the walk-away threshold (default −20%), either "
+        "party may terminate without break-fee (per typical bulge-bracket "
+        "merger agreement template). Bands are overridable named inputs above.",
         "ModelForge",
     )
     r += 2
@@ -424,6 +453,26 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
                       "Combined standalone interest growth — from spec "
                       "(default 3%); overridable assumption")
     hist_row += 1
+    # Combined D&A growth + standalone-EPS growth — previously the literal 3%
+    # embedded inside the ProForma D&A projection and the AccretionDilution
+    # standalone-EPS formula. Now visible + overridable named inputs; defaults
+    # preserve historical behaviour exactly.
+    comb_da_g = getattr(spec, "combined_da_growth_pct", 0.03)
+    standalone_eps_g = getattr(spec, "standalone_eps_growth_pct", 0.03)
+    write_named_input(hist_row, "Combined D&A growth (p.a.)",
+                      "Crescita A&A combinato (annua)",
+                      comb_da_g, styles.FMT_PCT_2DP,
+                      "combined_da_growth_pct",
+                      "Combined D&A growth — from spec "
+                      "(default 3%); overridable assumption")
+    hist_row += 1
+    write_named_input(hist_row, "Acquirer standalone-EPS growth (p.a.)",
+                      "Crescita EPS standalone acquirer (annua)",
+                      standalone_eps_g, styles.FMT_PCT_2DP,
+                      "standalone_eps_growth_pct",
+                      "Acquirer standalone net-income / EPS growth — from spec "
+                      "(default 3%); overridable assumption")
+    hist_row += 1
 
     # Year headers move below the historical block
     yr_row = hist_row + 1
@@ -553,10 +602,11 @@ def build_proforma(ws: Worksheet, spec, deal_refs: dict[str, int],
         col = layout.year_col(i)
         col_idx = ord(col) - ord("A") + 1
         c = ws.cell(row=r, column=col_idx,
-                    value=f"=-combined_da_fy0*(1+0.03)^{i+1}")
+                    value=f"=-combined_da_fy0*(1+combined_da_growth_pct)^{i+1}")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
     ws.cell(row=r, column=4).comment = Comment(
-        "Combined D&A grown 3% p.a. off named FY0 input", "ModelForge")
+        "Combined D&A grown at combined_da_growth_pct p.a. (default 3%, "
+        "overridable on this sheet) off named FY0 input", "ModelForge")
     r += 1
 
     # v0.8 US-253: PPA intangible amortization flows into pro-forma P&L
@@ -767,12 +817,15 @@ def build_accretion_dilution(
                            "EPS acquirer standalone")
     for i in range(p):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
-        # Uses named ranges acq_net_income_fy0 and acq_shares_m defined on ProForma
+        # Uses named ranges acq_net_income_fy0, standalone_eps_growth_pct, and
+        # acq_shares_m (all defined on ProForma)
         c = ws.cell(row=r, column=col_idx,
-                    value=f"=acq_net_income_fy0*(1+0.03)^{i+1}/acq_shares_m")
+                    value=f"=acq_net_income_fy0*(1+standalone_eps_growth_pct)^{i+1}/acq_shares_m")
         styles.style_formula(c, number_format=styles.FMT_EUR_ACTUAL)
     ws.cell(row=r, column=4).comment = Comment(
-        "Standalone EPS = acq_net_income_fy0 × 1.03^t / acq_shares_m", "ModelForge")
+        "Standalone EPS = acq_net_income_fy0 × (1+standalone_eps_growth_pct)^t "
+        "/ acq_shares_m (growth default 3%, overridable on ProForma)",
+        "ModelForge")
     std_eps_row = r
     r += 1
 

@@ -1,16 +1,20 @@
 """RE senior mortgage + equity waterfall sheet.
 
-SCOPE / HONEST-LABEL (v0.7): the LP/GP waterfall rendered here is a *simplified
+SCOPE / HONEST-LABEL (v0.8): the LP/GP waterfall rendered here is a *simplified
 illustrative* allocation — LP preferred return + GP catch-up + 80/20 promote on
-the residual — NOT a full tier-by-tier (multi-hurdle) waterfall. The 8% pref and
-the 80/20 split are hardcoded PLACEHOLDERS (styled as static/placeholder values,
-not live blue inputs) pending v0.8 parameterization from ``spec.waterfall.tiers``.
-A high-contrast PLACEHOLDER banner is emitted on the sheet (row 4) so the
-deliverable does not silently overclaim a full waterfall.
+the residual — NOT a full tier-by-tier (multi-hurdle) waterfall. The MECHANICS
+are still simplified, but the pref and promote KNOBS are now spec-driven, live,
+overridable named inputs (``spec.waterfall.lp_preferred_return_pct`` /
+``gp_promote_pct``, resolved from the real tiers when present), NOT hardcoded
+placeholders. The legacy 8% pref literal was a v0.7 placeholder that diverged
+from the spec's intended 9% pref — that divergence is now corrected: the cell
+reads the spec value via named range. A banner is still emitted on the sheet
+(row 4) flagging that the waterfall STRUCTURE remains simplified.
 """
 
 from __future__ import annotations
 
+from openpyxl.comments import Comment
 from openpyxl.worksheet.worksheet import Worksheet
 
 from modelforge.builder import styles, layout
@@ -27,24 +31,24 @@ def build(ws: Worksheet, spec, dcf_refs: dict[str, str], dcf_sheet: str) -> dict
     )
     layout.write_scenario_banner(ws, row=3)
 
-    # ── PLACEHOLDER banner (row 4, otherwise unused) ──────────────────────
-    # Honest-label: the LP/GP waterfall rendered below is a v0.7 *simplified
+    # ── SIMPLIFIED-WATERFALL banner (row 4, otherwise unused) ─────────────
+    # Honest-label: the LP/GP waterfall rendered below is a *simplified
     # illustrative* allocation (LP preferred return + GP catch-up + 80/20
-    # promote), NOT a full tier-by-tier waterfall. The 8% preferred return is a
-    # PLACEHOLDER, not a live deal input. Stated up-front so the deliverable
-    # does not silently overclaim. (No computed number is changed.)
+    # promote), NOT a full tier-by-tier waterfall. The pref and promote knobs
+    # are now SPEC-DRIVEN, live, overridable named inputs (no longer hardcoded
+    # placeholders) — only the waterfall STRUCTURE remains simplified.
     banner = ws.cell(
         row=4, column=1,
-        value=("v0.7 SIMPLIFIED WATERFALL (illustrative): LP pref + GP catch-up "
-               "+ 80/20 promote — NOT a full tier-by-tier waterfall; 8% pref is a "
-               "PLACEHOLDER, not a live input."),
+        value=("v0.8 SIMPLIFIED WATERFALL (illustrative structure): LP pref + GP "
+               "catch-up + 80/20 promote — NOT a full tier-by-tier waterfall. Pref "
+               "and promote are now live spec-driven inputs (overridable)."),
     )
     banner.font = styles.font_warning
     banner.fill = styles.fill_check_bad
     banner.alignment = styles.align_left
     ws.cell(
         row=4, column=2,
-        value="Waterfall semplificato v0.7 (illustrativo) — pref 8% segnaposto.",
+        value="Waterfall semplificato v0.8 (struttura illustrativa) — pref/promote da spec.",
     ).font = styles.font_label_it
 
     yr_row = 5
@@ -190,39 +194,61 @@ def build(ws: Worksheet, spec, dcf_refs: dict[str, str], dcf_sheet: str) -> dict
     styles.style_formula(cc, number_format=styles.FMT_PCT_2DP)
     r += 2
 
-    # ── v0.7: FULL LP/GP waterfall with pref + catchup + promote ──────────
-    # Tier 1 — Pref return (8% IRR on LP capital, compounded)
-    # Tier 2 — GP catchup (100% to GP until GP gets 20% of profits)
-    # Tier 3 — 80/20 LP/GP split on residual
-    # Implementation uses running-balance approach per period.
+    # ── v0.8: SIMPLIFIED LP/GP waterfall with pref + catchup + promote ─────
+    # Tier 1 — Pref return (LP pref IRR on LP capital, compounded)  → named input
+    # Tier 2 — GP catchup (100% to GP until GP gets `gp_promote_pct` of profits)
+    # Tier 3 — LP/GP split on residual (LP share = 1 - gp_promote_pct)
+    # The pref and promote are now SPEC-DRIVEN live named inputs (overridable),
+    # resolved from spec.waterfall (real tiers when present). Only the waterfall
+    # STRUCTURE remains a simplified illustrative allocation.
     layout.write_section_header(
         ws, r,
-        "v0.7 Waterfall (SIMPLIFIED / ILLUSTRATIVE): pref + GP catchup + 80/20 promote",
-        "Waterfall v0.7 (semplificato/illustrativo): pref + catchup + promote",
+        "v0.8 Waterfall (SIMPLIFIED structure): pref + GP catchup + promote (spec-driven)",
+        "Waterfall v0.8 (struttura semplificata): pref + catchup + promote (da spec)",
     )
     r += 1
 
-    # Pref return rate (hardcoded 8% PLACEHOLDER; parameterize via Assumption in
-    # v0.8). Styled as a static/placeholder value (grey), NOT a blue live input,
-    # so a reviewer is not misled into treating 8% as a deal-supplied pref.
+    # LP preferred return — SPEC-DRIVEN live input (named range
+    # `lp_preferred_return_pct`, resolved from spec.waterfall). Styled as a blue
+    # input cell so a reviewer sees it is an overridable deal assumption, and
+    # the formula below references the named range, not a literal.
     rows["pref_return"] = r
-    layout.write_row_label(ws, r, "LP preferred return (PLACEHOLDER 8%, compounded)",
-                           "Rendimento preferenziale LP (segnaposto 8%, composto)", indent=True)
-    cc = ws.cell(row=r, column=4, value=0.08)
-    styles.style_static_value(cc, number_format=styles.FMT_PCT_2DP)
-    cc.comment = openpyxl.comments.Comment(
-        "LP receives 8% preferred return compounded annually on contributed "
-        "capital before any GP promote. European waterfall (deal-by-deal: "
-        "American would differ). Parameterize in v0.8.",
+    layout.write_row_label(ws, r, "LP preferred return (compounded)",
+                           "Rendimento preferenziale LP (composto)", indent=True)
+    cc = ws.cell(row=r, column=4, value="=lp_preferred_return_pct")
+    styles.style_input(cc, number_format=styles.FMT_PCT_2DP)
+    cc.comment = Comment(
+        "LP preferred return, compounded annually on contributed capital before "
+        "any GP promote. Spec-driven named input "
+        "(spec.waterfall.lp_preferred_return_pct / resolved from the pref tier); "
+        "override on the Assumptions sheet. Corrects the legacy 8% v0.7 "
+        "placeholder to the spec-intended pref.",
         "ModelForge",
-    ) if False else None  # skip comment if openpyxl.comments not imported
+    )
+    cc.comment.width = 280
+    cc.comment.height = 120
     r += 1
 
+    # LP share of residual = 1 - GP promote. GP promote (`gp_promote_pct`) is the
+    # SPEC-DRIVEN live named input (visible/overridable as a blue input on the
+    # Assumptions sheet, source of the named range); LP share is derived from it
+    # so the one overridable knob is the economically meaningful carry. The label
+    # names the GP promote so a reader sees the carry directly on this sheet.
     rows["promote_split_lp"] = r
-    layout.write_row_label(ws, r, "LP share of residual (PLACEHOLDER 80/20, post-catchup)",
-                           "Quota LP residuo (segnaposto 80/20, post-catchup)", indent=True)
-    cc = ws.cell(row=r, column=4, value=0.80)
-    styles.style_static_value(cc, number_format=styles.FMT_PCT_2DP)
+    layout.write_row_label(ws, r, "LP share of residual (= 1 − GP promote, post-catchup)",
+                           "Quota LP residuo (= 1 − promote GP, post-catchup)", indent=True)
+    cc = ws.cell(row=r, column=4, value="=1-gp_promote_pct")
+    styles.style_formula(cc, number_format=styles.FMT_PCT_2DP)
+    cc.comment = Comment(
+        "LP share of the residual band = 1 - gp_promote_pct. GP promote (carried "
+        "interest) is the spec-driven named input "
+        "(spec.waterfall.gp_promote_pct / resolved from the residual tier's LP "
+        "share); override it as a blue input on the Assumptions sheet. 80/20 "
+        "promote → GP 20%, LP 80%.",
+        "ModelForge",
+    )
+    cc.comment.width = 280
+    cc.comment.height = 120
     r += 2
 
     # Total distributions to equity over hold (from equity_cf)

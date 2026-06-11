@@ -17,6 +17,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from modelforge.spec.base import Assumption, Label
+from modelforge.spec.compliance import ComplianceContext
 from modelforge.spec.risk_block import RiskAnalysisSpec
 from modelforge.spec.unitranche import (
     Covenant, DebtStructure, ExitAssumptions, Fees, OperatingAssumptions,
@@ -67,6 +68,10 @@ class CreditMemoSpec(BaseModel):
 
     # Optional: triggers a RiskAnalysis sheet (Merton + KMV + IFRS 9 ECL)
     risk_analysis: RiskAnalysisSpec | None = None
+
+    # Optional: regulatory & tax context for the ComplianceCheck sheet.
+    # Omitted => defaults reproduce the previously-hardcoded Italian/EU values.
+    compliance: ComplianceContext | None = None
 
     historical_revenue_eur_m: list[float]
     historical_ebitda_eur_m: list[float]

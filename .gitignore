@@ -48,3 +48,7 @@ benchmark/_*/
 examples/_*.yaml
 outputhardtest_*.txt
 output/*.txt
+_o_*.xlsx
+_out_*.xlsx
+output_*.txt
+output_*.json

@@ -103,6 +103,11 @@ class DebtTranche(BaseModel):
     margin_bps: Assumption  # spread over reference rate, bps
     floor_pct: Assumption  # reference rate floor (decimal); 0.0 if none
     amortization: Literal["bullet", "linear", "mandatory_1pct"] = "bullet"
+    # Mandatory amortization rate (decimal of original commitment) applied each
+    # period under the "mandatory_1pct" profile. Default 0.01 reproduces the
+    # historical hard-coded 1% exactly; lift to a visible, overridable named
+    # input on the Debt sheet.
+    amortization_rate_pct: float = Field(default=0.01, ge=0.0, le=1.0)
     arrangement_fee_pct: Assumption  # upfront fee as % of commitment
     commitment_fee_bps: Assumption = Field(
         default_factory=lambda: Assumption(

@@ -423,8 +423,11 @@ def append_distributable_cash(
     # Build years + event-cycle length live via mmr_build_years named
     # range. Balance formula: target × MOD(ops_year, mmr_build_years) /
     # mmr_build_years. Event year (MOD = 0) resets balance to 0.
+    # v0.12 (US-PF-covenants): the build-years value is lifted from the hardcode
+    # `5` to spec.mmr_build_years (default 5 → byte-identical when omitted).
     mmr_target_assum = getattr(spec.operating, "major_maintenance_reserve_eur_m", None)
     mmr_target_name = mmr_target_assum.name if mmr_target_assum else None
+    mmr_build_years = getattr(spec, "mmr_build_years", 5) or 5
 
     if mmr_target_name:
         # Register mmr_build_years as workbook-level named range first
@@ -434,8 +437,17 @@ def append_distributable_cash(
             ws, r, "MMR build-years (sinking schedule)",
             "Anni di accantonamento MMR", indent=True,
         )
-        c = ws.cell(row=r, column=4, value=5)
-        styles.style_input(c, number_format=styles.FMT_INTEGER)
+        # NB: keep this cell in its own variable (NOT `c`, which holds
+        # construction-years and is reused below for the balance roll-forward).
+        mmr_cell = ws.cell(row=r, column=4, value=mmr_build_years)
+        styles.style_input(mmr_cell, number_format=styles.FMT_INTEGER)
+        mmr_cell.comment = openpyxl.comments.Comment(
+            "Major-Maintenance-Reserve sinking-fund build period: operating "
+            "years over which the MMR ramps to its target before each "
+            "maintenance event (MOD == 0 resets the balance). Overridable via "
+            "spec.mmr_build_years.",
+            "ModelForge",
+        )
         if "mmr_build_years" in wb.defined_names:
             del wb.defined_names["mmr_build_years"]
         wb.defined_names["mmr_build_years"] = DefinedName(

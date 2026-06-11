@@ -26,9 +26,11 @@ References cited inline:
 from __future__ import annotations
 
 from openpyxl.comments import Comment
+from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.worksheet import Worksheet
 
 from modelforge.builder import styles, layout
+from modelforge.spec.compliance import ComplianceContext
 
 
 def build(ws: Worksheet, spec, context: dict | None = None) -> None:
@@ -36,8 +38,39 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
 
     `context` may carry fund-level parameters (NAV, total_commitments) when
     applicable; absent fields render as informational placeholders.
+
+    v0.12 — regulatory & tax constants lifted from hardcodes to spec-driven,
+    overridable named-input cells. Resolution order for each value:
+        1. spec.compliance.<field>  (a ComplianceContext block, if present)
+        2. the legacy `context` dict key (back-compat for direct callers)
+        3. the field's default (= the previously-hardcoded value)
+    All defaults preserve byte-identical output.
     """
     context = context or {}
+
+    # Resolve the compliance/tax context. Templates call build(ws, spec) with
+    # no context dict, so `spec.compliance` (when present) is the source of
+    # truth; otherwise every field falls back to its hardcoded-equal default.
+    cc = getattr(spec, "compliance", None)
+    if not isinstance(cc, ComplianceContext):
+        cc = ComplianceContext()
+
+    # Legacy `context` dict still wins for the three scenario inputs it used to
+    # drive (keeps any direct caller that passes a context working unchanged).
+    aif_type_default = context.get("aif_type", cc.aif_type)
+    actual_leverage_default = context.get("actual_leverage", cc.actual_leverage)
+    largest_borrower_default = context.get(
+        "largest_single_borrower_pct_nav", cc.largest_single_borrower_pct_nav
+    )
+
+    wb = ws.parent
+
+    def _reg(name: str, cell_addr: str) -> None:
+        if name in wb.defined_names:
+            del wb.defined_names[name]
+        wb.defined_names[name] = DefinedName(
+            name=name, attr_text=f"'{ws.title}'!{cell_addr}",
+        )
 
     layout.set_column_widths(ws, label_width=54, it_width=32, year_width=14, unit_width=8)
     layout.write_title_block(
@@ -56,22 +89,53 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
     # Open-ended AIF: 175%; closed-ended: 300%
     ws.cell(row=r, column=1, value="AIF type (open/closed)").font = styles.font_label_en
     ws.cell(row=r, column=2, value="Tipo AIF").font = styles.font_label_it
-    aif_type_cell = ws.cell(row=r, column=4, value=context.get("aif_type", "closed"))
+    aif_type_cell = ws.cell(row=r, column=4, value=aif_type_default)
     styles.style_input(aif_type_cell)
+    aif_type_cell.comment = Comment(
+        "AIF type (open / closed). Selects which AIFMD II leverage cap applies. "
+        "Override via spec.compliance.aif_type. Default: closed.",
+        "ModelForge",
+    )
     aif_type_row = r
     r += 1
 
-    ws.cell(row=r, column=1, value="AIFMD II leverage cap (commitment)").font = styles.font_label_en
-    ws.cell(row=r, column=2, value="Limite AIFMD II").font = styles.font_label_it
+    # AIFMD II leverage caps — lifted from hardcoded 1.75 / 3.00 literals to
+    # two visible named-input cells so the bracket is auditable & overridable.
+    ws.cell(row=r, column=1, value="AIFMD II leverage cap — open-ended").font = styles.font_label_en
+    ws.cell(row=r, column=2, value="Limite leva AIFMD II — aperto").font = styles.font_label_it
+    cap_open_cell = ws.cell(row=r, column=4, value=cc.aif_leverage_cap_open_pct)
+    styles.style_input(cap_open_cell, number_format=styles.FMT_PCT_2DP)
+    cap_open_cell.comment = Comment(
+        "AIFMD II Article 15a: open-ended AIF max 175% leverage (commitment "
+        "method). Override via spec.compliance.aif_leverage_cap_open_pct.",
+        "ModelForge",
+    )
+    _reg("aif_leverage_cap_open", f"$D${r}")
+    r += 1
+
+    ws.cell(row=r, column=1, value="AIFMD II leverage cap — closed-ended").font = styles.font_label_en
+    ws.cell(row=r, column=2, value="Limite leva AIFMD II — chiuso").font = styles.font_label_it
+    cap_closed_cell = ws.cell(row=r, column=4, value=cc.aif_leverage_cap_closed_pct)
+    styles.style_input(cap_closed_cell, number_format=styles.FMT_PCT_2DP)
+    cap_closed_cell.comment = Comment(
+        "AIFMD II Article 15a: closed-ended AIF max 300% leverage (commitment "
+        "method). Override via spec.compliance.aif_leverage_cap_closed_pct. "
+        "Source: BCLP April 2024 transposition note.",
+        "ModelForge",
+    )
+    _reg("aif_leverage_cap_closed", f"$D${r}")
+    r += 1
+
+    ws.cell(row=r, column=1, value="AIFMD II leverage cap (applied)").font = styles.font_label_en
+    ws.cell(row=r, column=2, value="Limite AIFMD II (applicato)").font = styles.font_label_it
     cap_cell = ws.cell(
         row=r, column=4,
-        value=f'=IF($D${aif_type_row}="open",1.75,3.00)',
+        value=f'=IF($D${aif_type_row}="open",aif_leverage_cap_open,aif_leverage_cap_closed)',
     )
     styles.style_formula(cap_cell, number_format=styles.FMT_PCT_2DP)
     cap_cell.comment = Comment(
-        "AIFMD II Article 15a: open-ended AIF max 175% leverage "
-        "(commitment method), closed-ended max 300%. "
-        "Source: BCLP April 2024 transposition note.",
+        "Applied cap = open-ended limit if AIF type is open, else closed-ended "
+        "limit. Both bounds are the named inputs above.",
         "ModelForge",
     )
     cap_row = r
@@ -79,16 +143,20 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
 
     ws.cell(row=r, column=1, value="Actual portfolio leverage").font = styles.font_label_en
     ws.cell(row=r, column=2, value="Leva effettiva").font = styles.font_label_it
-    actual_lev = ws.cell(row=r, column=4,
-                         value=context.get("actual_leverage", 1.50))
+    actual_lev = ws.cell(row=r, column=4, value=actual_leverage_default)
     styles.style_input(actual_lev, number_format=styles.FMT_PCT_2DP)
-    actual_row = r
+    actual_lev.comment = Comment(
+        "Actual portfolio leverage (commitment method) tested against the "
+        "applied AIFMD II cap. Override via spec.compliance.actual_leverage.",
+        "ModelForge",
+    )
+    _reg("aif_actual_leverage", f"$D${r}")
     r += 1
 
     ws.cell(row=r, column=1, value="AIFMD II leverage compliance").font = styles.font_subheader
     comp_cell = ws.cell(
         row=r, column=4,
-        value=f'=IF($D${actual_row}<=$D${cap_row},"PASS","FAIL")',
+        value=f'=IF(aif_actual_leverage<=$D${cap_row},"PASS","FAIL")',
     )
     styles.style_formula(comp_cell, number_format="General")
     comp_cell.font = styles.font_subheader
@@ -97,23 +165,35 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
     # AIFMD II single-borrower cap (20% NAV)
     ws.cell(row=r, column=1, value="Largest single borrower % NAV").font = styles.font_label_en
     ws.cell(row=r, column=2, value="Maggior debitore % NAV").font = styles.font_label_it
-    sb_cell = ws.cell(row=r, column=4,
-                      value=context.get("largest_single_borrower_pct_nav", 0.15))
+    sb_cell = ws.cell(row=r, column=4, value=largest_borrower_default)
     styles.style_input(sb_cell, number_format=styles.FMT_PCT_2DP)
-    sb_row = r
+    sb_cell.comment = Comment(
+        "Largest single-borrower exposure as % of AIF NAV, tested against the "
+        "concentration cap. Override via "
+        "spec.compliance.largest_single_borrower_pct_nav.",
+        "ModelForge",
+    )
+    _reg("aif_largest_single_borrower_pct_nav", f"$D${r}")
     r += 1
 
+    # Single-borrower cap — lifted from hardcoded literal 0.20.
     ws.cell(row=r, column=1, value="AIFMD II single-borrower cap").font = styles.font_label_en
     ws.cell(row=r, column=2, value="Limite singolo debitore").font = styles.font_label_it
-    cap2 = ws.cell(row=r, column=4, value=0.20)
+    cap2 = ws.cell(row=r, column=4, value=cc.largest_borrower_cap_pct)
     styles.style_input(cap2, number_format=styles.FMT_PCT_2DP)
-    cap2_row = r
+    cap2.comment = Comment(
+        "AIFMD II Article 15a(4): loans to a single borrower capped at 20% of "
+        "AIF NAV. Override via spec.compliance.largest_borrower_cap_pct. "
+        "Source: Clifford Chance guidance.",
+        "ModelForge",
+    )
+    _reg("aif_single_borrower_cap", f"$D${r}")
     r += 1
 
     ws.cell(row=r, column=1, value="Single-borrower compliance").font = styles.font_subheader
     comp2 = ws.cell(
         row=r, column=4,
-        value=f'=IF($D${sb_row}<=$D${cap2_row},"PASS","FAIL")',
+        value='=IF(aif_largest_single_borrower_pct_nav<=aif_single_borrower_cap,"PASS","FAIL")',
     )
     styles.style_formula(comp2)
     comp2.font = styles.font_subheader
@@ -255,21 +335,36 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
                                  "Tassazione italiana — IRES + IRAP")
     r += 1
 
+    # IRES rate — lifted from hardcoded literal 0.24.
     ws.cell(row=r, column=1, value="IRES rate").font = styles.font_label_en
     ws.cell(row=r, column=2, value="Aliquota IRES").font = styles.font_label_it
-    c = ws.cell(row=r, column=4, value=0.24)
+    c = ws.cell(row=r, column=4, value=cc.tax.ires_rate_pct)
     styles.style_input(c, number_format=styles.FMT_PCT_2DP)
+    c.comment = Comment(
+        "IRES — Italian corporate income tax. Override via "
+        "spec.compliance.tax.ires_rate_pct. Default 24% (Italy 2026).",
+        "ModelForge",
+    )
+    _reg("tax_ires_rate", f"$D${r}")
     r += 1
 
+    # IRAP rate — lifted from hardcoded literal 0.039.
     ws.cell(row=r, column=1, value="IRAP rate (national base + regional)").font = styles.font_label_en
     ws.cell(row=r, column=2, value="Aliquota IRAP").font = styles.font_label_it
-    c = ws.cell(row=r, column=4, value=0.039)
+    c = ws.cell(row=r, column=4, value=cc.tax.irap_rate_pct)
     styles.style_input(c, number_format=styles.FMT_PCT_2DP)
+    c.comment = Comment(
+        "IRAP — regional production tax (national base + regional add-on). "
+        "Override via spec.compliance.tax.irap_rate_pct. Default 3.9% (Italy "
+        "non-financial corporate base).",
+        "ModelForge",
+    )
+    _reg("tax_irap_rate", f"$D${r}")
     r += 1
 
     ws.cell(row=r, column=1, value="IRES+IRAP combined (approximate)").font = styles.font_subheader
     ws.cell(row=r, column=2, value="IRES+IRAP combinate (stima)").font = styles.font_label_it
-    c = ws.cell(row=r, column=4, value=f"=D{r-2}+D{r-1}")
+    c = ws.cell(row=r, column=4, value="=tax_ires_rate+tax_irap_rate")
     styles.style_formula(c, number_format=styles.FMT_PCT_2DP)
     c.font = styles.font_subheader
     c.comment = Comment(

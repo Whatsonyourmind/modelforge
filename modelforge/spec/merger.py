@@ -121,6 +121,27 @@ class MergerSpec(BaseModel):
     target_revenue_growth_pct: float = 0.04
     combined_interest_growth_pct: float = 0.03
 
+    # Remaining ProForma / AccretionDilution growth hardcodes lifted to spec.
+    # Both were embedded as the literal 3% inside the formula strings:
+    #   combined_da_growth_pct      — ProForma "(−) Combined D&A" projection
+    #                                 (=-combined_da_fy0*(1+0.03)^t)
+    #   standalone_eps_growth_pct   — AccretionDilution "Acquirer standalone EPS"
+    #                                 (=acq_net_income_fy0*(1+0.03)^t/acq_shares_m)
+    # Defaults reproduce the prior 3% exactly (byte-identical when omitted);
+    # when set they surface as named-range assumption cells and the formulas
+    # read the named range (visible + overridable on the sheet).
+    combined_da_growth_pct: float = 0.03
+    standalone_eps_growth_pct: float = 0.03
+
+    # Stock-deal collar bands — previously hard-coded ±15% / −20% inside the
+    # DealStructure "Exchange ratio & collar" formula strings (×0.85 / ×1.15 /
+    # ×0.80). Now OPTIONAL named-input multipliers with those exact defaults so
+    # behaviour is byte-identical when absent; when set, the collar bound /
+    # walk-away formulas read the named ranges (override is live + visible).
+    collar_low_pct: float = 0.85
+    collar_high_pct: float = 1.15
+    walk_away_pct: float = 0.80
+
     # v0.7 additions — bulge-tier merger rigor
     ppa: PPAAllocation | None = None
     break_fees: BreakFees | None = None

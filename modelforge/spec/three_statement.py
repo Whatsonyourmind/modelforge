@@ -72,6 +72,31 @@ class ThreeStatementSpec(BaseModel):
     historical_net_debt_eur_m: float
     historical_net_debt_source_id: str = Field(pattern=r"^S-\d{3,}$")
 
+    # ── Model parameters (lifted from former builder hardcodes) ──────────
+    # All optional; defaults reproduce the prior hardcoded behaviour byte-
+    # for-byte. Each is emitted as a visible, styled, overridable named-input
+    # cell on the Model sheet and wired into the relevant formula.
+    sbc_pct_revenue: Optional[float] = Field(default=0.01, ge=0.0, le=1.0)
+    """Stock-based compensation as a fraction of revenue (non-cash, CFS
+    add-back). Default 1% of revenue."""
+
+    revolver_capacity_eur_m: Optional[float] = Field(default=100.0, ge=0.0)
+    """Revolver facility capacity (EUR m). Commitment fee accrues on the
+    undrawn portion of this capacity. Default 100m."""
+
+    revolver_commitment_fee_pct: Optional[float] = Field(
+        default=0.005, ge=0.0, le=1.0)
+    """Annual commitment fee charged on the undrawn revolver capacity.
+    Default 0.5%."""
+
+    book_tax_diff_da_pct: Optional[float] = Field(default=0.05, ge=0.0, le=1.0)
+    """Permanent/timing book-vs-tax D&A difference as a fraction of |D&A|,
+    used to accrue the DTL each year. Default 5% of |D&A|."""
+
+    nol_util_cap_pct: Optional[float] = Field(default=0.80, ge=0.0, le=1.0)
+    """NOL carryforward utilisation cap as a fraction of positive EBT
+    (e.g. IRC §172 / EU 80% limitation). Default 80%."""
+
     @field_validator("pl")
     @classmethod
     def pl_years_match(cls, v: PLAssumptions, info):
