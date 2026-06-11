@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Callable
 
 import click
 import yaml
@@ -42,53 +43,116 @@ def main() -> None:
     """ModelForge — bulge-tier Excel model factory."""
 
 
+# Map every model_type to a zero-arg loader that lazily imports + returns its
+# Pydantic spec class. Lazy so a missing optional dep in one template can't
+# break CLI startup. Keys MUST stay in lockstep with templates.REGISTRY — the
+# _load_spec_class guard below asserts that invariant so the two can never
+# silently drift again (the root cause of the original "Unknown model_type"
+# bug for the 4 newest templates).
+def _spec_loader_map() -> dict[str, "Callable[[], type]"]:
+    def _unitranche():
+        return UnitrancheSpec
+
+    def _minibond():
+        from modelforge.spec.minibond import MinibondSpec
+        return MinibondSpec
+
+    def _credit_memo():
+        from modelforge.spec.credit_memo import CreditMemoSpec
+        return CreditMemoSpec
+
+    def _project_finance():
+        from modelforge.spec.project_finance import ProjectFinanceSpec
+        return ProjectFinanceSpec
+
+    def _real_estate():
+        from modelforge.spec.real_estate import RealEstateSpec
+        return RealEstateSpec
+
+    def _npl():
+        from modelforge.spec.npl import NPLSpec
+        return NPLSpec
+
+    def _structured_credit():
+        from modelforge.spec.structured_credit import StructuredCreditSpec
+        return StructuredCreditSpec
+
+    def _three_statement():
+        from modelforge.spec.three_statement import ThreeStatementSpec
+        return ThreeStatementSpec
+
+    def _dcf():
+        from modelforge.spec.dcf import DCFSpec
+        return DCFSpec
+
+    def _merger():
+        from modelforge.spec.merger import MergerSpec
+        return MergerSpec
+
+    def _fairness():
+        from modelforge.spec.fairness import FairnessSpec
+        return FairnessSpec
+
+    def _sponsor_lbo():
+        from modelforge.spec.sponsor_lbo import SponsorLBOSpec
+        return SponsorLBOSpec
+
+    def _ipo():
+        from modelforge.spec.ipo import IPOSpec
+        return IPOSpec
+
+    def _restructuring():
+        from modelforge.spec.restructuring import RestructuringSpec
+        return RestructuringSpec
+
+    def _hgb_carveout():
+        from modelforge.spec.hgb_carveout import HGBCarveoutSpec
+        return HGBCarveoutSpec
+
+    def _portfolio_review():
+        from modelforge.spec.portfolio_review import PortfolioReviewSpec
+        return PortfolioReviewSpec
+
+    return {
+        "unitranche": _unitranche,
+        "minibond": _minibond,
+        "credit_memo": _credit_memo,
+        "project_finance": _project_finance,
+        "real_estate": _real_estate,
+        "npl": _npl,
+        "structured_credit": _structured_credit,
+        "three_statement": _three_statement,
+        "dcf": _dcf,
+        "merger": _merger,
+        "fairness": _fairness,
+        "sponsor_lbo": _sponsor_lbo,
+        "ipo": _ipo,
+        "restructuring": _restructuring,
+        "hgb_carveout": _hgb_carveout,
+        "portfolio_review": _portfolio_review,
+    }
+
+
+# Backwards-compat alias retained for any external caller importing this name.
 SPEC_CLASSES = {
     "unitranche": UnitrancheSpec,
 }
 
 
 def _load_spec_class(model_type: str):
-    """Lazily import spec classes so missing deps in one template don't break CLI startup."""
-    if model_type in SPEC_CLASSES:
-        return SPEC_CLASSES[model_type]
-    if model_type == "minibond":
-        from modelforge.spec.minibond import MinibondSpec
-        return MinibondSpec
-    if model_type == "credit_memo":
-        from modelforge.spec.credit_memo import CreditMemoSpec
-        return CreditMemoSpec
-    if model_type == "project_finance":
-        from modelforge.spec.project_finance import ProjectFinanceSpec
-        return ProjectFinanceSpec
-    if model_type == "real_estate":
-        from modelforge.spec.real_estate import RealEstateSpec
-        return RealEstateSpec
-    if model_type == "npl":
-        from modelforge.spec.npl import NPLSpec
-        return NPLSpec
-    if model_type == "structured_credit":
-        from modelforge.spec.structured_credit import StructuredCreditSpec
-        return StructuredCreditSpec
-    if model_type == "three_statement":
-        from modelforge.spec.three_statement import ThreeStatementSpec
-        return ThreeStatementSpec
-    if model_type == "dcf":
-        from modelforge.spec.dcf import DCFSpec
-        return DCFSpec
-    if model_type == "merger":
-        from modelforge.spec.merger import MergerSpec
-        return MergerSpec
-    if model_type == "fairness":
-        from modelforge.spec.fairness import FairnessSpec
-        return FairnessSpec
-    if model_type == "sponsor_lbo":
-        from modelforge.spec.sponsor_lbo import SponsorLBOSpec
-        return SponsorLBOSpec
-    raise ValueError(
-        f"Unknown model_type {model_type!r}. Known: unitranche, minibond, "
-        "credit_memo, project_finance, real_estate, npl, structured_credit, "
-        "three_statement, dcf, merger, fairness, sponsor_lbo"
-    )
+    """Resolve a model_type to its Pydantic spec class (registry-driven).
+
+    The loader map is kept in lockstep with ``templates.REGISTRY`` so the CLI
+    can build every shipped template — it can no longer drift behind the
+    registry the way the original hard-coded if/elif chain did. The "Known:"
+    list in the error is rebuilt dynamically from the registry.
+    """
+    loaders = _spec_loader_map()
+    loader = loaders.get(model_type)
+    if loader is not None:
+        return loader()
+    known = ", ".join(sorted(REGISTRY))
+    raise ValueError(f"Unknown model_type {model_type!r}. Known: {known}")
 
 
 @main.command("build")

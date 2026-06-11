@@ -362,9 +362,9 @@ LABELS: dict[str, Label] = {
 
     # ---------- Covenants ----------
     "leverage_ratio": Label(
-        en="Leverage (Net debt / EBITDA)", it="Leva (PFN / EBITDA)", de="Verschuldungsgrad (Nettoverschuldung / EBITDA)",
-        es="Apalancamiento (Deuda neta / EBITDA)", sv="Skuldsättning (Nettoskuld / EBITDA)", no="Gjeldsgrad (Nettogjeld / EBITDA)",
-        da="Gearing (Nettogæld / EBITDA)", nl="Hefboomratio (Nettoschuld / EBITDA)",
+        en="Leverage (Debt / EBITDA)", it="Leva (Debito / EBITDA)", de="Verschuldungsgrad (Verschuldung / EBITDA)",
+        es="Apalancamiento (Deuda / EBITDA)", sv="Skuldsättning (Skuld / EBITDA)", no="Gjeldsgrad (Gjeld / EBITDA)",
+        da="Gearing (Gæld / EBITDA)", nl="Hefboomratio (Schuld / EBITDA)",
     ),
     "leverage_threshold": Label(
         en="Leverage covenant", it="Covenant leva", de="Verschuldungs-Covenant",

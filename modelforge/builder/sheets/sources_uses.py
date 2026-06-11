@@ -45,6 +45,32 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
     refs: dict[str, int] = {}
     r = 5
 
+    # ── LBO-2 FIX (v0.11): cross-sheet references to the OperatingModel's
+    #    PROJECTED EBITDA. Exit proceeds, the hurdle reverse-solve, and the
+    #    dividend recap previously multiplied their exit/recap multiples by
+    #    `historical_ebitda_lfy` (entry LTM EBITDA), discarding all modeled
+    #    growth (~46 EUR m understated at exit). We instead point at the
+    #    projected EBITDA cell for the relevant year on OperatingModel.
+    #
+    #    OperatingModel layout (operating.build): year columns start at D
+    #    (layout.year_col(0)); EBITDA is row 13. Projection year `y` (1-indexed)
+    #    lives at column index h + y - 1. We clamp into the projection window.
+    OPMODEL_EBITDA_ROW = 13  # operating.build: EBITDA line row (fixed layout)
+    _h = spec.horizon.historical_years
+    _p = spec.horizon.projection_years
+
+    def _proj_ebitda_ref(proj_year_1indexed: int) -> str:
+        """Cross-sheet ref to projected EBITDA for a 1-indexed projection year,
+        clamped to the projection window [1.._p]."""
+        y = max(1, min(int(proj_year_1indexed), _p))
+        col = layout.year_col(_h + y - 1)
+        return f"OperatingModel!{col}{OPMODEL_EBITDA_ROW}"
+
+    _exit_year_val = getattr(spec, "exit_year", 5)
+    _recap_year_val = getattr(spec, "div_recap_year", 3)
+    proj_exit_ebitda_ref = _proj_ebitda_ref(_exit_year_val)
+    proj_recap_ebitda_ref = _proj_ebitda_ref(_recap_year_val)
+
     # ── SECTION 1: Sources & Uses (US-201) ────────────────────────────────
     layout.write_section_header(ws, r, "Sources & Uses",
                                 "Fonti e impieghi (S&U)")
@@ -122,12 +148,20 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
     refs["uses_equity_pp"] = r
     layout.write_row_label(ws, r, "Purchase equity (target shares × offer px)",
                            "Equity da acquisire", indent=True)
-    # Computed below in Section 2; placeholder input
+    # LBO-3 FIX (v0.11): the Uses "Purchase equity" line previously computed
+    # offer_px × FD shares ONLY (71.5), omitting the option buyout that the
+    # canonical Purchase-price-build equity cell (Section 2, pp_equity = 73.5)
+    # includes. The two equity figures must agree. We write a placeholder value
+    # here and, once Section 2's `pp_equity` cell exists, patch this cell to a
+    # LIVE reference to it (see the "LBO-3 patch" below). The placeholder value
+    # already includes the option buyout so the workbook is correct even if the
+    # patch order ever changes.
     offer_px_assum = getattr(spec, "offer_premium_pct", None)
     target_fd = getattr(spec, "target_fd_shares_m", 0.0) or 0.0
     target_px = getattr(spec, "target_share_price_eur", 0.0) or 0.0
+    option_buyout = getattr(spec, "option_buyout_eur_m", 0.0) or 0.0
     if target_fd and target_px and offer_px_assum is not None:
-        equity_pp = target_fd * target_px * (1 + offer_px_assum.base)
+        equity_pp = target_fd * target_px * (1 + offer_px_assum.base) + option_buyout
     else:
         equity_pp = senior_amount + mezz_amount + sponsor_equity + mgmt_rollover \
                     - ma_fees - fin_fees  # fallback: plug
@@ -180,6 +214,43 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
     c.border = styles.BORDER_TOP_THIN
     r += 1
 
+    # ── LBO-1 FIX (v0.11): sponsor NEW-MONEY equity is the BALANCING PLUG, not a
+    #    fixed spec input. Standard LBO S&U: the sponsor writes whatever equity
+    #    cheque makes Sources == Uses, given the debt drawn and management
+    #    rollover. So:
+    #        sponsor_equity = total_uses − (senior + mezz + rcf) − rollover
+    #    Written as a live formula on the Sources sponsor-equity cell, this makes
+    #    Total sources == Total uses and the S&U check ≈ 0 BY CONSTRUCTION. The
+    #    prior code planted the spec's sponsor_equity_eur_m here, leaving a −7.3
+    #    imbalance whenever it disagreed with the financing need.
+    debt_source_refs = (
+        f"D{refs['sources_senior']}+D{refs['sources_mezz']}"
+        f"+D{refs['sources_rcf']}"
+    )
+    plug_cell = ws.cell(
+        row=refs["sources_sponsor_eq"], column=4,
+        value=(f"=D{refs['uses_total']}-({debt_source_refs})"
+               f"-D{refs['sources_rollover']}"),
+    )
+    styles.style_formula(plug_cell, number_format=styles.FMT_EUR_M)
+    plug_cell.comment = Comment(
+        "Sponsor new-money equity is the S&U balancing plug: "
+        "Total Uses − debt drawn (senior+mezz+RCF) − management rollover. "
+        "This guarantees Sources = Uses by construction (standard LBO "
+        "structuring).",
+        "ModelForge",
+    )
+
+    # ── LBO-3 PATCH (v0.11): point the Uses "Purchase equity" cell at the
+    #    canonical Purchase-price-build equity cell (Section 2 `pp_equity`,
+    #    which includes the option buyout) so the two never diverge. Section 2
+    #    is emitted below; `refs['pp_equity']` will exist by then, so we defer
+    #    the rewrite to just after Section 2 (see `_patch_uses_equity_pp`).
+    def _patch_uses_equity_pp() -> None:
+        cc = ws.cell(row=refs["uses_equity_pp"], column=4,
+                     value=f"=D{refs['pp_equity']}")
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+
     refs["sau_check"] = r
     layout.write_row_label(ws, r, "S&U check (sources − uses)",
                            "S&U check (fonti − impieghi)")
@@ -228,6 +299,9 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
     styles.style_formula(c, number_format=styles.FMT_EUR_M)
     c.font = styles.font_subheader
     r += 1
+    # LBO-3: now that the canonical equity-purchase-price cell exists, point the
+    # Uses "Purchase equity" line at it so the two figures always agree.
+    _patch_uses_equity_pp()
     refs["pp_net_debt"] = r
     layout.write_row_label(ws, r, "(+) Target net debt assumed",
                            "(+) PFN target assunto", indent=True)
@@ -579,7 +653,7 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
         # Simple placeholder formula; full reverse-solve requires iterative Excel.
         c = ws.cell(
             row=r, column=4,
-            value=(f"=(D{refs['exit_strategic']}*historical_ebitda_lfy)/"
+            value=(f"=(D{refs['exit_strategic']}*{proj_exit_ebitda_ref})/"
                    f"(1+{pct})^D{refs['exit_year']}/3"),
         )
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
@@ -655,13 +729,17 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
             else:
                 # Dividend during hold: via recap in recap_year (if enabled),
                 # else 0. Exit proceeds if y == exit_year.
+                # LBO-2: exit proceeds use the PROJECTED exit-year EBITDA
+                # (captures modeled growth), not entry LTM EBITDA.
                 exit_proceeds = (
                     f"IF({y}=D{refs['exit_year']},"
-                    f"D{refs[mult_key]}*historical_ebitda_lfy,0)"
+                    f"D{refs[mult_key]}*{proj_exit_ebitda_ref},0)"
                 )
+                # LBO-2: recap leverage applies to the PROJECTED recap-year
+                # EBITDA (the deleveraged/grown EBITDA at the recap date).
                 recap_div = (
                     f"IF(AND(D{refs['recap_enabled']}=1,{y}=D{refs['recap_year']}),"
-                    f"(recap_target_leverage*historical_ebitda_lfy"
+                    f"(recap_target_leverage*{proj_recap_ebitda_ref}"
                     f"-D{refs['cap_sponsor_eq']})*recap_sponsor_share_pct,0)"
                 )
                 # Earnout payment in earnout_year (neutral to sponsor — adds to
@@ -768,16 +846,17 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
     c = ws.cell(
         row=r, column=4,
         value=(f"=IF(D{refs['recap_enabled']}=1,"
-               f"(recap_target_leverage*historical_ebitda_lfy"
+               f"(recap_target_leverage*{proj_recap_ebitda_ref}"
                f"-D{refs['cap_sponsor_eq']})*recap_sponsor_share_pct,0)"),
     )
     styles.style_formula(c, number_format=styles.FMT_EUR_M)
     ws.cell(row=r, column=4).comment = Comment(
         "Dividend recap distribution = IF(recap enabled, "
-        "target_leverage × historical_EBITDA − sponsor_equity, 0). "
-        "New debt is issued up to target leverage; proceeds net of "
-        "existing equity fund the sponsor distribution. Simplified: "
-        "assumes no refinance fees (add via financing_fee_pct).",
+        "target_leverage × projected recap-year EBITDA − sponsor_equity, 0). "
+        "New debt is issued up to target leverage on the GROWN (projected) "
+        "EBITDA at the recap date; proceeds net of existing equity fund the "
+        "sponsor distribution. Simplified: assumes no refinance fees "
+        "(add via financing_fee_pct).",
         "ModelForge",
     )
     r += 2

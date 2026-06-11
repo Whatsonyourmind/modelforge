@@ -336,13 +336,20 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         if i == 0:
             cc = ws.cell(row=r, column=col_idx, value="=0")
         else:
+            prior = layout.year_col(i - 1)
+            # Distributable cash net of BOTH the senior principal paid this year
+            # AND the mezz principal paid down this year. The mezz paydown in the
+            # retirement-transition year (prior_mezz_os - current_mezz_os) must be
+            # subtracted too; otherwise that cash is double-counted as equity
+            # residual (cash-conservation leak in the transition year).
             cc = ws.cell(
                 row=r, column=col_idx,
                 value=(
                     f"=IF(AND(${col}${rows['senior_principal_outstanding']}<=0.01,"
                     f"${col}${rows['mezz_principal_outstanding']}<=0.01),"
                     f"MAX(${col}${rows['net_collections']}+${col}${rows['interest_service']}"
-                    f"-${col}${rows['senior_principal_pay']},0),0)"
+                    f"-${col}${rows['senior_principal_pay']}"
+                    f"-(${prior}${rows['mezz_principal_outstanding']}-${col}${rows['mezz_principal_outstanding']}),0),0)"
                 ),
             )
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)

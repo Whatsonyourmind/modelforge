@@ -205,15 +205,35 @@ def build(
         #   sweep[t] ← FCF[t] ← tax[t] ← PBT[t] ← interest[t] ← avg[t] ← closing[t] ← sweep[t]
         # WSP / bulge-bracket convention: use BOP to avoid the circular.
         # Slight accuracy tradeoff but required when a cash-sweep is in play.
+        #
+        # UNI-1 FIX (v0.11): the loan is FUNDED at close (start of the
+        # drawdown year, column index h), so a par lender earns a FULL first
+        # coupon that period. BOP-on-opening makes opening[h]==prior closing
+        # ==0, dropping the first coupon entirely (lender IRR < coupon — an
+        # impossible result for a par loan with an upfront fee). For the
+        # DRAWDOWN YEAR ONLY we therefore accrue on the CLOSING (funded)
+        # balance; all later years stay BOP (no circular, since later closings
+        # depend on the sweep). Scoped to model_type=="unitranche": the
+        # lender-side direct-lending template. credit_memo and sponsor_lbo keep
+        # the documented BOP-on-opening convention unchanged (their schedules
+        # and downstream sweeps are byte-identical to before this fix).
+        first_coupon_on_closing = getattr(spec, "model_type", "") == "unitranche"
         block["interest"] = r
         layout.write_row_label(ws, r, L("cash_interest").en, L("cash_interest").secondary)
         ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
         for i in range(n_years):
             col = layout.year_col(i)
             col_idx = ord(col) - ord("A") + 1
-            bop_ref = f"${col}${block['opening']}"  # BOP = opening balance
             rate_ref = f"${col}${block['all_in_rate']}"
-            c = ws.cell(row=r, column=col_idx, value=f"=-{bop_ref}*{rate_ref}")
+            if first_coupon_on_closing and i == h:
+                # Drawdown year: accrue on the funded (closing) balance so the
+                # first coupon is not lost. closing[h] depends only on the
+                # constant drawdown (sweep is disabled in the drawdown year),
+                # so this introduces no circular reference.
+                bal_ref = f"${col}${block['closing']}"  # funded balance
+            else:
+                bal_ref = f"${col}${block['opening']}"  # BOP = opening balance
+            c = ws.cell(row=r, column=col_idx, value=f"=-{bal_ref}*{rate_ref}")
             styles.style_formula(c, number_format=styles.FMT_EUR_M)
             c.font = styles.font_subheader
         r += 1
@@ -286,6 +306,16 @@ def build(
         # Interim leverage = (sum of pre-sweep closing) / EBITDA
         # Note: this row is informational only; the sweep itself uses the
         # PRIOR period's value of this row, so the cycle is broken.
+        #
+        # LBO-4 FIX (v0.11): for the CLOSE column (drawdown year, index h) the
+        # debt is dated at close while the same-column projected EBITDA is the
+        # FORWARD (Year-1) figure. Dividing close debt by forward EBITDA
+        # understates entry leverage (e.g. 3.81x instead of the contractual
+        # 4.13x = senior / trailing LTM EBITDA). Bulge-bracket convention quotes
+        # opening/entry leverage on TRAILING (last-FY) EBITDA. So at the close
+        # column we divide by the prior column's (entry/LTM) EBITDA; all later
+        # columns keep same-period EBITDA (true interim leverage). No new
+        # circular: entry EBITDA is a historical constant.
         interim_lev_row = r
         layout.write_row_label(
             ws, r, "Interim leverage (pre-sweep)", "Leva pre-sweep", indent=True,
@@ -298,7 +328,9 @@ def build(
             # Sum of all tranche closings this period
             parts = [f"${col}${b['closing']}" for b in tranche_blocks]
             debt_sum = "(" + "+".join(parts) + ")"
-            ebitda_ref = f"'{operating_sheet_name}'!{col}{ebitda_row}"
+            # Close column → trailing (entry/LTM) EBITDA; otherwise same-period.
+            ebitda_col = layout.year_col(i - 1) if (i == h and h > 0) else col
+            ebitda_ref = f"'{operating_sheet_name}'!{ebitda_col}{ebitda_row}"
             c = ws.cell(row=r, column=col_idx,
                         value=f"=IFERROR({debt_sum}/{ebitda_ref},0)")
             styles.style_formula(c, number_format=styles.FMT_MULTIPLE)

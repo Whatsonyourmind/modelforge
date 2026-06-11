@@ -152,8 +152,19 @@ def build(ws: Worksheet, spec, operating_refs: dict[str, str],
     ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        # A bullet/amortizing bond is drawn in full at close and repays
+        # principal at period-END, so the coupon accrues on the period-OPENING
+        # outstanding face — NOT on the (opening+closing)/2 average balance.
+        # The drawdown happens within the issue year (at close), so the
+        # outstanding face that period is opening + drawdown; for every later
+        # year drawdown is 0 and this equals the plain opening balance.
+        # Using the average understated every coupon (year-1 rendered half,
+        # because opening=0 the year the bond is drawn) and broke the par-bond
+        # identity (YTM fell below the coupon). avg_balance is retained above
+        # purely as a display row and is no longer fed into interest.
         c = ws.cell(row=r, column=col_idx,
-                    value=f"=-${col}${rows['avg_balance']}*${col}${rows['all_in_rate']}")
+                    value=f"=-(${col}${rows['opening']}+${col}${rows['drawdown']})"
+                          f"*${col}${rows['all_in_rate']}")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
         c.font = styles.font_subheader
     r += 1
