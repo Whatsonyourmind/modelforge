@@ -235,22 +235,39 @@ if not par_anchor_ok:
     )
 
 # ════════════════════════════════════════════════════════════════════════════
-# CHECK 5 — Macaulay / modified duration vs from-scratch clean-room. The model
-#           renders NO duration cell -> SCOPE GAP. We still publish the
-#           independent ground-truth value so reviewers have it.
+# CHECK 5 — Macaulay / modified duration: the model now RENDERS both cells in
+#           InvestorReturns (D24 Macaulay, D25 modified). Reconcile the LIVE-
+#           Excel rendered values against the from-scratch clean-room duration
+#           computed above (par YTM == coupon; PV-weighted average life). The
+#           expected leg is the hand-rolled `mac_dur_cleanroom` / the textbook
+#           identity Mod = Mac/(1+y) — NEVER a modelforge output. This is now a
+#           genuine reconciliation INVARIANT.
+#           (Flipped 2026-06-11: was a SCOPE-GAP finding with DURATION_CELL_
+#           EXISTS=False while no duration cell was rendered; the feature now
+#           ships, so the gap-check becomes a correctness reconciliation.)
 # ════════════════════════════════════════════════════════════════════════════
-DURATION_CELL_EXISTS = False  # confirmed by full BondStructure/InvestorReturns dump
-record("Macaulay/modified duration rendered by model",
-       DURATION_CELL_EXISTS,
-       f"Mac={mac_dur_cleanroom:.4f}, Mod={mod_dur_cleanroom:.4f}",
-       "NOT RENDERED", note="scope gap: no duration cell in workbook",
-       is_invariant=False)
-if not DURATION_CELL_EXISTS:
-    bugs.append(
-        "GAP: model renders no Macaulay/modified duration cell. Clean-room par-bond "
-        f"Macaulay duration = {mac_dur_cleanroom:.4f}y, modified = {mod_dur_cleanroom:.4f}y "
-        "(provided for reference; nothing in the workbook to reconcile against)."
-    )
+mac_dur_model = cell("InvestorReturns", "D24")
+mod_dur_model = cell("InvestorReturns", "D25")
+record("model Macaulay duration == clean-room (par PV-weighted life)",
+       abs(mac_dur_model - mac_dur_cleanroom) < 1e-6,
+       mac_dur_cleanroom, mac_dur_model,
+       note="independent ground truth: Σ(t·PV_t)/Σ(PV_t) at par YTM",
+       is_invariant=True)
+# Modified duration: grade against the textbook identity Mod = Mac/(1+y) built
+# from the CLEAN-ROOM par YTM (not the model's), so the expected leg is fully
+# model-independent. Also assert the rendered Mod < rendered Mac (always true).
+record("model modified duration == clean-room Mac/(1+y)",
+       abs(mod_dur_model - mod_dur_cleanroom) < 1e-6,
+       mod_dur_cleanroom, mod_dur_model,
+       note="Mod = Mac/(1+par_ytm); par_ytm=coupon", is_invariant=True)
+record("modified duration < Macaulay duration (textbook ordering)",
+       mod_dur_model < mac_dur_model, "Mod < Mac",
+       f"{mod_dur_model:.4f} < {mac_dur_model:.4f}", is_invariant=True)
+# Cross-check the rendered modified duration against the model's OWN Macaulay
+# via the same identity (internal consistency, independent of clean-room).
+record("rendered Mod == rendered Mac/(1+coupon) (internal identity)",
+       abs(mod_dur_model - mac_dur_model / (1 + COUPON)) < 1e-9,
+       mac_dur_model / (1 + COUPON), mod_dur_model, is_invariant=True)
 
 # ════════════════════════════════════════════════════════════════════════════
 # CHECK 6 — Issuer all-in cost == npf.irr(issuer CF) and (with fees) > coupon.
@@ -266,19 +283,37 @@ record("net proceeds == face - all upfront fees (independent)",
 
 issuer_cf = [net_proceeds] + [-(model_coupon[i] + amort_abs_model[i]) for i in range(6)]
 issuer_all_in = npf.irr(issuer_cf)
-ISSUER_CELL_EXISTS = False
-record("issuer all-in cost rendered by model",
-       ISSUER_CELL_EXISTS,
-       f"clean-room irr={issuer_all_in:.4f}", "NOT RENDERED",
-       note="scope gap: no issuer all-in-cost cell", is_invariant=False)
-if not ISSUER_CELL_EXISTS:
-    bugs.append(
-        "GAP: no issuer all-in-cost cell. Clean-room issuer IRR (net proceeds "
-        f"{net_proceeds:.3f} vs model coupons+principal) = {issuer_all_in*100:.3f}%. "
-        f"With the corrected outstanding-face coupons it is ABOVE the {COUPON*100:.2f}% "
-        "coupon, as the 'all-in > coupon when upfront fees exist' law requires; only "
-        "the rendered cell is missing."
-    )
+# The model now RENDERS the issuer all-in cost (InvestorReturns!D29) as the IRR
+# of its own issuer cashflow row (net proceeds in, coupon+principal out). Grade
+# the LIVE-Excel rendered value against an INDEPENDENT npf.irr of the issuer
+# cashflow that THIS harness re-builds from the rendered net proceeds + rendered
+# coupons + amort (no modelforge IRR ever touches the expected leg). Genuine
+# reconciliation INVARIANT.
+# (Flipped 2026-06-11: was a SCOPE-GAP finding with ISSUER_CELL_EXISTS=False
+# while no all-in cell was rendered; the feature now ships.)
+issuer_all_in_model = cell("InvestorReturns", "D29")
+record("model issuer all-in == numpy_financial.irr(issuer CF)",
+       abs(issuer_all_in_model - issuer_all_in) < 1e-7,
+       issuer_all_in, issuer_all_in_model,
+       note="independent npf.irr of net proceeds vs coupon+principal",
+       is_invariant=True)
+# Economic law: with positive upfront fees the issuer all-in cost MUST exceed
+# the headline coupon. Expected bound (COUPON) is read straight from the YAML.
+record("model issuer all-in cost > coupon (fees raise cost-of-funds)",
+       issuer_all_in_model > COUPON, ">6.50%", f"{issuer_all_in_model*100:.3f}%",
+       is_invariant=True)
+# Re-verify the model's rendered issuer cashflow row reconciles cell-by-cell to
+# the clean-room issuer CF (net proceeds at t=0, −(coupon+amort) thereafter),
+# so the IRR above is being taken over the correct stream.
+issuer_cf_model_row = [cell("InvestorReturns", dcol(t) + "28") for t in range(7)]
+issuer_cf_expected = [net_proceeds] + [-(coupon_true[i] + amort_true[i]) for i in range(6)]
+issuer_cf_row_ok = all(
+    abs(issuer_cf_model_row[t] - issuer_cf_expected[t]) < 1e-6 for t in range(7)
+)
+record("rendered issuer CF row == clean-room issuer CF (per period)",
+       issuer_cf_row_ok, issuer_cf_expected, issuer_cf_model_row,
+       note="net proceeds in at t=0, coupon+principal out thereafter",
+       is_invariant=True)
 
 # Sanity: with CORRECT coupons, issuer all-in WOULD exceed the coupon (proves the
 # 'all-in > coupon' economic law holds once the coupon defect is removed).

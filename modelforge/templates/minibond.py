@@ -3,10 +3,12 @@
 FEATURE SCOPE (honest-label, so the deliverable does not silently overclaim):
   SHIPPED — issuer financials, bond structure (drawdown / amortization /
     coupon on outstanding face), generic covenants, investor returns
-    (gross/net YTM, EIR, MoIC), QC + compliance recap.
-  NOT IN SCOPE (roadmap) — Macaulay/modified DURATION and an issuer ALL-IN
-    COST (cost-of-debt) cell are not rendered. A scope-note row is written to
-    the QC sheet so a reviewer sees the boundary inside the workbook.
+    (gross/net YTM, EIR, MoIC), fixed-income analytics (Macaulay & modified
+    DURATION, issuer ALL-IN COST of debt), QC + compliance recap.
+  v0.11 (2026-06-11): duration + issuer all-in cost now RENDER in the
+    InvestorReturns sheet (Macaulay D24 / modified D25 / issuer all-in D29),
+    validated against numpy_financial / clean-room ground truth in
+    hardtest_minibond.py. The earlier "NOT IN SCOPE (roadmap)" note is removed.
 """
 
 from __future__ import annotations
@@ -90,8 +92,8 @@ def build(spec, out_path: Path | str, graph_db_path=None):
         qc_ws = wb.create_sheet("QC")
         generic_qc.build(qc_ws, checks)
         # Honest feature-scope note (does not affect any QC pass/fail formula —
-        # written well below the check rows). States the bond-analytics the
-        # deliverable does NOT render, so it cannot silently overclaim.
+        # written well below the check rows). States exactly what the
+        # deliverable renders so it cannot silently overclaim.
         note_row = 7 + len(checks) + 2
         scope = qc_ws.cell(
             row=note_row, column=1,
@@ -102,9 +104,11 @@ def build(spec, out_path: Path | str, graph_db_path=None):
             ("SHIPPED: bond structure, coupon on outstanding face, covenants, "
              "investor returns (gross/net YTM, EIR, MoIC).",
              "In ambito: struttura bond, cedola, covenant, rendimenti investitore."),
-            ("NOT IN SCOPE (roadmap): Macaulay/modified duration cell; "
-             "issuer all-in cost (cost-of-debt) cell.",
-             "Fuori ambito: cella duration; costo all-in dell'emittente."),
+            ("SHIPPED: fixed-income analytics — Macaulay & modified duration; "
+             "issuer all-in cost of debt (IRR of net proceeds vs coupon+principal). "
+             "See the InvestorReturns sheet.",
+             "In ambito: analitiche obbligazionarie — duration di Macaulay e "
+             "modificata; costo all-in dell'emittente (foglio InvestorReturns)."),
         ), start=1):
             c = qc_ws.cell(row=note_row + off, column=1, value=en)
             c.font = styles.font_label_en

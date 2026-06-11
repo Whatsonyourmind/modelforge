@@ -78,10 +78,15 @@ debt:
     { id: A-022, name: senior_margin_bps, label: { en: "Senior margin (bps)", it: "Margine senior" }, unit: bps, base: 175, worst: 200, best: 150, rationale: "Green Taxonomy Art. 9 eligibility compresses pricing to 150-200 bps range.", confidence: H, source_id: S-006 }
   arrangement_fee_pct:
     { id: A-023, name: senior_arrangement_pct, label: { en: "Arrangement fee %", it: "Strutturazione" }, unit: pct, base: 0.0125, rationale: "1-1.5% PF infra standard.", confidence: H, source_id: S-006 }
-  # v0.3: lender-style sizing — solver back-solves senior amount from target
-  # DSCR 1.30x BASE; sculpted level-debt-service amortization.
+  # v0.12: GENUINE CFADS-driven DSCR sculpting. senior_amount above is the LTV
+  # cap (€214M = 68% gearing per the press release); the sculpt profile shapes
+  # the per-year principal to the 1.30x DSCR target. Here the cap binds (the
+  # asset could support more debt at 1.30x), so the realised DSCR floats ABOVE
+  # 1.30x and the schedule amortises to exactly 0 — honest: LTV, not DSCR, is
+  # the binding constraint. debt_sizing_mode=fixed_amount keeps the €214M cap
+  # fixed (the sculpt supersedes the legacy level-DS pre-solve).
   amortization_profile: sculpted_dscr_target
-  debt_sizing_mode: dscr_target
+  debt_sizing_mode: fixed_amount
   dsra_months: 6
   target_dscr_base:
     { id: A-080, name: target_dscr_base, label: { en: "Target DSCR (BASE sizing)", it: "DSCR target (dimensionamento BASE)" }, unit: x, base: 1.30, rationale: "Market-standard BASE DSCR for Italian solar PF (ING/Rabobank/BNPP club deals).", confidence: H, source_id: S-006 }

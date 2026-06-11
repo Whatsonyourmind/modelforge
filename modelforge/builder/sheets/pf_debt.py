@@ -17,6 +17,17 @@ When amortization_profile in {sculpted_*}, the per-year principal schedule
 is baked into the sheet as hardcoded PERCENTAGES of senior_amount, so
 formulas stay live: `=-senior_amount * 0.04271`. Scenario worst/best of
 senior_amount still scale correctly.
+
+v0.12 (US-PF-sculpt): amortization_profile=sculpted_dscr_target now performs
+GENUINE CFADS-driven DSCR sculpting (pf_solver.sculpt_dscr_target_schedule):
+the per-year principal is shaped so the REALISED DSCR — exactly as this sheet
+renders it (average-balance interest, EBIT−interest tax shield, maintenance
+capex) — is FLAT at the BASE target every amortizing operating year, the
+balance amortises to exactly 0 and never goes negative. The senior amount is
+RE-SOLVED here (Σ scheduled principal, capped at the user's senior_amount) and
+re-baked into the Assumptions base/worst/best for senior_amount, so the named
+range, drawdown, and amortisation all stay self-consistent. The level-debt-
+service profiles (sculpted_level_debt_service) keep the legacy annuity curve.
 """
 
 from __future__ import annotations
@@ -25,11 +36,20 @@ from openpyxl.comments import Comment
 from openpyxl.worksheet.worksheet import Worksheet
 
 from modelforge.builder import styles, layout
-from modelforge.builder.pf_solver import level_debt_service_pct_schedule
+from modelforge.builder.pf_solver import (
+    level_debt_service_pct_schedule,
+    sculpt_dscr_target_schedule,
+)
 
 
 def _sculpted_pct_schedule(spec) -> list[float]:
-    """Return operating-year-length list of principal pcts of senior_amount."""
+    """Return operating-year-length list of principal pcts of senior_amount.
+
+    For ``sculpted_level_debt_service`` this is the level-debt-service
+    (annuity) curve. ``sculpted_dscr_target`` is handled separately in
+    ``build`` via the genuine DSCR-sculpt solver (it must also re-size the
+    senior amount, which a pct-only schedule cannot express).
+    """
     rate = spec.debt.reference_rate.base + spec.debt.margin_bps.base / 10000.0
     amort_years = spec.debt.tenor_operating_years - spec.debt.grace_years
     return level_debt_service_pct_schedule(
@@ -38,6 +58,44 @@ def _sculpted_pct_schedule(spec) -> list[float]:
         grace_years=spec.debt.grace_years,
         operating_years=spec.horizon.operating_years,
     )
+
+
+def _rebake_senior_amount(ws, spec, new_amount: float) -> None:
+    """Re-bake the solved senior amount into the Assumptions sheet.
+
+    The genuine DSCR sculpt re-sizes the senior debt to Σ scheduled principal
+    (so it amortises to exactly 0). That solved amount must replace whatever
+    the template baked into the ``senior_amount`` named range, otherwise the
+    drawdown / amort percentages (which sum to 1.0 of senior_amount) would
+    repay the wrong quantum. We locate the senior_amount driver row on the
+    Assumptions sheet (by its Active-cell named range) and rewrite the
+    Worst/Base/Best input cells (F/G/H) to the solved amount — the Active
+    CHOOSE() formula then resolves to it in every scenario, keeping the sheet
+    fully self-consistent.
+    """
+    wb = ws.parent
+    name = spec.debt.amount.name  # "senior_amount"
+    dn = wb.defined_names.get(name)
+    if dn is None:
+        return
+    attr = dn.attr_text  # e.g. "'Assumptions'!$I$15"
+    try:
+        sheet_part, cell_part = attr.split("!")
+        sheet_name = sheet_part.strip("'")
+        row = int("".join(ch for ch in cell_part if ch.isdigit()))
+    except (ValueError, KeyError):
+        return
+    if sheet_name not in wb.sheetnames:
+        return
+    assum = wb[sheet_name]
+    # Worst=F, Base=G, Best=H — rewrite all three so Active is scenario-stable.
+    for col in (6, 7, 8):
+        cell = assum.cell(row=row, column=col, value=round(new_amount, 6))
+        styles.style_input(cell, number_format=styles.FMT_EUR_M)
+    # Keep the in-memory spec consistent for any downstream reader.
+    spec.debt.amount.base = round(new_amount, 6)
+    spec.debt.amount.worst = round(new_amount, 6)
+    spec.debt.amount.best = round(new_amount, 6)
 
 
 def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
@@ -55,26 +113,49 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
     _cov_thr = getattr(spec, "covenant_thresholds", None)
 
     profile = spec.debt.amortization_profile
-    is_sculpted = profile in ("sculpted_level_debt_service", "sculpted_dscr_target")
+    is_sculpted_lds = profile == "sculpted_level_debt_service"
+    is_sculpted_dscr = profile == "sculpted_dscr_target"
+    is_sculpted = is_sculpted_lds or is_sculpted_dscr
     is_bullet = profile == "bullet"
 
-    # Pre-compute pct schedule if sculpted
+    # Pre-compute the principal-pct schedule if sculpted.
+    #   * sculpted_level_debt_service → legacy annuity curve.
+    #   * sculpted_dscr_target        → GENUINE DSCR sculpt: solve the coupled
+    #     schedule + senior amount so realised DSCR is flat at target, then
+    #     re-bake the solved senior amount into Assumptions.
     pct_schedule: list[float] = []
-    if is_sculpted:
+    dscr_sculpt_binds = False
+    if is_sculpted_dscr:
+        solved_senior, pct_schedule, dscr_sculpt_binds = (
+            sculpt_dscr_target_schedule(spec)
+        )
+        _rebake_senior_amount(ws, spec, solved_senior)
+    elif is_sculpted_lds:
         pct_schedule = _sculpted_pct_schedule(spec)
 
     layout.set_column_widths(ws, label_width=44, it_width=34, year_width=11, unit_width=6)
-    # v0.7 honesty fix: the "sculpted_*" profiles are implemented as a LEVEL
-    # DEBT SERVICE (annuity) amortization curve — they do NOT pin realised DSCR
-    # to a flat target (that would require CFADS-driven sculpting:
-    # principal_t = CFADS_t/target - interest_t). Under dscr_target sizing the
-    # senior amount is solved so the *minimum* DSCR equals the target; realised
-    # DSCR then rises above target in later years. Render an honest profile
-    # label so the deliverable stops claiming sculpting it does not perform.
+    # v0.12 (US-PF-sculpt): sculpted_dscr_target now performs GENUINE CFADS-
+    # driven DSCR sculpting — the per-year principal is shaped so the realised
+    # DSCR (average-balance interest, EBIT−interest tax shield, maintenance
+    # capex — exactly as this sheet renders) is FLAT at the BASE target every
+    # amortizing year, the balance amortises to 0 and never goes negative, and
+    # the senior amount is solved as Σ scheduled principal (capped at the
+    # user's senior_amount). The "DSCR-sculpted" label is restored ONLY because
+    # the schedule genuinely sculpts (validated independently in
+    # hardtest_project_finance CHECK E against a clean-room flat-DSCR sculpt).
+    # sculpted_level_debt_service keeps the honest level-debt-service (annuity)
+    # label — it does NOT pin DSCR flat.
+    if is_sculpted_dscr:
+        _dscr_label = (
+            "DSCR-sculpted (flat at target)" if dscr_sculpt_binds
+            else "DSCR-sculpted (LTV cap binds; DSCR floats above target)"
+        )
+    else:
+        _dscr_label = "DSCR-sculpted"
     _PROFILE_LABELS = {
         "linear": "linear amortization",
         "sculpted_level_debt_service": "level debt service (annuity)",
-        "sculpted_dscr_target": "level debt service (sized to min-DSCR target)",
+        "sculpted_dscr_target": _dscr_label,
         "bullet": "bullet repayment",
     }
     profile_label = _PROFILE_LABELS.get(profile, profile)
@@ -159,16 +240,38 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str],
                 if pct > 0:
                     cc = ws.cell(row=r, column=col_idx,
                                  value=f"=-{debt_amount}*{pct:.8f}")
-                    # Cell comment: solver provenance. NB: this is a LEVEL
-                    # DEBT SERVICE (annuity) curve, NOT DSCR-target sculpting —
-                    # realised DSCR is not flat at target (see sheet subtitle).
-                    cc.comment = Comment(
-                        f"Level-debt-service (annuity) amortization\n"
-                        f"Operating year {op_idx + 1}: principal = {pct * 100:.3f}% of senior\n"
-                        f"Solver: annuity at rate={spec.debt.reference_rate.base + spec.debt.margin_bps.base/10000:.4f}, "
-                        f"{amort_years}y amort, {spec.debt.grace_years}y grace",
-                        "ModelForge",
-                    )
+                    _all_in = (spec.debt.reference_rate.base
+                               + spec.debt.margin_bps.base / 10000)
+                    if is_sculpted_dscr:
+                        # Genuine DSCR sculpt: principal solved so realised DSCR
+                        # is flat at the BASE target (interest shield + maint.
+                        # capex accounted for). Provenance for the auditor.
+                        _tgt = spec.debt.target_dscr_base.base
+                        _mode = ("flat at target" if dscr_sculpt_binds
+                                 else "LTV cap binds; DSCR floats above target")
+                        cc.comment = Comment(
+                            f"CFADS-driven DSCR sculpt ({_mode})\n"
+                            f"Operating year {op_idx + 1}: principal = "
+                            f"{pct * 100:.3f}% of senior\n"
+                            f"Sculpt: principal_t = CFADS_t/{_tgt:.2f} - "
+                            f"|interest_t|, solved on the rendered-sheet CFADS "
+                            f"(EBIT-interest tax, maint capex) at "
+                            f"rate={_all_in:.4f}, {amort_years}y amort, "
+                            f"{spec.debt.grace_years}y grace. Senior amount = "
+                            f"sum of scheduled principal.",
+                            "ModelForge",
+                        )
+                    else:
+                        # Level-debt-service (annuity) — does NOT pin DSCR flat.
+                        cc.comment = Comment(
+                            f"Level-debt-service (annuity) amortization\n"
+                            f"Operating year {op_idx + 1}: principal = "
+                            f"{pct * 100:.3f}% of senior\n"
+                            f"Solver: annuity at rate={_all_in:.4f}, "
+                            f"{amort_years}y amort, "
+                            f"{spec.debt.grace_years}y grace",
+                            "ModelForge",
+                        )
                 else:
                     cc = ws.cell(row=r, column=col_idx, value=0)
             else:

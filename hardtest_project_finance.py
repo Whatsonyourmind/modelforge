@@ -95,73 +95,94 @@ def clean_room(spec: dict) -> dict:
     target_dscr = _a(spec["debt"]["target_dscr_base"])
     dsra_months = int(spec["debt"]["dsra_months"])
 
-    # ---- solver CFADS (this is what the model uses to SIZE debt) ----
-    # Independent re-implementation of the documented sizing-CFADS:
-    #   rev_t = rev1*(1+idx)^t ; opex = rev*opex_pct ; ebitda = rev-opex ;
-    #   tax = max(ebitda,0)*tax_rate ; cfads = ebitda - tax
-    sizing_cfads = []
-    rev = rev1
-    for t in range(o):
-        if t > 0:
-            rev *= (1 + rev_idx)
-        ebitda = rev * (1 - opex_pct)
-        tax = max(ebitda, 0.0) * tax_rate
-        sizing_cfads.append(ebitda - tax)
+    # ────────────────────────────────────────────────────────────────────
+    # CLEAN-ROOM DSCR SCULPT (independent of modelforge).
+    #
+    # The model now performs GENUINE CFADS-driven DSCR sculpting: it sizes the
+    # senior debt and shapes each year's principal so the realised DSCR is FLAT
+    # at the target every amortizing operating year. We re-derive that schedule
+    # here from FIRST PRINCIPLES — no modelforge import, no model output — using
+    # the flat-DSCR identity itself as the ground truth:
+    #
+    #     |debt_service_t| = CFADS_t / target        (the definition of DSCR)
+    #     principal_t      = CFADS_t / target − |interest_t|
+    #
+    # CFADS_t and interest_t are mutually coupled (interest shields tax, which
+    # moves CFADS; the schedule moves the balance, which moves interest), so we
+    # solve the (P, principal-$) fixed point exactly the way a live workbook
+    # with iterative calc would settle. The sizing CFADS here is the SAME
+    # definition the sheet renders (EBIT−interest tax, minus maintenance capex),
+    # which is the reconciliation the feature required.
+    last_amort = grace + amort_years - 1  # 0-based op index of last amort year
 
-    # ---- clean-room debt sizer: binary search max P s.t. min sizing-DSCR>=target
-    def level_ds_per_year(P):
-        out = [0.0] * o
-        for i in range(grace):
-            out[i] = P * rate
-        ann = P * rate / (1 - (1 + rate) ** (-amort_years)) if rate else P / amort_years
-        for i in range(amort_years):
-            idx = grace + i
-            if idx < o:
-                out[idx] = ann
-        return out
+    def _render(P, principal):
+        """Independent roll-forward for senior P and principal-$ schedule.
+        Returns (interest[], cfads[], debt_service[], closing[], dscr[]) over
+        the full c+o timeline. Mirrors the sheet's exact conventions:
+        average-balance interest, EBIT−interest tax, maintenance capex."""
+        opening = [0.0] * n
+        drawdown = [0.0] * n
+        amort = [0.0] * n
+        closing = [0.0] * n
+        for i in range(c):
+            drawdown[i] = P * phasing[i]
+        for i in range(n):
+            opening[i] = closing[i - 1] if i > 0 else 0.0
+            if i >= c:
+                op = i - c
+                amort[i] = -principal[op] if op < len(principal) else 0.0
+            closing[i] = opening[i] + drawdown[i] + amort[i]
+        avg = [(opening[i] + closing[i]) / 2 for i in range(n)]
+        interest = [-avg[i] * rate for i in range(n)]
+        debt_service = [interest[i] + amort[i] for i in range(n)]
+        revenue = [0.0] * n
+        cfads = [0.0] * n
+        dscr = [None] * n
+        for i in range(c, n):
+            t = i - c
+            rev_t = rev1 if t == 0 else revenue[i - 1] * (1 + rev_idx)
+            revenue[i] = rev_t
+            ebitda = rev_t * (1 - opex_pct)
+            da = -capex / o
+            ebit = ebitda + da
+            taxable = ebit + interest[i]                 # interest negative
+            tax = -max(taxable, 0.0) * tax_rate
+            maint = -rev_t * maint_pct
+            cfads[i] = ebitda + tax + 0.0 + maint        # ΔWC=0 in this spec
+            ds = abs(debt_service[i])
+            dscr[i] = (cfads[i] / ds) if ds > 1e-9 else None
+        return interest, cfads, debt_service, closing, dscr
 
-    def min_sizing_dscr(P):
-        ds = level_ds_per_year(P)
-        vals = [sizing_cfads[t] / ds[t] for t in range(o) if ds[t] != 0]
-        return min(vals) if vals else float("inf")
-
-    # Independent re-implementation of the documented binary search. We mirror
-    # the documented numeric contract (EUR-m tolerance 0.01, max_iter 50,
-    # return the lower bound `lo`, then round to 2dp before baking) because
-    # that contract — not infinite precision — is what defines the model's
-    # senior amount. This is still a clean-room (no modelforge import); we are
-    # only matching the *spec'd algorithm*, then grading the rendered number.
-    if min_sizing_dscr(cap) >= target_dscr:
-        solved_P = cap
-    else:
-        lo, hi = 0.0, cap
-        for _ in range(50):
-            mid = (lo + hi) / 2
-            if min_sizing_dscr(mid) >= target_dscr:
-                lo = mid
+    # Fixed point: start at the LTV cap, iterate principal_t = CFADS_t/target −
+    # |interest_t| until P converges. If the sculpt wants more than the cap, the
+    # cap binds (rescale principal to amortise the capped P to 0; DSCR floats).
+    P_sc = cap
+    principal = [0.0] * o
+    sculpt_binds = True
+    for _ in range(500):
+        interest, cfads_it, _ds, _cl, _dscr = _render(P_sc, principal)
+        new_principal = [0.0] * o
+        for op in range(o):
+            i = c + op
+            if op < grace or op > last_amort:
+                new_principal[op] = 0.0
             else:
-                hi = mid
-            if hi - lo < 0.01:
-                break
-        solved_P = lo
-    solved_P = round(solved_P, 2)  # model rounds to 2dp before baking
-
-    # ---- principal % schedule (level-debt-service annuity on solved P) ----
-    # fraction of P repaid in each operating year. grace years => 0.
-    if rate:
-        c_pct = rate / (1 - (1 + rate) ** (-amort_years))
-        bal = 1.0
-        amort_pct = []
-        for _ in range(amort_years):
-            ip = bal * rate
-            pp = c_pct - ip
-            amort_pct.append(pp)
-            bal -= pp
-    else:
-        amort_pct = [1.0 / amort_years] * amort_years
-    pct_sched = [0.0] * o
-    for i, p in enumerate(amort_pct):
-        pct_sched[grace + i] = p
+                new_principal[op] = max(cfads_it[i] / target_dscr - abs(interest[i]), 0.0)
+        new_P = sum(new_principal)
+        if new_P > cap + 1e-12:
+            scale = cap / new_P if new_P > 0 else 0.0
+            new_principal = [p * scale for p in new_principal]
+            new_P = cap
+            sculpt_binds = False
+        else:
+            sculpt_binds = True
+        dP = abs(new_P - P_sc)
+        principal = new_principal
+        P_sc = new_P
+        if dP < 1e-10:
+            break
+    solved_P = P_sc
+    pct_sched = [p / solved_P if solved_P else 0.0 for p in principal]
 
     # ---- full debt roll-forward + interest on AVERAGE balance ----
     opening = [0.0] * n
@@ -235,13 +256,19 @@ def clean_room(spec: dict) -> dict:
     eq_cf = [capex_row[i] + drawdown[i] + cfads[i] + debt_service[i] for i in range(n)]
     eq_irr = npf.irr(eq_cf)
 
+    # amortizing operating indices (0-based within operating phase): the years
+    # where the clean-room sculpt schedules positive principal. CHECK E grades
+    # flat-DSCR over exactly these years (grace + post-amort carry no principal,
+    # so their coverage is naturally above target and is excluded).
+    amortizing_op = [op for op in range(o) if pct_sched[op] > 1e-12]
+
     return dict(
         c=c, o=o, n=n, capex=capex, solved_P=solved_P, target_dscr=target_dscr,
         rate=rate, phasing=phasing, drawdown=drawdown, closing=closing,
         debt_service=debt_service, cfads=cfads, revenue=revenue, opex=opex,
         tax=tax, maint=maint, ebitda=ebitda, dscr=dscr, min_dscr=min_dscr,
         dsra_target=dsra_target, eq_cf=eq_cf, eq_irr=eq_irr,
-        sizing_cfads=sizing_cfads,
+        pct_sched=pct_sched, sculpt_binds=sculpt_binds, amortizing_op=amortizing_op,
     )
 
 
@@ -300,12 +327,17 @@ def main() -> int:
     live_eqcf = [g("EquityReturns", col(i) + "8") for i in range(n)]
     live_dscr = [g("DebtDSCR", col(i) + "19") for i in range(c, n)]
 
-    # ── CHECK A: clean-room debt sizing matches live solved senior amount ──
+    # ── CHECK A: clean-room DSCR-sculpt sizing matches live solved senior ──
+    # The senior amount is now SOLVED by the sculpt (Σ scheduled principal,
+    # capped at the 70% LTV senior_amount), not a level-DS binary search. The
+    # clean-room re-derives it from the flat-DSCR fixed point (independent of
+    # modelforge) and we grade the live total drawdown against it.
     live_P = sum(live_draw)  # total drawdown over construction == senior amount
-    print("\n== A. Debt sizing (clean-room solver vs live) ==")
+    print("\n== A. Debt sizing (clean-room DSCR-sculpt vs live) ==")
     check(abs(live_P - cr["solved_P"]) < 1e-2,
-          "Solved senior debt amount == independent binary-search sizer",
-          f"live={live_P:.4f}  cleanroom={cr['solved_P']:.4f} (cap=31.5)")
+          "Solved senior debt amount == independent DSCR-sculpt sizer",
+          f"live={live_P:.4f}  cleanroom={cr['solved_P']:.4f} "
+          f"(LTV cap=31.5, gearing={live_P/cr['capex']:.1%})")
 
     # ── CHECK B: Sources == Uses at financial close (INVARIANT) ──
     # Uses = total capex; Sources = total debt drawn + equity plug.
@@ -348,45 +380,52 @@ def main() -> int:
           "DSCR identity holds in all solvent (debt-service>0) operating years",
           f"max abs err = {dscr_id_err:.2e}")
 
-    # ── CHECK E: DOCUMENTED amortization behavior (level debt service sized to
-    #            the min-DSCR target — NOT flat DSCR-sculpting) ──
-    print("\n== E. Amortization profile == level debt service sized to min-DSCR target ==")
-    # The "sculpted_dscr_target" profile is implemented as a LEVEL DEBT SERVICE
-    # (annuity) curve with the senior amount solved so the *minimum* realised
-    # DSCR equals the target. It does NOT pin realised DSCR flat at the target
-    # (that would require CFADS-driven sculpting, principal_t = CFADS_t/target -
-    # interest_t — a separate feature; the deliverable no longer claims it).
+    # ── CHECK E: GENUINE CFADS-driven DSCR SCULPTING — realised DSCR is FLAT
+    #            at the target every amortizing operating year ──
+    print("\n== E. DSCR sculpt: realised DSCR is FLAT == target every amortizing year ==")
+    # The "sculpted_dscr_target" profile now performs genuine CFADS-driven DSCR
+    # sculpting: principal_t = CFADS_t/target − |interest_t|, so the realised
+    # DSCR is pinned FLAT at the BASE target across all amortizing operating
+    # years (grace year is interest-only → above target; post-amort years carry
+    # no debt service). The senior amount is solved as Σ scheduled principal.
     #
-    # Independent (clean-room) ground truth, no modelforge import:
-    #   (1) min realised DSCR == sizing target 1.30x  (binding sizing constraint)
-    #   (2) realised DSCR is genuinely upward-sloping (a flat annuity payment
-    #       against CPI-escalating CFADS gives RISING coverage) — i.e. the
-    #       schedule is level-debt-service, provably NOT flat-sculpted.
-    # We grade the LIVE DSCRs against the clean-room DSCR array reconstructed
-    # here from the spec, and against these structural invariants.
-    realised = [live_dscr[k] for k, i in enumerate(range(c, n))
-                if (live_dscr[k] is not None and abs(live_ds[i]) > 1e-6)]
-    cr_realised = [cr["dscr"][i] for i in range(c, n) if abs(cr["debt_service"][i]) > 1e-6]
-    min_real = min(realised)
-    max_real = max(realised)
-    # (1) min realised DSCR == clean-room min scan (independent re-derivation),
-    #     and it RESPECTS the sizing target as a conservative floor (>= 1.30x).
-    #     NB: realised min (1.68x) sits ABOVE the 1.30x sizing target because
-    #     the debt sizer taxes EBITDA (no interest shield) while the sheet CFADS
-    #     taxes EBIT - interest -> higher CFADS -> higher realised coverage.
-    #     This is documented level-debt-service behavior, NOT flat sculpting.
-    min_matches_scan = abs(min_real - cr["min_dscr"]) <= 1e-4
-    respects_target_floor = min_real >= cr["target_dscr"] - DSCR_TARGET_TOL
-    # (2) level-debt-service signature: coverage rises materially (a true
-    #     flat-DSCR sculpt would have spread ~= 0; this profile does not).
-    rises = (max_real - min_real) > 0.10
-    # (3) live realised DSCR path reconciles to the clean-room re-derivation.
-    max_real_err = max(abs(realised[k] - cr_realised[k]) for k in range(len(realised)))
-    check(min_matches_scan and respects_target_floor and rises and max_real_err < TOL,
-          "Realised DSCR = level debt service: min==clean-room scan, >=target floor, rises",
-          f"min={min_real:.4f} (scan={cr['min_dscr']:.4f}, target_floor={cr['target_dscr']:.2f}) "
-          f"max={max_real:.4f} reconcile_err={max_real_err:.2e} "
-          f"(min_matches_scan={min_matches_scan}, respects_floor={respects_target_floor}, rises={rises})")
+    # GROUND TRUTH IS MODEL-INDEPENDENT, not expected==model-output:
+    #   (1) The flat-DSCR target itself: realised DSCR_t == target (1.75x) for
+    #       every amortizing year, computed from the LIVE sheet's own
+    #       CFADS / |debt service| (DSCR's definition). A non-sculpting schedule
+    #       (the old level-DS curve) would FAIL this — it ramped 1.68x→2.96x.
+    #   (2) The clean-room flat-DSCR sculpt (re-derived here from first
+    #       principles, no modelforge) reproduces the SAME schedule: the live
+    #       realised DSCR path reconciles to the clean-room sculpt within TOL.
+    #   (3) Spread of realised DSCR over amortizing years ~= 0 (flat), proving
+    #       it is genuinely sculpted, not level-debt-service.
+    # The amortizing-year set is derived independently from the clean-room
+    # sculpt's positive-principal years (cr["amortizing_op"]).
+    amort_ops = cr["amortizing_op"]                  # 0-based op indices
+    target = cr["target_dscr"]
+    # live realised DSCR over the amortizing years
+    live_amort_dscr = [live_dscr[op] for op in amort_ops]   # live_dscr is op-indexed
+    cr_amort_dscr = [cr["dscr"][c + op] for op in amort_ops]
+    assert all(d is not None for d in live_amort_dscr), "amortizing DSCR cell unexpectedly blank"
+
+    # (1) flat AT the model-independent target (DSCR's own definition)
+    max_dev_from_target = max(abs(d - target) for d in live_amort_dscr)
+    flat_at_target = max_dev_from_target <= DSCR_TARGET_TOL
+    # (2) live reconciles to clean-room flat-DSCR sculpt
+    max_sculpt_err = max(abs(live_amort_dscr[k] - cr_amort_dscr[k])
+                         for k in range(len(amort_ops)))
+    reconciles = max_sculpt_err < TOL
+    # (3) genuinely flat (spread ~ 0), provably NOT the old rising level-DS curve
+    spread = max(live_amort_dscr) - min(live_amort_dscr)
+    is_flat = spread <= DSCR_TARGET_TOL
+    # the sculpt must actually bind (DSCR is the constraint) for "flat at target"
+    binds = cr["sculpt_binds"]
+    check(flat_at_target and reconciles and is_flat and binds,
+          f"Realised DSCR flat == target {target:.2f}x over {len(amort_ops)} amortizing yrs "
+          f"(genuine CFADS-driven sculpt, not level-DS)",
+          f"max|DSCR-target|={max_dev_from_target:.2e} spread={spread:.2e} "
+          f"reconcile_err={max_sculpt_err:.2e} binds={binds} "
+          f"(target={target:.2f}, amort_yrs={[op+1 for op in amort_ops]})")
 
     # ── CHECK F: debt fully amortises by tenor; balance never < 0 ──
     print("\n== F. Debt amortises to ~0 by tenor; balance never materially < 0 ==")
@@ -441,10 +480,14 @@ def main() -> int:
     in_bounds = lo_b - 1e-6 <= live_avg <= hi_b + 1e-6
     # (b) independent reconciliation: clean-room mean of the SAME solvent years.
     #     (cr["dscr"] / cr["debt_service"] derived from spec, no modelforge.)
-    cr_avg = sum(cr_realised) / len(cr_realised)
+    #     Under genuine sculpting this is ~1.81x: the amortizing years sit flat
+    #     at 1.75x, the interest-only grace year (2.88x) lifts the mean slightly.
+    cr_solvent = [cr["dscr"][i] for i in range(c, n)
+                  if abs(cr["debt_service"][i]) > 1e-6]
+    cr_avg = sum(cr_solvent) / len(cr_solvent)
     avg_reconciles = abs(live_avg - cr_avg) < 1e-4
     check(in_bounds and avg_reconciles,
-          "Average DSCR within [min,max] and == clean-room mean (~1.89x, not 1.8e7)",
+          "Average DSCR within [min,max] and == clean-room mean (~1.81x, not 1.8e7)",
           f"avg={live_avg:.4g}  bound=[{lo_b:.4f},{hi_b:.4f}]  cleanroom_avg={cr_avg:.4f}")
 
     # ── CHECK J: DSRA target reconciles to clean-room ──

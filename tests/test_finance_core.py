@@ -8,9 +8,11 @@ import pytest
 from modelforge.finance_core import (
     IdAllocationError,
     IdAllocator,
+    all_in_cost_of_debt,
     apply_growth,
     assert_unique_ids,
     cagr,
+    convexity,
     dpi,
     dscr,
     eur_k_to_eur,
@@ -28,6 +30,8 @@ from modelforge.finance_core import (
     irr,
     levered_beta,
     ltv,
+    macaulay_duration,
+    modified_duration,
     moic,
     npv,
     pmt,
@@ -97,6 +101,70 @@ def test_irr_three_period_project():
     # Classic: -1000 + 400+400+400 → IRR ≈ 9.701%
     result = irr([-1000, 400, 400, 400])
     assert result == pytest.approx(0.09701, abs=1e-4)
+
+
+# ── Formulas · fixed-income analytics ──────────────────────────────────
+
+
+def test_macaulay_duration_3y_par_bond():
+    # 3y annual 5% bullet at par (cash inflows 5, 5, 105) discounted at 5%.
+    # Textbook Macaulay duration = 2.85941y (independent hand calc).
+    cf = [5.0, 5.0, 105.0]
+    assert macaulay_duration(cf, 0.05) == pytest.approx(2.859410431, abs=1e-7)
+
+
+def test_macaulay_duration_zero_coupon_equals_maturity():
+    # A zero-coupon bond's Macaulay duration equals its maturity exactly,
+    # regardless of the discount rate (single cashflow at t=n).
+    assert macaulay_duration([100.0], 0.07, times=[5]) == pytest.approx(5.0, abs=1e-12)
+    # Same identity expressed with a padded inflow vector (CF only at t=3).
+    assert macaulay_duration([0.0, 0.0, 100.0], 0.05) == pytest.approx(3.0, abs=1e-12)
+
+
+def test_macaulay_duration_amortizer_matches_numpy_financial():
+    # €20m 6y linear-from-year-3 amortizer at par (coupon == ytm == 6.5%).
+    # Ground truth re-derived here from scratch (no modelforge call).
+    coupon = [1.30, 1.30, 1.30, 0.975, 0.65, 0.325]
+    amort = [0.0, 0.0, 5.0, 5.0, 5.0, 5.0]
+    inflows = [coupon[i] + amort[i] for i in range(6)]
+    y = 0.065
+    pv = [cf / (1 + y) ** (t + 1) for t, cf in enumerate(inflows)]
+    expected = sum((t + 1) * p for t, p in enumerate(pv)) / sum(pv)
+    assert macaulay_duration(inflows, y) == pytest.approx(expected, abs=1e-12)
+    assert macaulay_duration(inflows, y) == pytest.approx(4.012645, abs=1e-5)
+
+
+def test_modified_duration_discounts_macaulay():
+    assert modified_duration(2.859410431, 0.05) == pytest.approx(2.723248028, abs=1e-7)
+    # Semi-annual: ModDur = Mac / (1 + y/2)
+    assert modified_duration(4.0, 0.06, freq=2) == pytest.approx(4.0 / 1.03, abs=1e-9)
+
+
+def test_modified_duration_rejects_zero_freq():
+    with pytest.raises(ValueError):
+        modified_duration(4.0, 0.05, freq=0)
+
+
+def test_convexity_3y_par_bond():
+    # Same 3y par bond — independent convexity hand calc = 10.205624.
+    assert convexity([5.0, 5.0, 105.0], 0.05) == pytest.approx(10.205624200, abs=1e-6)
+
+
+def test_all_in_cost_of_debt_exceeds_coupon_when_fees_positive():
+    # €20m face, €0.455m total upfront fees, 6.5% coupon. Net proceeds 19.545.
+    # Closed-form gross-up: 0.065 * 20 / 19.545 = 6.6513%.
+    result = all_in_cost_of_debt(0.065, 0.455, 20.0)
+    assert result == pytest.approx(0.065 * 20.0 / 19.545, abs=1e-9)
+    assert result > 0.065  # fees push the issuer's cost above the coupon
+
+
+def test_all_in_cost_of_debt_equals_coupon_with_no_fees():
+    assert all_in_cost_of_debt(0.065, 0.0, 20.0) == pytest.approx(0.065, abs=1e-12)
+
+
+def test_all_in_cost_of_debt_rejects_fees_exceeding_face():
+    with pytest.raises(ValueError):
+        all_in_cost_of_debt(0.065, 25.0, 20.0)
 
 
 # ── Formulas · returns ─────────────────────────────────────────────────

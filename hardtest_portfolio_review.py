@@ -12,20 +12,23 @@ This script tests TWO layers and reports both:
   LAYER A (live-excel): build examples/portfolio_review_us_lower_mm.yaml and
   evaluate the rendered workbook with the `formulas` package. Reconcile every
   economic value the SHIPPED template actually renders (the EBITDA actual-vs-
-  plan delta per company) and prove the Summary roll-ups tie to the per-
-  company rows.
+  plan delta per company), prove the Summary roll-ups tie to the per-company
+  rows, AND (v0.12) prove the new Fund Returns sheet's fund KPIs are present
+  and correct — each rendered/recalc'd KPI reconciled against a clean-room
+  re-derivation, numpy_financial.irr, and the TVPI == DPI + RVPI identity.
 
   LAYER B (python/finance_core): the assigned economic checks (per-company &
   fund MOIC, DPI/RVPI/TVPI, gross & net IRR, gross-to-net fee/carry bridge,
-  J-curve / deepest-drawdown) target the PE-fund-KPI math. The portfolio_review
-  TEMPLATE ships NONE of it, but modelforge.finance_core ships moic/tvpi/dpi/
-  rvpi/irr. We reconcile those shipped functions against numpy_financial and
-  the model-independent identities on a clean-room fund cashflow stream.
+  J-curve / deepest-drawdown) reconcile modelforge.finance_core's moic/tvpi/
+  dpi/rvpi/irr against numpy_financial and the model-independent identities on
+  a clean-room fund cashflow stream.
 
-GAP finding: the shipped `portfolio_review` model is a credit-fund covenant/
-leverage monitor — it has NO capital calls, distributions, NAV, MOIC, DPI,
-TVPI, IRR, J-curve, or gross-to-net fee/carry bridge. The assigned deal-type
-KPIs cannot be produced as a rendered deliverable. Proven below.
+FEATURE (v0.12, was a GAP): the `portfolio_review` model now carries a
+fund-level cashflow stream (capital calls / distributions / NAV) and emits a
+Fund Returns sheet with MOIC, DPI, RVPI, TVPI (= DPI + RVPI), gross & net IRR,
+and a 2/20-over-pref gross-to-net bridge. The earlier "GAP: NO PE fund KPI"
+assertion has been FLIPPED into the presence + independent-correctness
+reconciliation in layer_a_fund_kpis() below.
 """
 
 from __future__ import annotations
@@ -226,25 +229,173 @@ def layer_a_live_excel() -> None:
           dist_ok and sum(summ(rw) for _, rw in rating_rows) == sum(ratings.values()),
           f"dist={{k:summ(rw) for k,rw in rating_rows}}")
 
-    # ---- GAP: prove the assigned PE fund KPIs are ABSENT from the deliverable
-    all_text = []
+    # ---- FUND KPIs: the feature is now SHIPPED — prove it is PRESENT & CORRECT
+    # (v0.12 flipped the former GAP check). The deliverable must now carry the
+    # PE fund KPIs as LABELS *and* the live-recalc'd numbers must reconcile to
+    # INDEPENDENT ground truth: a clean-room re-derivation from the spec yaml,
+    # numpy_financial.irr, and the model-independent identity TVPI == DPI + RVPI.
+    layer_a_fund_kpis()
+
+
+def layer_a_fund_kpis() -> None:
+    """Fund Returns sheet present + every rendered KPI reconciles independently."""
+    # ---------- clean-room ground truth from the spec yaml (no modelforge) ----
+    raw = yaml.safe_load(SPEC_PATH.read_bytes())
+    cfs = sorted(raw["fund_cashflows"], key=lambda c: c["period"])
+    calls = [float(c.get("capital_call", 0.0)) for c in cfs]
+    dists = [float(c.get("distribution", 0.0)) for c in cfs]
+    navs = [float(c.get("nav", 0.0)) for c in cfs]
+
+    paid_in = sum(calls)
+    distributed = sum(dists)
+    terminal_nav = navs[-1]
+    total_value = distributed + terminal_nav
+
+    gt_moic = total_value / paid_in
+    gt_dpi = distributed / paid_in
+    gt_rvpi = terminal_nav / paid_in
+    gt_tvpi = total_value / paid_in           # == dpi+rvpi by construction
+
+    # IRR vector built clean-room: net LP cashflow each period (dist - call),
+    # with the terminal period crediting the residual NAV as a realisation.
+    irr_vec = [dists[i] - calls[i] for i in range(len(cfs))]
+    irr_vec[-1] += terminal_nav
+    gt_irr = npf.irr(irr_vec)                  # numpy_financial GROUND TRUTH
+
+    # gross-to-net (European 2/20 over 8% pref) — hand math, independent side
+    committed = float(raw.get("fund_committed") or paid_in)
+    mgmt_rate = float(raw["mgmt_fee_rate"])
+    carry_rate = float(raw["carry_rate"])
+    pref_rate = float(raw["pref_rate"])
+    fee_years = cfs[-1]["period"] - cfs[0]["period"]
+    gt_mgmt_fees = mgmt_rate * committed * fee_years
+    gt_pref = committed * ((1 + pref_rate) ** fee_years - 1)
+    gt_profit = total_value - committed
+    gt_carry_base = max(gt_profit - gt_pref - gt_mgmt_fees, 0.0)
+    gt_carry = carry_rate * gt_carry_base
+    gt_net_value = total_value - gt_mgmt_fees - gt_carry
+    gt_net_moic = gt_net_value / paid_in
+
+    # ---------- 1) PRESENCE: KPI labels are on the deliverable ----------------
     wbf = openpyxl.load_workbook(OUT_PATH, data_only=False)
-    for sn in wbf.sheetnames:
-        for r in wbf[sn].iter_rows():
-            for c in r:
-                if isinstance(c.value, str):
-                    all_text.append(c.value.upper())
-    blob = " ".join(all_text)
-    pe_terms = ["MOIC", "DPI", "RVPI", "TVPI", "IRR", "J-CURVE", "CARRIED INTEREST",
-                "CARRY", "PAID-IN", "CAPITAL CALL", "DISTRIBUTION", "PREFERRED RETURN",
-                "NAV"]
-    present = [t for t in pe_terms if t in blob]
-    check(
-        "GAP: shipped portfolio_review deliverable contains NO PE fund KPI "
-        "(MOIC/DPI/RVPI/TVPI/IRR/J-curve/carry/paid-in/calls/distributions)",
-        len(present) == 0,
-        f"PE terms found in workbook = {present}",
+    check("FUND-KPI: workbook now has a FundReturns sheet (feature shipped)",
+          "FundReturns" in wbf.sheetnames,
+          f"sheets={wbf.sheetnames}")
+    blob = " ".join(
+        c.value.upper()
+        for sn in wbf.sheetnames for r in wbf[sn].iter_rows() for c in r
+        if isinstance(c.value, str)
     )
+    required_terms = ["MOIC", "DPI", "RVPI", "TVPI", "IRR",
+                      "CAPITAL CALL", "DISTRIBUTION", "NAV", "PAID-IN", "CARR"]
+    missing = [t for t in required_terms if t not in blob]
+    check("FUND-KPI: deliverable now carries the PE fund-KPI labels "
+          "(MOIC/DPI/RVPI/TVPI/IRR/calls/distributions/NAV/paid-in/carry)",
+          not missing, f"missing labels = {missing}")
+
+    # ---------- 2) CORRECTNESS: live-recalc'd numbers vs independent truth ----
+    # locate the KPI rows by their EN label, then read column D live.
+    ws_meta = wbf["FundReturns"]
+    label_row: dict[str, int] = {}
+    for row in ws_meta.iter_rows():
+        a = ws_meta.cell(row=row[0].row, column=1).value
+        if isinstance(a, str):
+            label_row.setdefault(a, row[0].row)
+
+    def row_starting(prefix: str) -> int | None:
+        for lab, rr in label_row.items():
+            if lab.startswith(prefix):
+                return rr
+        return None
+
+    rows = {
+        "paid_in": row_starting("Total paid-in"),
+        "distributed": row_starting("Total distributed"),
+        "total_value": row_starting("Total value"),
+        "moic": row_starting("MOIC (total value"),
+        "dpi": row_starting("DPI"),
+        "rvpi": row_starting("RVPI"),
+        "tvpi": row_starting("TVPI"),
+        "irr": row_starting("Gross IRR"),
+        "mgmt": row_starting("Total management fees"),
+        "carry": row_starting("Carried interest"),
+        "net_value": row_starting("Net value"),
+        "net_moic": row_starting("Net MOIC"),
+    }
+    check("FUND-KPI: every KPI row located on the FundReturns sheet",
+          all(v is not None for v in rows.values()),
+          f"row map = {rows}")
+
+    live: dict[str, float] = {}
+    try:
+        import formulas
+        xl = formulas.ExcelModel().loads(str(OUT_PATH)).finish()
+        sol = xl.calculate()
+        base = OUT_PATH.name
+
+        def fr(cell: str) -> float:
+            key = "'[" + base + "]FUNDRETURNS'!" + cell
+            v = sol[key].value
+            return float(v[0, 0]) if hasattr(v, "shape") else float(v)
+
+        for k, rr in rows.items():
+            if rr is not None:
+                live[k] = fr(f"D{rr}")
+        live_ok = True
+    except Exception as e:  # noqa
+        live_ok = False
+        check("FUND-KPI live-excel evaluation available", False, f"formulas failed: {e!r}")
+
+    if not live_ok:
+        return
+    check("FUND-KPI live-excel evaluation available", True,
+          f"({len(live)} KPI cells recalc'd)")
+
+    # roll-up totals tie to the spec stream
+    check("FUND-KPI: rendered paid-in == Σ capital calls (clean-room)",
+          approx(live["paid_in"], paid_in), f"got={live['paid_in']} exp={paid_in}")
+    check("FUND-KPI: rendered distributed == Σ distributions (clean-room)",
+          approx(live["distributed"], distributed),
+          f"got={live['distributed']} exp={distributed}")
+    check("FUND-KPI: rendered total value == distributions + terminal NAV",
+          approx(live["total_value"], total_value),
+          f"got={live['total_value']} exp={total_value}")
+
+    # multiples vs clean-room definitions
+    check("FUND-KPI: MOIC == total value / paid-in (clean-room)",
+          approx(live["moic"], gt_moic), f"got={live['moic']:.8f} exp={gt_moic:.8f}")
+    check("FUND-KPI: DPI == distributions / paid-in (clean-room)",
+          approx(live["dpi"], gt_dpi), f"got={live['dpi']:.8f} exp={gt_dpi:.8f}")
+    check("FUND-KPI: RVPI == terminal NAV / paid-in (clean-room)",
+          approx(live["rvpi"], gt_rvpi), f"got={live['rvpi']:.8f} exp={gt_rvpi:.8f}")
+    check("FUND-KPI: TVPI == total value / paid-in (clean-room)",
+          approx(live["tvpi"], gt_tvpi), f"got={live['tvpi']:.8f} exp={gt_tvpi:.8f}")
+
+    # model-INDEPENDENT identity on the RENDERED cells: TVPI == DPI + RVPI
+    check("FUND-KPI IDENTITY: rendered TVPI == rendered DPI + rendered RVPI (1e-9)",
+          approx(live["tvpi"], live["dpi"] + live["rvpi"], tol=1e-9),
+          f"tvpi={live['tvpi']:.9f} dpi+rvpi={live['dpi']+live['rvpi']:.9f}")
+
+    # gross IRR vs numpy_financial.irr (GROUND TRUTH)
+    check("FUND-KPI: rendered gross IRR == numpy_financial.irr(net-LP vector) (1e-6)",
+          approx(live["irr"], gt_irr, tol=1e-6),
+          f"got={live['irr']:.8f} npf={gt_irr:.8f} vec={irr_vec}")
+
+    # gross-to-net bridge: management fee, carry, net value, net MOIC
+    check("FUND-KPI: rendered management fees == rate*committed*years (clean-room)",
+          approx(live["mgmt"], gt_mgmt_fees),
+          f"got={live['mgmt']} exp={gt_mgmt_fees}")
+    check("FUND-KPI: rendered carry == rate*max(profit-pref-fees,0) (clean-room)",
+          approx(live["carry"], gt_carry),
+          f"got={live['carry']:.6f} exp={gt_carry:.6f} base={gt_carry_base:.4f}")
+    check("FUND-KPI: rendered carry is strictly POSITIVE (profit clears pref)",
+          live["carry"] > 0.0, f"carry={live['carry']:.6f} pref={gt_pref:.4f}")
+    check("FUND-KPI: rendered net value == gross value - fees - carry (clean-room)",
+          approx(live["net_value"], gt_net_value),
+          f"got={live['net_value']:.6f} exp={gt_net_value:.6f}")
+    check("FUND-KPI: rendered net MOIC == net value / paid-in AND < gross MOIC",
+          approx(live["net_moic"], gt_net_moic) and live["net_moic"] < live["moic"],
+          f"net={live['net_moic']:.6f} gross={live['moic']:.6f} exp={gt_net_moic:.6f}")
 
 
 # ===========================================================================
