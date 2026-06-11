@@ -3,14 +3,37 @@
 Given the same factor list used for the sensitivity tornado, draws
 ``n_runs`` random samples per factor from a configurable distribution
 (triangular by default) and aggregates them into a distribution over
-the primary output. Results render as a MonteCarlo sheet with stats
-(P5/P25/P50/P75/P95, mean, std) and a native Excel histogram chart.
+the primary output. Results render as a MonteCarlo sheet with two
+clearly-distinguished blocks:
 
-Like the sensitivity tornado, MC uses the per-factor elasticity
-coefficient to map a driver shock to an output delta — an approximation
-that ships across all 8 templates without a per-template shadow engine.
-v0.4.2 will replace with exact workbook recomputation. Results are
-written as values (not formulas) per the PRD AC for US-002.
+* **Sampled (SNAPSHOT).** The full ``n_runs`` simulated distribution —
+  stats (P5/P25/P50/P75/P95, mean, std) + a native Excel histogram
+  chart. A sampled Monte-Carlo simulation **cannot** recompute inside
+  vanilla Excel (there is no in-cell RNG-over-N-draws-over-the-whole-
+  model primitive), so these numbers are an HONEST build-time snapshot
+  from a FIXED seed + the as-built scenario, flagged with the
+  ``STATIC SNAPSHOT`` banner. To refresh, rerun ``modelforge monte-carlo``
+  (see :func:`append_monte_carlo_sheet` / the CLI ``monte-carlo`` command).
+
+* **Parametric (LIVE — normal approx).** Beside the sampled block, a
+  genuinely-live downside band: P5 / P50 / P95 / mean computed as native
+  Excel ``=`` formulas off the live ``primary_output`` named range and a
+  live volatility input cell (``mc_vol``), e.g.
+  ``=primary_output*(1+NORM.S.INV(0.05)*mc_vol)`` for P5. Because every
+  term is a live cell, this band genuinely RECOMPUTES when the user flips
+  ``scenario_index`` (which moves ``primary_output`` via the Assumptions
+  CHOOSE) or edits the ``mc_vol`` input — proven with the ``formulas``
+  engine. It is a normal (Gaussian) approximation, honestly distinct from
+  the sampled histogram, and seeded at build time to the sampled std so
+  the two agree at the as-built scenario.
+
+Like the sensitivity tornado, the SAMPLED block uses the per-factor
+elasticity coefficient to map a driver shock to an output delta when no
+per-template shadow engine is available — an approximation that ships
+across all 8 templates. The exact shadow-engine recompute STAYS available
+for the CLI / JSON / PDF-dossier export. Sampled stats are written as
+values (not formulas) per the PRD AC for US-002; the parametric band is
+written as live formulas (the reactive upgrade).
 
 Distributions
 -------------
@@ -36,12 +59,14 @@ from openpyxl import load_workbook
 from openpyxl.chart import BarChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.comments import Comment
+from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.worksheet import Worksheet
 
 from modelforge.analytics.factors import SensitivityFactor, default_factors_for
 from modelforge.analytics.sensitivity import (
     PrimaryOutputLoc,
     _ELASTICITY_REGISTRY,
+    _col_letter,
     _driver_exists,
     _elasticity_for,
     _find_primary_output,
@@ -50,6 +75,52 @@ from modelforge.builder import styles
 
 
 Distribution = Literal["triangular", "normal", "lognormal"]
+
+
+# ─── Parametric-LIVE honesty banner ──────────────────────────────────────────
+# The sampled block keeps the shared ``static_snapshot_banner`` (i18n, 8-lang)
+# from sensitivity.py. The parametric band gets its own banner. We render it as
+# INLINE bilingual EN | IT text (exactly like the other descriptive lines on
+# this sheet — title subline row 2 and the method/seed line) rather than a new
+# i18n LABELS entry, so it stays self-contained in this module and never risks
+# the 8-language coverage gate. The text is unmistakably a LIVE accuracy
+# disclosure (normal/Gaussian approximation off primary_output), not a "stale"
+# warning, and is styled in formula-green to read as live.
+
+_PARAMETRIC_BANNER_EN = (
+    "PARAMETRIC (LIVE — normal approx) — P5/P50/P95/mean as live Excel "
+    "formulas off primary_output and the mc_vol input. RECOMPUTES when you "
+    "flip scenario_index or edit mc_vol. Distinct from the sampled histogram "
+    "below, which is a build-time snapshot (exact resim via `modelforge "
+    "monte-carlo`)."
+)
+_PARAMETRIC_BANNER_IT = (
+    "PARAMETRICO (LIVE — approssimazione normale) — P5/P50/P95/media come "
+    "formule Excel live su primary_output e l'input mc_vol. Si RICALCOLA "
+    "quando cambi scenario_index o modifichi mc_vol. Distinto dall'istogramma "
+    "campionato sotto, che è un'istantanea di build (ri-simulazione esatta "
+    "con `modelforge monte-carlo`)."
+)
+
+
+def write_parametric_live_banner(ws: Worksheet, row: int) -> None:
+    """Write the bilingual 'PARAMETRIC (LIVE — normal approx)' banner.
+
+    Marks the live parametric downside band whose P5/P50/P95/mean cells are
+    native Excel formulas off ``primary_output`` + the editable ``mc_vol``
+    input — so they genuinely recompute on a scenario flip or vol edit.
+    Styled formula-green so it reads as informational/live, visually distinct
+    from the warning-amber ``STATIC SNAPSHOT`` banner on the sampled block.
+    """
+    c = ws.cell(row=row, column=1,
+                value=f"{_PARAMETRIC_BANNER_EN}  |  {_PARAMETRIC_BANNER_IT}")
+    c.font = styles.Font(
+        name=styles.FONT_BASE, size=styles.FONT_SIZE_BODY,
+        bold=True, italic=True, color="006100",
+    )
+    c.alignment = styles.Alignment(
+        horizontal="left", vertical="center", wrap_text=False,
+    )
 
 
 @dataclass
@@ -240,7 +311,7 @@ def _emit_sheet(
     from modelforge.analytics.sensitivity import write_static_snapshot_banner
     write_static_snapshot_banner(ws, row=4)
 
-    # ── Base output reference
+    # ── Base output reference (LIVE — moves with scenario_index)
     ws.cell(row=5, column=1, value="Base output").font = styles.font_subheader
     ws.cell(row=5, column=2, value=primary_loc.label).font = styles.font_subheader
     c_base = ws.cell(row=5, column=3, value="=primary_output")
@@ -248,7 +319,7 @@ def _emit_sheet(
     c_base.font = styles.font_subheader
 
     # Method / Δ-mode / seed provenance (row 6 — describes the FIXED build-time
-    # run that produced the static stats below).
+    # run that produced the SAMPLED static stats below).
     ws.cell(
         row=6, column=1,
         value=(
@@ -258,12 +329,98 @@ def _emit_sheet(
         ),
     ).font = styles.font_label_it
 
-    # ── Distribution stats
-    stats_row = 8
-    ws.cell(row=stats_row, column=1, value="Statistic").font = styles.font_header \
-        if hasattr(styles, "font_header") else styles.font_subheader
-    ws.cell(row=stats_row, column=2, value="Δ output (frac)")
-    ws.cell(row=stats_row, column=3, value="Absolute output")
+    # ══ Block 1: PARAMETRIC band — genuinely LIVE ════════════════════════════
+    # P5/P50/P95/mean as native Excel formulas off the live primary_output
+    # named range + a live volatility input (mc_vol). NORM.S.INV gives the
+    # standard-normal quantiles; the band recomputes when scenario_index flips
+    # (primary_output moves via the Assumptions CHOOSE) or when mc_vol is
+    # edited. This is the reactive upgrade — visually + semantically distinct
+    # from the sampled snapshot block below. A sampled MC cannot recompute in
+    # vanilla Excel, but this parametric (normal-approx) band can, so we ship
+    # it live and clearly labelled.
+    par_banner_row = 8
+    write_parametric_live_banner(ws, row=par_banner_row)
+
+    # Live volatility input cell + named range. Seeded at build time to the
+    # sampled std so the parametric band agrees with the sampled distribution
+    # at the as-built scenario; an analyst can override it (blue input) to
+    # widen/narrow the band, and it recomputes live.
+    vol_row = par_banner_row + 1
+    ws.cell(row=vol_row, column=1,
+            value="Volatility (σ, editable)").font = styles.font_subheader
+    vol_cell = ws.cell(row=vol_row, column=2, value=float(result.std))
+    styles.style_input(vol_cell, number_format=styles.FMT_PCT_2DP)
+    vol_cell.comment = Comment(
+        "LIVE volatility input for the parametric (normal-approx) band. "
+        f"Seeded to the sampled std ({result.std:.4f}) at build time so the "
+        "parametric band matches the sampled distribution at the as-built "
+        "scenario. Edit it (blue input) to widen/narrow the band — P5/P50/P95 "
+        "recompute live. Distinct from the frozen sampled stats below.",
+        "ModelForge",
+    )
+    vol_col = _col_letter(2)
+    vol_ref_cell = f"{vol_col}{vol_row}"
+    if "mc_vol" in wb.defined_names:
+        del wb.defined_names["mc_vol"]
+    wb.defined_names["mc_vol"] = DefinedName(
+        name="mc_vol", attr_text=f"'{ws.title}'!${vol_col}${vol_row}")
+
+    # Parametric stat rows — LIVE formulas. delta_mode determines whether the
+    # band is multiplicative (fractional regime) or additive (near-zero base).
+    par_hdr_row = vol_row + 1
+    for i, c in enumerate(("Statistic", "Parametric (LIVE)"), start=1):
+        styles.style_header(ws.cell(row=par_hdr_row, column=i, value=c))
+
+    # (label, z-quantile or None for mean)
+    par_specs = [
+        ("Mean (LIVE)", None),
+        ("P5 (LIVE)", 0.05),
+        ("P50 (LIVE)", 0.50),
+        ("P95 (LIVE)", 0.95),
+    ]
+    par_first = par_hdr_row + 1
+    for i, (label, q) in enumerate(par_specs):
+        r = par_first + i
+        ws.cell(row=r, column=1, value=label).font = styles.font_subheader
+        if q is None:
+            # Mean ≈ primary_output itself (the parametric distribution is
+            # centred on the live base output — no shift).
+            formula = "=primary_output"
+        elif result.delta_mode == "absolute":
+            formula = f"=primary_output+NORM.S.INV({q})*mc_vol"
+        else:
+            formula = f"=primary_output*(1+NORM.S.INV({q})*mc_vol)"
+        pc = ws.cell(row=r, column=2, value=formula)
+        styles.style_formula(pc, number_format=styles.FMT_PCT_2DP)
+        pc.comment = Comment(
+            "LIVE parametric (normal-approx) statistic — native Excel formula "
+            f"({formula[1:]}) off primary_output + mc_vol. Recomputes when you "
+            "flip scenario_index or edit mc_vol. NOT a sampled value: it is a "
+            "Gaussian approximation of the downside band, distinct from the "
+            "sampled histogram below.",
+            "ModelForge",
+        )
+    par_last = par_first + len(par_specs) - 1
+
+    # ══ Block 2: SAMPLED distribution — HONEST build-time SNAPSHOT ════════════
+    # Re-flag the sampled block right above its header so the boundary between
+    # the LIVE parametric band and the frozen sampled stats is unmistakable.
+    sampled_flag_row = par_last + 2
+    fl = ws.cell(
+        row=sampled_flag_row, column=1,
+        value=("SAMPLED (snapshot) — full "
+               f"{result.n_runs:,}-draw {result.distribution} distribution; "
+               "frozen at build time, does NOT recompute on scenario flip "
+               "(refresh: `modelforge monte-carlo`)."),
+    )
+    fl.font = styles.Font(
+        name=styles.FONT_BASE, size=styles.FONT_SIZE_BODY,
+        bold=True, italic=True, color="9C5700",
+    )
+    fl.fill = styles.fill_static
+
+    # ── Distribution stats (SAMPLED — static literals)
+    stats_row = sampled_flag_row + 1
     for i, c in enumerate(("Statistic", "Δ output (frac)",
                            "Absolute output"), start=1):
         cell = ws.cell(row=stats_row, column=i, value=c)
@@ -349,9 +506,14 @@ def _emit_sheet(
     chart.height = 9
     chart.width = 18
     chart.dataLabels = DataLabelList(showVal=False)
+    # Anchor the histogram to the right of the sampled stats block (col E),
+    # at the sampled header row — keeps it clear of the parametric band (cols
+    # A:B) above.
     ws.add_chart(chart, f"E{stats_row}")
 
-    ws.freeze_panes = "A9"
+    # Freeze below the title + scenario/static banners so the LIVE parametric
+    # band and the sampled block scroll under a stable header.
+    ws.freeze_panes = "A8"
     ws.print_title_rows = f"{stats_row}:{stats_row}"
     return ws
 
@@ -397,4 +559,5 @@ __all__ = [
     "MCResult",
     "run_monte_carlo",
     "append_monte_carlo_sheet",
+    "write_parametric_live_banner",
 ]

@@ -15,9 +15,14 @@ sheet with:
   are encoded in the factor definition and based on bulge-bracket rules
   of thumb (revenue ~0.8x of IRR impact, margin ~0.9x, rates ~−0.3x,
   exit multiple ~0.5x). The chart presents these as a tornado sorted by
-  absolute spread; the comment on every delta cell cites the elasticity
-  method and notes that v0.4.2 will replace it with full workbook
-  recomputation via per-template shadow engines.
+  absolute spread. The Low/High Δ cells are LIVE Excel formulas off the
+  ``primary_output`` named range + the editable shock/elasticity inputs,
+  so they genuinely recompute when the user flips ``scenario_index`` or
+  edits a driver. Where a per-template shadow engine exists, the exact
+  non-linear recompute is computed too — but it is cited as a
+  cross-reference in the cell comment and exposed via the ``modelforge``
+  CLI / JSON / PDF-dossier export, NOT frozen into the live workbook in
+  place of a reactive formula.
 * **A native Excel BarChart.** Horizontal bars (one series per low/high
   arm) pointed at column categories (factor labels) gives the classic
   tornado shape, rendered entirely by Excel.
@@ -81,6 +86,33 @@ def write_static_snapshot_banner(ws: Worksheet, row: int) -> None:
         bold=True, italic=True, color="9C5700",
     )
     c.fill = styles.fill_static
+    c.alignment = styles.Alignment(
+        horizontal="left", vertical="center", wrap_text=False,
+    )
+
+
+def write_live_approx_banner(ws: Worksheet, row: int) -> None:
+    """Write the bilingual 'LIVE — linear-elasticity approximation' banner.
+
+    Used on the reactivated tornado / 2D grids whose Low/High Δ and matrix
+    body cells are LIVE Excel formulas off ``primary_output`` and editable
+    shock / elasticity named ranges. Unlike a frozen snapshot, those cells DO
+    recompute when the user flips ``scenario_index`` or edits a driver — so the
+    banner is an honest accuracy disclosure (linear elasticity approximation;
+    the exact non-linear recompute is available via the ``modelforge`` CLI /
+    dossier, which still uses the shadow engine), NOT a "stale" warning.
+
+    Occupies a SINGLE existing row (no layout shift) carrying both the EN
+    primary text and the secondary subline (i18n), styled in a neutral
+    formula-grey/green so it reads as informational (live), not as a warning.
+    """
+    from modelforge.builder.i18n import L as _L
+    label = _L("live_approx_banner")
+    c = ws.cell(row=row, column=1, value=f"{label.en}  |  {label.it}")
+    c.font = styles.Font(
+        name=styles.FONT_BASE, size=styles.FONT_SIZE_BODY,
+        bold=True, italic=True, color="006100",
+    )
     c.alignment = styles.Alignment(
         horizontal="left", vertical="center", wrap_text=False,
     )
@@ -433,25 +465,16 @@ def _emit_sheet(
     # Scenario banner at row 3 (bulge convention — audit_suite.py enforces)
     from modelforge.builder import layout as _layout
     _layout.write_scenario_banner(ws, row=3)
-    if shadow is not None:
-        # Shadow path: Low/High Δ are pre-computed STATIC values written at
-        # build time — they do NOT recompute on a scenario flip. Replace the
-        # (previously misleading) "flip scenario to refresh" subtitle with the
-        # honest static-snapshot banner so the frozen deltas are never mistaken
-        # for live cells.
-        write_static_snapshot_banner(ws, row=4)
-    else:
-        # Elasticity path: every Low/High Δ is a live Excel formula off
-        # primary_output, so flipping the scenario genuinely refreshes them.
-        sub = ws.cell(
-            row=4, column=1,
-            value=(
-                f"Tornado on {primary_loc.label}. Base output, driver values "
-                f"and Low/High Δ are live Excel formulas off named ranges — "
-                f"rebuild or flip scenario to refresh."
-            ),
-        )
-        sub.font = styles.font_label_it
+    # LIVE upgrade (v0.4.2 path realised): the rendered workbook always writes
+    # the Low/High Δ as live Excel formulas off ``primary_output`` + the
+    # editable shock/elasticity input cells, so flipping ``scenario_index`` or
+    # editing a driver genuinely recomputes them. The exact shadow-engine
+    # deltas remain available for the CLI / JSON / PDF-dossier export (see
+    # ``_compute_shadow_deltas``), but their frozen values are no longer
+    # written into the live .xlsx where a formula can react instead. The banner
+    # is therefore the honest LIVE accuracy disclosure (linear-elasticity
+    # approximation; exact via CLI/dossier) in either branch.
+    write_live_approx_banner(ws, row=4)
 
     # ── Summary card (read-live): base output + factor count
     ws.cell(row=5, column=1, value="Primary output").font = styles.font_subheader
@@ -483,9 +506,10 @@ def _emit_sheet(
         styles.style_header(c)
 
     # ── Data rows
-    # Method label for column header's comment
-    method = "shadow" if shadow is not None else "elasticity"
-    delta_mode = shadow.delta_mode if shadow is not None else "fractional"
+    # The rendered Δ cells are ALWAYS live elasticity formulas now. When a
+    # shadow engine exists, its exact non-linear delta is cross-referenced in
+    # the cell comment + reachable via CLI/dossier (but not frozen in-sheet).
+    exact_available = shadow is not None
     r0 = hr + 1
     for i, f in enumerate(applicable, start=1):
         r = r0 + i - 1
@@ -535,42 +559,55 @@ def _emit_sheet(
         hv = ws.cell(row=r, column=9, value=f"=D{r}*(1+F{r})")
         styles.style_formula(hv, number_format="General")
 
-        # J / K: deltas — shadow (exact numeric) or elasticity (formula)
+        # J / K: deltas — LIVE Excel elasticity formulas off primary_output +
+        # the editable shock (E/F) and elasticity (G) input cells. These
+        # genuinely recompute when scenario_index flips (primary_output and the
+        # col-D driver bases move via the Assumptions CHOOSE) or when the user
+        # edits a shock/elasticity. We write the live formula regardless of
+        # whether a shadow engine exists; the shadow engine's EXACT non-linear
+        # deltas stay available for CLI/JSON/dossier export (computed in
+        # ``_compute_shadow_deltas``) — we just no longer freeze them into the
+        # live workbook where a reactive formula belongs.
+        ld = ws.cell(row=r, column=10, value=f"=primary_output*E{r}*G{r}")
+        styles.style_formula(ld, number_format=styles.FMT_PCT_2DP)
+        hd = ws.cell(row=r, column=11, value=f"=primary_output*F{r}*G{r}")
+        styles.style_formula(hd, number_format=styles.FMT_PCT_2DP)
         if shadow is not None and i - 1 < len(shadow.low_deltas):
-            # STATIC: exact shadow-engine deltas are pre-computed literals,
-            # not live formulas. Style as static_value (grey/italic) so they
-            # are visually distinct from blue live inputs.
-            ld = ws.cell(row=r, column=10, value=shadow.low_deltas[i - 1])
-            styles.style_static_value(ld, number_format=styles.FMT_PCT_2DP)
+            # Cross-reference comment: cite the exact shadow-engine delta as the
+            # authoritative value (available via CLI/dossier) so an analyst can
+            # see how far the live linear-elasticity cell sits from the exact
+            # non-linear recompute.
             ld.comment = Comment(
-                f"Exact Δ from shadow engine: primary_output shocked by "
-                f"'{f.driver_name}' * (1+{f.low_shock:+.1%}). "
-                f"Method=shadow (full Python recompute, not elasticity). "
-                f"STATIC snapshot — does not recompute on scenario flip.",
+                f"LIVE linear-elasticity Δ (=primary_output*E{r}*G{r}); "
+                f"recomputes on scenario flip / driver edit. Exact non-linear "
+                f"shadow-engine Δ for '{f.driver_name}' at "
+                f"(1{f.low_shock:+.1%}) = {shadow.low_deltas[i - 1]:+.4f} "
+                f"({shadow.delta_mode}) — available via `modelforge` CLI/dossier.",
                 "ModelForge",
             )
-            hd = ws.cell(row=r, column=11, value=shadow.high_deltas[i - 1])
-            styles.style_static_value(hd, number_format=styles.FMT_PCT_2DP)
             hd.comment = Comment(
-                f"Exact Δ from shadow engine: primary_output shocked by "
-                f"'{f.driver_name}' * (1+{f.high_shock:+.1%}). "
-                f"Method=shadow.",
+                f"LIVE linear-elasticity Δ (=primary_output*F{r}*G{r}); "
+                f"recomputes on scenario flip / driver edit. Exact non-linear "
+                f"shadow-engine Δ for '{f.driver_name}' at "
+                f"(1{f.high_shock:+.1%}) = {shadow.high_deltas[i - 1]:+.4f} "
+                f"({shadow.delta_mode}) — available via `modelforge` CLI/dossier.",
                 "ModelForge",
             )
-        else:
-            ld = ws.cell(row=r, column=10, value=f"=primary_output*E{r}*G{r}")
-            styles.style_formula(ld, number_format=styles.FMT_PCT_2DP)
-            hd = ws.cell(row=r, column=11, value=f"=primary_output*F{r}*G{r}")
-            styles.style_formula(hd, number_format=styles.FMT_PCT_2DP)
 
     r_end = r0 + len(applicable) - 1
 
-    # Method badge next to headers
-    badge_text = f"Method: {method} ({delta_mode} Δ)"
+    # Method badge next to headers — the in-sheet Δ are LIVE elasticity
+    # formulas; the exact non-linear shadow recompute (when one exists) is
+    # cited in cell comments and reachable via CLI/dossier.
+    badge_text = (
+        "Method: LIVE elasticity formula (exact non-linear Δ via CLI/dossier)"
+        if exact_available
+        else "Method: LIVE elasticity formula"
+    )
     badge = ws.cell(row=hr - 1, column=10, value=badge_text)
     badge.font = styles.Font(
         name=styles.FONT_BASE, size=styles.FONT_SIZE_BODY,
-        bold=True, color="006100" if method == "shadow" else "7F6000",
+        bold=True, color="006100",
     )
 
     # ── Tornado chart
@@ -909,11 +946,13 @@ def append_generic_2d_tables(
     row_elast = _elasticity_for(row_factor.driver_name)
     col_elast = _elasticity_for(col_factor.driver_name)
 
-    # v0.8.9 US-590: when a shadow engine exists for this model_type,
-    # recompute each 2D matrix cell via compute_primary_output(spec,
-    # overrides). Produces EXACT numeric 2D — not linear elasticity.
-    # Fallback to elasticity formula when shadow unavailable. Computed up
-    # front so the block subtitle / banner can describe the real path.
+    # LIVE upgrade: the 2D matrix body is rendered as live Excel formulas off
+    # ``primary_output`` + the editable ``sensitivity_shock_*`` named ranges, so
+    # it reacts to a scenario flip or a shock edit (proven via the formulas
+    # engine). When a shadow engine exists we STILL compute the exact non-linear
+    # grid — but only to cite it as a cross-reference in the corner comment and
+    # to expose it through the CLI/JSON/dossier export; we no longer freeze its
+    # values into the live workbook in place of a reactive formula.
     shadow_grid: list[list[float]] | None = None
     try:
         from modelforge.shadow import (
@@ -949,6 +988,7 @@ def append_generic_2d_tables(
                         shadow_grid.append(row_out)
     except Exception:
         shadow_grid = None  # safety net — never block the build
+    exact_2d_available = shadow_grid is not None
 
     sens_ws = wb["SensitivityAnalysis"]
     start_row = sens_ws.max_row + 3
@@ -964,22 +1004,24 @@ def append_generic_2d_tables(
     )
     title.font = styles.font_title
     start_row += 1
-    if shadow_grid is not None:
-        # Shadow path: the body cells are pre-computed STATIC values — flag
-        # them honestly instead of claiming the whole grid is live.
-        write_static_snapshot_banner(sens_ws, row=start_row)
-    else:
-        subtitle = sens_ws.cell(
-            row=start_row, column=1,
-            value=(
-                "Each cell = primary_output × (1 + row_shock × row_elasticity "
-                "+ col_shock × col_elasticity), a live Excel formula. Shocks + "
-                "elasticity live via named ranges sensitivity_shock_1..5 "
-                "(editable inputs)."
-            ),
-        )
-        subtitle.font = styles.font_label_it
-    start_row += 2
+    # LIVE: the matrix body is always rendered as live Excel formulas off
+    # primary_output + editable sensitivity_shock_* named ranges (reacts to
+    # scenario flips and shock edits). The exact non-linear shadow grid, when
+    # available, is cross-referenced in the corner comment + reachable via
+    # CLI/dossier rather than frozen into the cells.
+    write_live_approx_banner(sens_ws, row=start_row)
+    start_row += 1
+    subtitle = sens_ws.cell(
+        row=start_row, column=1,
+        value=(
+            "Each cell = primary_output × (1 + row_shock × row_elasticity "
+            "+ col_shock × col_elasticity), a live Excel formula. Shocks live "
+            "via named ranges sensitivity_shock_1..5 (editable inputs); flip "
+            "scenario_index or edit a shock and the body recomputes."
+        ),
+    )
+    subtitle.font = styles.font_label_it
+    start_row += 1
 
     # v0.8.9 US-583: register shock_1..5 as workbook-level named ranges
     # so every 2D block in the workbook (and downstream exports) reads
@@ -1002,38 +1044,45 @@ def append_generic_2d_tables(
                 attr_text=f"'{sens_ws.title}'!${_col_letter(3+j)}${start_row}",
             )
 
-    # ── Body: row-axis shocks via named ranges + payload (shadow or linear)
+    # ── Body: row-axis shocks via named ranges + LIVE elasticity formulas
     for i, rs in enumerate(shocks):
         rr = start_row + 1 + i
         rc = sens_ws.cell(row=rr, column=2, value=f"={shock_names[i]}")
         styles.style_formula(rc, number_format=styles.FMT_PCT_2DP)
         rc.font = styles.font_subheader
         for j, cs in enumerate(shocks):
-            if shadow_grid is not None:
-                # Exact numeric from shadow engine (method=shadow-2d). These
-                # are pre-computed STATIC literals — style as static_value so
-                # they are visually distinct from blue live inputs (they do
-                # NOT recompute on a scenario flip).
-                v = shadow_grid[i][j]
-                cell = sens_ws.cell(row=rr, column=3 + j, value=v)
-                styles.style_static_value(cell, number_format=styles.FMT_PCT_2DP)
-                if i == 0 and j == 0:
+            # Each body cell is a LIVE Excel formula off primary_output + the
+            # editable sensitivity_shock_* named ranges. It recomputes when the
+            # user flips scenario_index (primary_output moves) or edits a shock
+            # cell. The exact non-linear shadow grid (when available) is NOT
+            # frozen here — it is cited in the corner comment + exposed via the
+            # CLI/JSON/dossier export instead.
+            formula = (
+                f"=primary_output*"
+                f"(1+{shock_names[i]}*({row_elast})"
+                f"+{shock_names[j]}*({col_elast}))"
+            )
+            cell = sens_ws.cell(row=rr, column=3 + j, value=formula)
+            styles.style_formula(cell, number_format=styles.FMT_PCT_2DP)
+            if i == 0 and j == 0:
+                if exact_2d_available:
+                    centre = shadow_grid[len(shocks) // 2][len(shocks) // 2]
                     cell.comment = Comment(
-                        "method=shadow-2d — exact Python recompute via "
-                        "per-template shadow engine. Non-linear; reflects "
-                        "full model response to joint driver shocks. "
-                        "STATIC snapshot — does not recompute on scenario flip.",
+                        "LIVE 2D linear-elasticity grid off primary_output + "
+                        "sensitivity_shock_* named ranges — recomputes on a "
+                        "scenario flip or shock edit. The exact non-linear "
+                        "shadow-2D recompute (full joint-driver model response; "
+                        f"unshocked centre = {centre:+.4f}) is available via the "
+                        "`modelforge` CLI / dossier.",
                         "ModelForge",
                     )
-            else:
-                # Linear elasticity formula (fallback)
-                formula = (
-                    f"=primary_output*"
-                    f"(1+{shock_names[i]}*({row_elast})"
-                    f"+{shock_names[j]}*({col_elast}))"
-                )
-                cell = sens_ws.cell(row=rr, column=3 + j, value=formula)
-                styles.style_formula(cell, number_format=styles.FMT_PCT_2DP)
+                else:
+                    cell.comment = Comment(
+                        "LIVE 2D linear-elasticity grid off primary_output + "
+                        "sensitivity_shock_* named ranges — recomputes on a "
+                        "scenario flip or shock edit.",
+                        "ModelForge",
+                    )
 
     wb.save(xlsx_path)
     return xlsx_path
@@ -1054,5 +1103,6 @@ __all__ = [
     "append_dcf_2d_tables",
     "append_generic_2d_tables",
     "write_static_snapshot_banner",
+    "write_live_approx_banner",
     "PrimaryOutputLoc",
 ]

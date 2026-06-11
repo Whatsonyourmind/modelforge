@@ -134,12 +134,17 @@ def test_tornado_chart_is_native(built_workbook):
 
 
 def test_factor_values_are_live(built_workbook):
-    """Base/low-value/high-value columns must be formulas (live off
-    named ranges). Low/High Δ columns may be either:
-    * Excel formulas (elasticity fallback, method=elasticity)
-    * Hardcoded numeric values (shadow engine, method=shadow — these
-      come from exact Python recompute and have cell comments
-      documenting the method).
+    """Every output column on the tornado must be a LIVE Excel formula.
+
+    This is the v0.4.2 LIVE upgrade: the rendered workbook no longer freezes
+    shadow-engine deltas into the Low/High Δ cells. Instead, those cells are
+    live elasticity formulas off the ``primary_output`` named range and the
+    editable shock (E/F) + elasticity (G) input cells, so they genuinely
+    recompute on a scenario_index flip or a driver edit. (The exact non-linear
+    shadow recompute stays available for CLI/JSON/dossier export — it is cited
+    in the cell comment, not frozen in the cell.) The assertion is therefore
+    that ALL output columns are reactive ``=`` formulas, regardless of whether
+    a shadow engine exists for the template.
     """
     from modelforge.shadow import has_shadow_engine
     model_type, xlsx_path, _ = built_workbook
@@ -155,21 +160,31 @@ def test_factor_values_are_live(built_workbook):
             f"formula (got {v!r})"
         )
 
-    # Low Δ (col 10), High Δ (col 11): formula OR numeric depending on
-    # whether a shadow engine exists for this template
-    uses_shadow = has_shadow_engine(model_type)
+    # Low Δ (col 10), High Δ (col 11): now ALWAYS live formulas (the static
+    # shadow snapshot has been superseded by the reactive elasticity path).
     for col in (10, 11):
         v = ws.cell(row=header_row + 1, column=col).value
-        if uses_shadow:
-            assert isinstance(v, (int, float)), (
-                f"{model_type} has shadow engine; col {col} should be an "
-                f"exact numeric delta (got {v!r})"
-            )
-        else:
-            assert isinstance(v, str) and v.startswith("="), (
-                f"{model_type} has no shadow engine; col {col} should be "
-                f"an elasticity formula (got {v!r})"
-            )
+        assert isinstance(v, str) and v.startswith("="), (
+            f"{model_type} SensitivityAnalysis Δ col {col} should now be a "
+            f"LIVE elasticity formula (got {v!r}) — the static shadow "
+            f"snapshot has been superseded by the reactive path."
+        )
+        # The delta formula must reference the live primary_output named range
+        # so it recomputes on a scenario flip.
+        assert "primary_output" in v, (
+            f"{model_type} Δ col {col} formula {v!r} does not reference the "
+            f"live primary_output named range"
+        )
+
+    # When a shadow engine exists, its exact non-linear delta is preserved as a
+    # CLI/dossier-reachable cross-reference in the cell comment (NOT frozen in
+    # the cell). Assert that contract so the shadow path stays wired for export.
+    if has_shadow_engine(model_type):
+        cmt = ws.cell(row=header_row + 1, column=10).comment
+        assert cmt is not None and "shadow-engine" in cmt.text, (
+            f"{model_type} has a shadow engine; the Δ cell comment should "
+            f"cite the exact shadow-engine value (got {cmt!r})"
+        )
 
 
 def test_qc_still_passes(built_workbook):
