@@ -22,6 +22,7 @@ from datetime import date
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from modelforge.spec.base import Assumption, Label, ModelMeta, Source, Target
+from modelforge.spec.compliance import ComplianceContext
 
 
 AmortizationProfile = Literal[
@@ -172,6 +173,9 @@ class EquityIRRTarget(BaseModel):
 class ProjectFinanceSpec(BaseModel):
     model_type: Literal["project_finance"] = "project_finance"
     meta: ModelMeta
+    # Optional regulatory-compliance context, honored by the ComplianceCheck
+    # sheet; defaults reproduce prior hardcodes when omitted.
+    compliance: ComplianceContext | None = None
     target: Target  # project SPV
     horizon: PFHorizon = Field(default_factory=PFHorizon)
     sources: list[Source]

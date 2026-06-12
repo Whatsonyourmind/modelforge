@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from modelforge.spec.base import Assumption, Label, ModelMeta, Source, Target
 from modelforge.spec.risk_block import RiskAnalysisSpec
+from modelforge.spec.compliance import ComplianceContext
 
 
 class SCHorizon(BaseModel):
@@ -44,6 +45,9 @@ class SCTranche(BaseModel):
 class StructuredCreditSpec(BaseModel):
     model_type: Literal["structured_credit"] = "structured_credit"
     meta: ModelMeta
+    # Optional regulatory-compliance context, honored by the ComplianceCheck
+    # sheet; defaults reproduce prior hardcodes when omitted.
+    compliance: ComplianceContext | None = None
     target: Target
     horizon: SCHorizon = Field(default_factory=SCHorizon)
     sources: list[Source]

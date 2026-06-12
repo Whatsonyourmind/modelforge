@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from modelforge.spec.base import Assumption, Label, ModelMeta, Source, Target
 from modelforge.spec.risk_block import RiskAnalysisSpec
+from modelforge.spec.compliance import ComplianceContext
 
 
 class NPLHorizon(BaseModel):
@@ -51,6 +52,9 @@ class CapitalStructure(BaseModel):
 class NPLSpec(BaseModel):
     model_type: Literal["npl"] = "npl"
     meta: ModelMeta
+    # Optional regulatory-compliance context, honored by the ComplianceCheck
+    # sheet; defaults reproduce prior hardcodes when omitted.
+    compliance: ComplianceContext | None = None
     target: Target  # NPL portfolio descriptor
     horizon: NPLHorizon = Field(default_factory=NPLHorizon)
     sources: list[Source]
