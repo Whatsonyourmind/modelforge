@@ -30,6 +30,7 @@ ingest-ocr = ["pytesseract>=0.3.10", "pdf2image>=1.17", "Pillow>=10.0", "pdfplum
 web = ["fastapi>=0.100", "uvicorn[standard]>=0.20", "python-multipart>=0.0.9"]
 export = ["python-pptx>=1.0", "python-docx>=1.1"]
 mcp = ["mcp>=1.12.0"]
+deck = ["kiwisolver>=1.4", "Pillow>=10.0", "python-pptx>=1.0"]
 dev = ["pytest>=8", "ruff>=0.3", "reportlab>=4.0"]
 
 [project.scripts]
@@ -39,6 +40,9 @@ modelforge-mcp = "modelforge.mcp_server:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["modelforge*"]
+
+[tool.setuptools.package-data]
+"modelforge.deck.themes" = ["data/*.yaml"]
 
 [tool.ruff]
 line-length = 100
