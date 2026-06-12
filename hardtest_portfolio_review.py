@@ -269,7 +269,9 @@ def layer_a_fund_kpis() -> None:
     pref_rate = float(raw["pref_rate"])
     fee_years = cfs[-1]["period"] - cfs[0]["period"]
     gt_mgmt_fees = mgmt_rate * committed * fee_years
-    gt_pref = committed * ((1 + pref_rate) ** fee_years - 1)
+    # Pref compounds on PAID-IN (drawn) capital, not committed (audit fix #33);
+    # mgmt fees stay on committed.
+    gt_pref = paid_in * ((1 + pref_rate) ** fee_years - 1)
     gt_profit = total_value - committed
     gt_carry_base = max(gt_profit - gt_pref - gt_mgmt_fees, 0.0)
     gt_carry = carry_rate * gt_carry_base

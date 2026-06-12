@@ -80,18 +80,33 @@ for i in range(1, N):
 # Interest service: per-year -(senior*rate + mezz*rate), t0 = 0
 interest = [0.0] + [-(senior * SENIOR_RATE + mezz * MEZZ_RATE) for _ in range(1, N)]
 
-# Equity CF to fund (matches builder rows 28):
-#   t0   = -purchase + senior + mezz + net0
-#   1..9 = net + interest
-#   t10  = net + interest - senior - mezz
+# Equity CF to fund — SUBORDINATION-CORRECT (audit fix #16). Equity receives
+# ONLY the strict-priority residual: zero until senior + mezz are fully retired.
+# Replicate the builder's waterfall (senior principal -> mezz principal ->
+# equity residual) clean-room, from raw inputs only (no modelforge import).
+so = [0.0] * N   # senior principal outstanding
+spp = [0.0] * N  # senior principal paid this year
+mo = [0.0] * N   # mezz principal outstanding
+res = [0.0] * N  # residual to equity
+so[0], mo[0] = senior, mezz
+for i in range(1, N):
+    avail = max(net[i] + interest[i], 0.0)
+    spp[i] = min(avail, so[i - 1])
+    so[i] = max(so[i - 1] - spp[i], 0.0)
+    if so[i] <= 0.01:
+        mo[i] = max(mo[i - 1] - max(net[i] + interest[i] - spp[i], 0.0), 0.0)
+    else:
+        mo[i] = mo[i - 1]
+    if so[i] <= 0.01 and mo[i] <= 0.01:
+        res[i] = max(net[i] + interest[i] - spp[i] - (mo[i - 1] - mo[i]), 0.0)
+    else:
+        res[i] = 0.0
 equity = []
 for i in range(N):
     if i == 0:
         equity.append(-purchase + senior + mezz + net[0])
-    elif i == N - 1:
-        equity.append(net[i] + interest[i] - senior - mezz)
     else:
-        equity.append(net[i] + interest[i])
+        equity.append(res[i])
 
 # IRR via numpy_financial (independent of ModelForge)
 irr_npf = npf.irr(equity)
@@ -228,17 +243,17 @@ def main():
     check("gross_money_multiple", live_total_net / g("D9"), gross_money_multiple)
 
     # --- CHECK 4: IRR on equity CF reconciles to numpy_financial.irr ---
-    live_equity = row(g, 28)
+    live_equity = row(g, 36)   # Equity CF to fund (moved below the waterfall)
     for i in range(N):
         check(f"equity_cf_t{i}", live_equity[i], equity[i])
-    live_irr = g("D31")
+    live_irr = g("D39")
     # ground truth = numpy_financial on the LIVE equity vector (model-independent solver)
     irr_on_live = npf.irr(live_equity)
     check("IRR_vs_numpy_financial_on_live_CF", live_irr, irr_on_live, tol=1e-5)
     # and reconcile to the clean-room equity vector's IRR too
     check("IRR_vs_numpy_financial_cleanroom", live_irr, irr_npf, tol=1e-5)
     # MoIC identity
-    check("MoIC_vs_identity", g("D32"), moic_expected, tol=1e-6)
+    check("MoIC_vs_identity", g("D40"), moic_expected, tol=1e-6)
 
     # --- CHECK 5: cash conservation in the strict-priority waterfall ---
     # The waterfall distributes net collections to: senior principal, mezz
@@ -249,7 +264,7 @@ def main():
     # leaves the pool over the deal == total net collections + total interest
     # paid (interest is a real outflow), AND ending equity distributions
     # reconcile.
-    live_cum_cash = row(g, 36)
+    live_cum_cash = row(g, 29)   # Cumulative cash available (waterfall block)
     # cumulative cash == running sum of net collections (invariant)
     run = 0.0
     for i in range(N):
@@ -261,11 +276,11 @@ def main():
     # Distributable each year (t>=1) = net + interest. Split conservation:
     # senior_paid + mezz_paydown + residual_equity == max(net+interest,0)
     # whenever positive (the model only distributes non-negative cash).
-    live_senior_paid = row(g, 38)
-    live_senior_os = row(g, 37)
-    live_mezz_os = row(g, 40)
-    live_residual = row(g, 41)
-    live_interest = row(g, 26)
+    live_senior_paid = row(g, 31)   # Senior principal paid (this year)
+    live_senior_os = row(g, 30)     # Senior principal outstanding
+    live_mezz_os = row(g, 33)       # Mezz principal outstanding
+    live_residual = row(g, 34)      # Residual to equity
+    live_interest = row(g, 26)      # Total interest (senior + mezz)
     # CASH CONSERVATION (post-fix): the strict-priority waterfall must conserve
     # cash in EVERY year, INCLUDING the transition year where the mezz note is
     # fully retired. The distributable cash each year (net + interest, when
@@ -346,7 +361,7 @@ def main():
     print(f"  Gross-money multiple        = {live_total_net / g('D9'):.6f}x  (net coll / purchase)")
     print(f"  Equity IRR (workbook)       = {live_irr:.6f}")
     print(f"  Equity IRR (numpy_financial)= {irr_on_live:.6f}")
-    print(f"  Equity MoIC (workbook)      = {g('D32'):.6f}  (identity = {moic_expected:.6f})")
+    print(f"  Equity MoIC (workbook)      = {g('D40'):.6f}  (identity = {moic_expected:.6f})")
     print(f"  Ending cumulative cash      = {live_cum_cash[-1]:.6f}  (=total net)")
 
     # report cash conservation explicitly (defect FIXED)
@@ -354,10 +369,11 @@ def main():
     print(f"  Cash available in pool (t>=1)   = {cash_available:.4f}")
     print(f"  Cash distributed by waterfall   = {total_distributed:.4f}")
     print(f"  PHANTOM CASH LEAK               = {global_leak:.4f}  (must be 0 -> cash conserved)")
-    print("  Fix: residual_to_equity (row 41) now subtracts BOTH the senior")
-    print("  principal paid AND the same-year mezz principal paydown, so the")
-    print("  mezz-retirement cash is no longer double-counted as equity residual.")
-    print("  Scope: display rows 36-41; headline IRR/MoIC (row 28) read equity_cf, unchanged.")
+    print("  Fix: residual_to_equity (row 34) subtracts BOTH the senior principal")
+    print("  paid AND the same-year mezz principal paydown, so the mezz-retirement")
+    print("  cash is not double-counted as equity residual. The headline equity CF")
+    print("  (row 36) reads the strict-priority residual — zero until senior+mezz")
+    print("  are retired — and the IRR/MoIC (rows 39/40) read it. (audit fix #16)")
 
     if fails:
         sys.exit(1)
