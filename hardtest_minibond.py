@@ -20,6 +20,13 @@ from __future__ import annotations
 import io
 import os
 import sys
+# UTF-8 console guard (effective in-process; PYTHONIOENCODING alone is read
+# only at interpreter startup and ignored by the running process on Windows).
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 

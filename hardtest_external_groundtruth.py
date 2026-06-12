@@ -19,6 +19,14 @@ sys.path.insert(0, ".")
 
 import numpy_financial as npf
 from modelforge.finance_core import formulas as mf
+import sys
+# UTF-8 console guard (effective in-process; PYTHONIOENCODING alone is read
+# only at interpreter startup and ignored by the running process on Windows).
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 TOL = 1e-9
 results = []  # (name, passed, detail)
