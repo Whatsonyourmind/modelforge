@@ -60,8 +60,15 @@ def build(ws: Worksheet, spec, operating_refs: dict[str, str],
                                 "Waterfall di recupero (stress)")
     r += 1
 
-    # Use last projected year EBITDA as baseline
+    # Use last projected year EBITDA as baseline (drives 'recoverable to
+    # creditors' off the stressed terminal-year EBITDA).
     last_col = layout.year_col(n - 1)
+    # Exposure ('at default') must reference a year where senior debt is still
+    # OUTSTANDING. last_col can land past the bullet maturity, where the closing
+    # balance is 0 — which would (wrongly) show 0% senior recovery / 100% LGD /
+    # €0 EAD. Use the close/peak-exposure year (first projection year, pre-
+    # amortization): the most conservative, always-positive exposure.
+    exposure_col = layout.year_col(h)
     ebitda_row = int(operating_refs["ebitda_row"])
     closing_row = int(debt_refs["total_closing_row"])
 
@@ -109,7 +116,7 @@ def build(ws: Worksheet, spec, operating_refs: dict[str, str],
     # Senior recovery
     layout.write_row_label(ws, r, "Senior debt outstanding (at default)", "Debito senior (al default)")
     senior_outstanding_row = r
-    c = ws.cell(row=r, column=4, value=f"='{debt_sheet}'!{last_col}{closing_row}")
+    c = ws.cell(row=r, column=4, value=f"='{debt_sheet}'!{exposure_col}{closing_row}")
     styles.style_xref(c, number_format=styles.FMT_EUR_M)
     r += 1
 
@@ -152,7 +159,7 @@ def build(ws: Worksheet, spec, operating_refs: dict[str, str],
 
     layout.write_row_label(ws, r, "EAD (Exposure at Default)", "EAD")
     ead_row = r
-    c = ws.cell(row=r, column=4, value=f"='{debt_sheet}'!{last_col}{closing_row}")
+    c = ws.cell(row=r, column=4, value=f"='{debt_sheet}'!{exposure_col}{closing_row}")
     styles.style_xref(c, number_format=styles.FMT_EUR_M)
     r += 1
 

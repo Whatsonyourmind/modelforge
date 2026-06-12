@@ -32,8 +32,16 @@ def _def(wb, name: str, sheet: str, cell: str) -> None:
     wb.defined_names[name] = DefinedName(name=name, attr_text=f"'{sheet}'!{cell}")
 
 
-def build(ws: Worksheet, spec) -> dict[str, int]:
-    """Emit full Sources & Uses + LBO-specific blocks sheet."""
+def build(ws: Worksheet, spec, debt_refs: dict | None = None,
+          debt_sheet_name: str = "DebtSchedule") -> dict[str, int]:
+    """Emit full Sources & Uses + LBO-specific blocks sheet.
+
+    ``debt_refs`` (from the DebtSchedule builder) supplies ``total_closing_row``
+    so exit proceeds and the dividend recap can net the debt actually
+    outstanding at the relevant year. Passed by the sponsor_lbo template; when
+    absent the debt-netting refs degrade to 0 (legacy enterprise-value-only
+    behaviour) rather than crashing.
+    """
     layout.set_column_widths(ws, label_width=46, it_width=34, year_width=14, unit_width=6)
     layout.write_title_block(
         ws, "Sources & Uses + LBO Structuring",
@@ -70,6 +78,30 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
     _recap_year_val = getattr(spec, "div_recap_year", 3)
     proj_exit_ebitda_ref = _proj_ebitda_ref(_exit_year_val)
     proj_recap_ebitda_ref = _proj_ebitda_ref(_recap_year_val)
+
+    # LBO-EXIT FIX (audit 2026-06): exit equity to the sponsor = exit EV − net
+    # debt OUTSTANDING at exit (the prior code booked the full enterprise value
+    # as the sponsor's inflow, never repaying the ~€35m of tranche debt, which
+    # overstated strategic IRR by ~6.5pp and MoIC by ~0.8×). Likewise the
+    # dividend recap pays (new debt raised to target leverage) − (debt already
+    # outstanding at the recap date), NOT minus the sponsor equity cheque. Both
+    # net the DebtSchedule 'Total debt outstanding' at the matching year column.
+    _total_closing_row = None
+    if debt_refs and debt_refs.get("total_closing_row") is not None:
+        _total_closing_row = int(debt_refs["total_closing_row"])
+
+    def _proj_debt_ref(proj_year_1indexed: int) -> str:
+        """Cross-sheet ref to total debt outstanding at a 1-indexed projection
+        year (same column convention as _proj_ebitda_ref). Returns '0' when the
+        debt row is unknown, degrading to enterprise-value-only behaviour."""
+        if _total_closing_row is None:
+            return "0"
+        y = max(1, min(int(proj_year_1indexed), _p))
+        col = layout.year_col(_h + y - 1)
+        return f"'{debt_sheet_name}'!{col}{_total_closing_row}"
+
+    proj_exit_debt_ref = _proj_debt_ref(_exit_year_val)
+    proj_recap_debt_ref = _proj_debt_ref(_recap_year_val)
 
     # ── SECTION 1: Sources & Uses (US-201) ────────────────────────────────
     layout.write_section_header(ws, r, "Sources & Uses",
@@ -651,9 +683,11 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
                                indent=True)
         # Approximate reverse-solve: at exit, assume 3x terminal MoIC → PP = Exit/(1+IRR)^year / 3
         # Simple placeholder formula; full reverse-solve requires iterative Excel.
+        # Uses exit EQUITY (EV − net debt at exit), consistent with the returns.
         c = ws.cell(
             row=r, column=4,
-            value=(f"=(D{refs['exit_strategic']}*{proj_exit_ebitda_ref})/"
+            value=(f"=(D{refs['exit_strategic']}*{proj_exit_ebitda_ref}"
+                   f"-{proj_exit_debt_ref})/"
                    f"(1+{pct})^D{refs['exit_year']}/3"),
         )
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
@@ -738,17 +772,22 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
                 # Dividend during hold: via recap in recap_year (if enabled),
                 # else 0. Exit proceeds if y == exit_year.
                 # LBO-2: exit proceeds use the PROJECTED exit-year EBITDA
-                # (captures modeled growth), not entry LTM EBITDA.
+                # (captures modeled growth), not entry LTM EBITDA. Exit FIX:
+                # net the debt outstanding at exit so the sponsor receives
+                # EQUITY (EV − net debt), not the whole enterprise value.
                 exit_proceeds = (
                     f"IF({y}=D{refs['exit_year']},"
-                    f"D{refs[mult_key]}*{proj_exit_ebitda_ref},0)"
+                    f"D{refs[mult_key]}*{proj_exit_ebitda_ref}"
+                    f"-{proj_exit_debt_ref},0)"
                 )
                 # LBO-2: recap leverage applies to the PROJECTED recap-year
                 # EBITDA (the deleveraged/grown EBITDA at the recap date).
+                # Recap FIX: net the debt already OUTSTANDING at the recap date
+                # (what the new debt refinances), not the sponsor equity cheque.
                 recap_div = (
                     f"IF(AND(D{refs['recap_enabled']}=1,{y}=D{refs['recap_year']}),"
                     f"(recap_target_leverage*{proj_recap_ebitda_ref}"
-                    f"-D{refs['cap_sponsor_eq']})*recap_sponsor_share_pct,0)"
+                    f"-{proj_recap_debt_ref})*recap_sponsor_share_pct,0)"
                 )
                 # Earnout payment in earnout_year (neutral to sponsor — adds to
                 # exit proceeds when relevant; placeholder 0 for cleanliness)
@@ -855,16 +894,16 @@ def build(ws: Worksheet, spec) -> dict[str, int]:
         row=r, column=4,
         value=(f"=IF(D{refs['recap_enabled']}=1,"
                f"(recap_target_leverage*{proj_recap_ebitda_ref}"
-               f"-D{refs['cap_sponsor_eq']})*recap_sponsor_share_pct,0)"),
+               f"-{proj_recap_debt_ref})*recap_sponsor_share_pct,0)"),
     )
     styles.style_formula(c, number_format=styles.FMT_EUR_M)
     ws.cell(row=r, column=4).comment = Comment(
         "Dividend recap distribution = IF(recap enabled, "
-        "target_leverage × projected recap-year EBITDA − sponsor_equity, 0). "
-        "New debt is issued up to target leverage on the GROWN (projected) "
-        "EBITDA at the recap date; proceeds net of existing equity fund the "
-        "sponsor distribution. Simplified: assumes no refinance fees "
-        "(add via financing_fee_pct).",
+        "target_leverage × projected recap-year EBITDA − debt outstanding at "
+        "recap, 0). New debt is issued up to target leverage on the GROWN "
+        "(projected) EBITDA at the recap date; proceeds net of the debt being "
+        "refinanced fund the sponsor distribution. Simplified: assumes no "
+        "refinance fees (add via financing_fee_pct).",
         "ModelForge",
     )
     r += 2

@@ -60,9 +60,12 @@ def build(spec, out_path: Path | str, graph_db_path=None):
         ret_ws = wb.create_sheet("Returns")
         returns_sheet.build(ret_ws, spec, debt_refs, debt_sheet_name="DebtSchedule")
 
-        # v0.8 Sources & Uses — heavy bulge-tier block
+        # v0.8 Sources & Uses — heavy bulge-tier block. Pass debt_refs so exit
+        # proceeds + dividend recap net the debt outstanding at the relevant
+        # year (sponsor receives equity = EV − net debt, not enterprise value).
         su_ws = wb.create_sheet("SourcesUses")
-        sources_uses.build(su_ws, spec)
+        sources_uses.build(su_ws, spec, debt_refs=debt_refs,
+                           debt_sheet_name="DebtSchedule")
         sources_uses.build_historical_ebitda_lfy(wb, spec)
 
         # Sponsor LBO uses SourcesUses-based returns (not CreditOpinion,
