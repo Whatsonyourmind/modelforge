@@ -155,6 +155,111 @@ def _load_spec_class(model_type: str):
     raise ValueError(f"Unknown model_type {model_type!r}. Known: {known}")
 
 
+def _finish_after_injection(xlsx, spec, spec_bytes, spec_path) -> None:
+    """Re-run the deterministic finishing chain after Trust/Moat injection.
+
+    ``build_model()`` already styles, timestamp-pins and manifest-hashes the
+    core workbook, but the CLI injects the RedFlags + MOAT sheets *afterwards*.
+    Without re-finishing, the delivered file carries unstyled injected cells
+    (uncertifiable), wall-clock zip mtimes (non-deterministic bytes), and a
+    manifest ``workbook_sha256`` that no longer matches the shipped bytes
+    (``verify_manifest`` fails). Re-running the three steps here — as the last
+    workbook-mutating action — makes the post-injection bytes the ones that get
+    styled, pinned and hashed. Each step is independently guarded so a
+    post-processing hiccup never blocks an already-built workbook. The styler is
+    clock/RNG-free, so a same-spec rebuild stays byte-identical.
+    """
+    try:
+        from openpyxl import load_workbook
+        from modelforge.builder.styles import auto_color_xrefs, auto_style_gaps
+        wb = load_workbook(xlsx, keep_links=True)
+        auto_color_xrefs(wb)
+        auto_style_gaps(wb)
+        wb.save(xlsx)
+    except Exception:
+        pass
+    try:
+        from modelforge.analytics.reproducibility import finalize_determinism
+        finalize_determinism(xlsx, spec, spec_source_bytes=spec_bytes)
+    except Exception:
+        pass
+    try:
+        from modelforge.analytics.manifest import write_manifest
+        write_manifest(
+            xlsx, spec, spec_source_bytes=spec_bytes, spec_source_path=spec_path,
+        )
+    except Exception:
+        pass
+
+
+def _inject_trust_moat_and_finish(xlsx, spec, spec_bytes, spec_path, *,
+                                  trust_strict: bool = False,
+                                  quiet: bool = False) -> None:
+    """Inject the Trust-Layer RedFlags + Moat sheets, then re-finish the file.
+
+    Shared by ``build`` and ``certify <spec>`` so both audit/ship the *same*
+    delivered artifact. ``quiet=True`` suppresses console output (certify path).
+    """
+    # Trust Layer — plausibility RedFlags sheet.
+    try:
+        from modelforge.trust import (
+            DEFAULT_RULES, TrustEngine, inject_red_flag_sheet,
+        )
+        report = TrustEngine(rules=DEFAULT_RULES).evaluate(xlsx, spec)
+        inject_red_flag_sheet(xlsx, report)
+    except Exception as e:
+        if not quiet:
+            console.print(f"[yellow]Trust Layer skipped:[/yellow] {e}")
+    else:
+        if not quiet:
+            s = report.summary()
+            if report.has_failures():
+                console.print(
+                    f"[red]Trust:[/red] FAIL={s['fail']} WARN={s['warn']} "
+                    f"INFO={s['info']}  (see RedFlags sheet)"
+                )
+            elif report.has_warnings():
+                console.print(
+                    f"[yellow]Trust:[/yellow] WARN={s['warn']} INFO={s['info']}  "
+                    "(see RedFlags sheet)"
+                )
+            else:
+                console.print(
+                    f"[green]Trust:[/green] all {s['rules_run']} rules pass"
+                )
+        if trust_strict and report.has_failures():
+            # Keep even the aborted artifact internally consistent.
+            _finish_after_injection(xlsx, spec, spec_bytes, spec_path)
+            sys.exit(3)
+
+    # MoatGate — "fully-formulated live Excel outputs" moat.
+    try:
+        from modelforge.moat import MoatGate, inject_moat_sheet
+        moat_report = MoatGate().evaluate(xlsx)
+        inject_moat_sheet(xlsx, moat_report)
+    except Exception as e:
+        if not quiet:
+            console.print(f"[yellow]Moat gate skipped:[/yellow] {e}")
+    else:
+        if not quiet:
+            summary = moat_report.summary()
+            if moat_report.passes():
+                console.print(
+                    f"[green]Moat:[/green] {summary['gates_passed']}/"
+                    f"{summary['gates_total']} gates  "
+                    f"core-output density {summary['core_output_density']*100:.1f}%"
+                )
+            else:
+                failed = [g.name for g in moat_report.gate_results if not g.passed]
+                console.print(
+                    f"[red]Moat:[/red] FAIL on {','.join(failed)}  "
+                    f"(core-output density "
+                    f"{summary['core_output_density']*100:.1f}%; see MOAT sheet)"
+                )
+
+    _finish_after_injection(xlsx, spec, spec_bytes, spec_path)
+
+
 @main.command("build")
 @click.argument("spec_path", type=click.Path(exists=True, path_type=Path))
 @click.option("--out", "out_path", type=click.Path(path_type=Path), default=None,
@@ -197,52 +302,13 @@ def build_cmd(spec_path: Path, out_path: Path | None,
     if no_trust:
         return
 
-    try:
-        from modelforge.trust import (
-            DEFAULT_RULES, TrustEngine, inject_red_flag_sheet,
-        )
-        engine = TrustEngine(rules=DEFAULT_RULES)
-        report = engine.evaluate(xlsx, spec)
-        inject_red_flag_sheet(xlsx, report)
-    except Exception as e:
-        console.print(f"[yellow]Trust Layer skipped:[/yellow] {e}")
-    else:
-        s = report.summary()
-        if report.has_failures():
-            console.print(
-                f"[red]Trust:[/red] FAIL={s['fail']} WARN={s['warn']} INFO={s['info']}  "
-                "(see RedFlags sheet)"
-            )
-            if trust_strict:
-                sys.exit(3)
-        elif report.has_warnings():
-            console.print(
-                f"[yellow]Trust:[/yellow] WARN={s['warn']} INFO={s['info']}  (see RedFlags sheet)"
-            )
-        else:
-            console.print(f"[green]Trust:[/green] all {s['rules_run']} rules pass")
-
-    # MoatGate — verifies the "fully-formulated live Excel outputs" moat
-    try:
-        from modelforge.moat import MoatGate, inject_moat_sheet
-        moat_report = MoatGate().evaluate(xlsx)
-        inject_moat_sheet(xlsx, moat_report)
-    except Exception as e:
-        console.print(f"[yellow]Moat gate skipped:[/yellow] {e}")
-        return
-
-    summary = moat_report.summary()
-    if moat_report.passes():
-        console.print(
-            f"[green]Moat:[/green] {summary['gates_passed']}/{summary['gates_total']} gates  "
-            f"core-output density {summary['core_output_density']*100:.1f}%"
-        )
-    else:
-        failed = [g.name for g in moat_report.gate_results if not g.passed]
-        console.print(
-            f"[red]Moat:[/red] FAIL on {','.join(failed)}  "
-            f"(core-output density {summary['core_output_density']*100:.1f}%; see MOAT sheet)"
-        )
+    # Inject RedFlags + MOAT, then re-run the styler/determinism/manifest chain
+    # so the *delivered* workbook is certifiable, byte-deterministic, and its
+    # manifest hash matches the shipped bytes.
+    _inject_trust_moat_and_finish(
+        xlsx, spec, spec_bytes, spec_path,
+        trust_strict=trust_strict, quiet=False,
+    )
 
 
 def _template_description(name: str) -> str:
@@ -411,18 +477,26 @@ def qc_cmd(xlsx_path: Path) -> None:
                    "Defaults to output/<spec_stem>.xlsx.")
 @click.option("--max-gaps", default=8, show_default=True, type=int,
               help="Max styling-gap cells to list.")
-def certify_cmd(target: Path, out_path: Path | None, max_gaps: int) -> None:
+@click.option("--no-trust", is_flag=True, default=False,
+              help="When TARGET is a spec, audit the core build only "
+                   "(skip the Trust/Moat injection the `build` command ships).")
+@click.option("--strict", is_flag=True, default=False,
+              help="Exit non-zero on WARN too (treat styling gaps as failures).")
+def certify_cmd(target: Path, out_path: Path | None, max_gaps: int,
+                no_trust: bool, strict: bool) -> None:
     """Certify a workbook has zero formula errors (the "no #REF!" gate).
 
     TARGET may be a built ``.xlsx`` or a ``.yaml``/``.yml`` spec. When a spec
-    is given it is built first (no Trust/Moat injection), then audited. The
-    auditor recomputes every formula with the third-party ``formulas`` engine
-    and reports any Excel error cell (#REF!/#DIV0!/#VALUE!/#NAME?/#NUM!/#N/A)
-    plus numeric cells lacking a font colour or number_format.
+    is given it is built exactly as the ``build`` command ships it — including
+    the Trust/Moat sheets — so the badge is earned on the delivered artifact
+    (pass ``--no-trust`` to audit only the core build). The auditor recomputes
+    every formula with the third-party ``formulas`` engine and reports any Excel
+    error cell (#REF!/#DIV0!/#VALUE!/#NAME?/#NUM!/#N/A) plus numeric cells
+    lacking a font colour or number_format.
 
     Prints CERTIFIED (zero errors, no styling gaps), WARN (zero errors but
-    some styling gaps), or FAIL (≥1 formula error). Exits 0 unless any
-    formula-error cell is found (then exits 1).
+    some styling gaps), or FAIL (≥1 formula error). Exits 0 unless a formula
+    error is found (exit 1); with ``--strict``, WARN also exits 1.
     """
     from modelforge.qc import audit_workbook
 
@@ -443,6 +517,11 @@ def certify_cmd(target: Path, out_path: Path | None, max_gaps: int) -> None:
             spec_source_bytes=spec_bytes,
             spec_source_path=target,
         )
+        if not no_trust:
+            # Build the same artifact `build` delivers, so the badge matches.
+            _inject_trust_moat_and_finish(
+                xlsx, spec, spec_bytes, target, quiet=True,
+            )
         console.print(f"[green]Built:[/green] {xlsx}  [dim]({model_type})[/dim]")
         audit_target = xlsx
     else:
@@ -487,7 +566,10 @@ def certify_cmd(target: Path, out_path: Path | None, max_gaps: int) -> None:
     for n in report.notes:
         console.print(f"[dim]note: {n}[/dim]")
 
-    sys.exit(0 if report.passed else 1)
+    # Default: fail only on formula errors. --strict also fails on WARN
+    # (styling gaps), so the gate can be wired into CI as a hard check.
+    ok = report.passed and (verdict == "CERTIFIED" or not strict)
+    sys.exit(0 if ok else 1)
 
 
 @main.command("sources")
