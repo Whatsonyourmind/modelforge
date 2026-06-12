@@ -139,7 +139,7 @@ bond:
   subscribers: ["A national promotional institution", "An Italian private debt fund", "An insurance investor (hypothetical)"]
 
 covenants:
-  - name: { en: "Net Leverage (Net Debt / EBITDA)", it: "Leva netta" }
+  - name: { en: "Gross Leverage (Debt / EBITDA)", it: "Leva lorda" }
     kind: leverage
     test_frequency: annual
     threshold_by_year:

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from modelforge.spec.base import Assumption, ModelMeta, Source, Target
 
@@ -152,6 +152,29 @@ class DCFSpec(BaseModel):
         if len(v.ebitda_margin_by_year) != py:
             raise ValueError(f"ebitda_margin_by_year must have {py} entries")
         return v
+
+    @model_validator(mode="after")
+    def _terminal_growth_below_risk_free(self):
+        """Guard against the Gordon terminal value diverging.
+
+        Perpetual terminal growth must stay below the risk-free rate (Damodaran:
+        nothing grows faster than the long-run riskless economy forever). Since
+        the risk-free rate is always below WACC, this also guarantees g < WACC,
+        so the terminal value CF*(1+g)/(WACC-g) never goes negative/infinite —
+        the prior behaviour silently emitted a negative EV / price per share on
+        a g >= WACC misconfiguration while still exiting 0.
+        """
+        g = self.terminal.terminal_growth_pct.base
+        rf = self.wacc.risk_free_rate.base
+        if g >= rf:
+            raise ValueError(
+                f"terminal_growth_pct base ({g:.2%}) must be below the risk-free "
+                f"rate ({rf:.2%}): perpetual growth above the long-run riskless "
+                f"rate makes the Gordon terminal value diverge (g >= WACC) and the "
+                f"DCF emit a negative enterprise value. Lower terminal_growth_pct "
+                f"or raise risk_free_rate."
+            )
+        return self
 
     def all_assumptions(self) -> list[Assumption]:
         out: list[Assumption] = []

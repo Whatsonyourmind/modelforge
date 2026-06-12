@@ -295,8 +295,12 @@ def build(ws: Worksheet, spec, dcf_refs: dict[str, str], dcf_sheet: str) -> dict
     rows["lp_tier1"] = r
     layout.write_row_label(ws, r, "LP receives in Tier 1",
                            "LP riceve in Tier 1", indent=True)
+    # LP Tier 1: the FULL distribution flows to the LP until the preferred
+    # threshold is cleared (pref_threshold already embeds return-of-LP-capital).
+    # The prior formula multiplied by lp_capital_commitment_pct, so the GP earned
+    # a promote out of later tiers even when the LP preferred return was NOT met.
     cc = ws.cell(row=r, column=4,
-                 value=f"=MIN($D${rows['total_equity_distrib']}*lp_capital_commitment_pct,$D${rows['pref_threshold']})")
+                 value=f"=MIN($D${rows['total_equity_distrib']},$D${rows['pref_threshold']})")
     styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 2
 

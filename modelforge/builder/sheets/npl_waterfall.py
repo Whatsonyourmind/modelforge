@@ -342,7 +342,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     first_col = layout.year_col(0); last_col = layout.year_col(n - 1)
     layout.write_row_label(ws, r, "Equity IRR", "IRR equity", indent=True)
     cc = ws.cell(row=r, column=4,
-                 value=f"=IRR(${first_col}${rows['equity_cf']}:${last_col}${rows['equity_cf']},0.15)")
+                 value=f"=IFERROR(IRR(${first_col}${rows['equity_cf']}:${last_col}${rows['equity_cf']},0.15),-1)")
     styles.style_formula(cc, number_format=styles.FMT_PCT_2DP)
     cc.font = styles.font_subheader
     r += 1

@@ -430,8 +430,8 @@ debt:
 # ─────────────────────────────────────────────────────────────────────────────
 covenants:
   - name:
-      en: Total Net Leverage
-      it: Leva Finanziaria Netta Totale
+      en: Total Gross Leverage
+      it: Leva Finanziaria Lorda Totale
     kind: leverage
     test_frequency: quarterly
     equity_cure: true
