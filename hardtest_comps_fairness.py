@@ -18,6 +18,13 @@ Ground truth used:
 import os
 import statistics
 import sys
+# UTF-8 console guard (effective in-process; PYTHONIOENCODING alone is read
+# only at interpreter startup and ignored by the running process on Windows).
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 import numpy as np
 import formulas

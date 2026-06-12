@@ -21,6 +21,14 @@ import warnings, sys, os, subprocess, yaml
 warnings.filterwarnings("ignore")
 sys.path.insert(0, ".")
 import formulas
+import sys
+# UTF-8 console guard (effective in-process; PYTHONIOENCODING alone is read
+# only at interpreter startup and ignored by the running process on Windows).
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 # ── self-contained: build base + stress workbooks if missing ──
 def _ensure_workbooks():

@@ -19,6 +19,13 @@ Layer tested: LIVE rendered Excel (formulas engine), all three merger sheets.
 
 import os
 import sys
+# UTF-8 console guard (effective in-process; PYTHONIOENCODING alone is read
+# only at interpreter startup and ignored by the running process on Windows).
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 import math
 
 import formulas

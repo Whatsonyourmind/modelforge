@@ -21,6 +21,13 @@ import io
 import math
 import os
 import sys
+# UTF-8 console guard (effective in-process; PYTHONIOENCODING alone is read
+# only at interpreter startup and ignored by the running process on Windows).
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 # Force UTF-8 stdout so Greek/math glyphs in detail strings don't crash on the
 # Windows cp1252 console.
