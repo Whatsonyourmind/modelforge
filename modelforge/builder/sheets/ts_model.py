@@ -230,10 +230,10 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
-    # v0.7: Debt roll-forward (US-075 from v0.6 PRD)
-    # BOP debt + draws − scheduled repayments = EOP. Opening balance
-    # from spec; draws/repayments default to zero unless spec provides
-    # debt_annual_repayment_eur_m which applies linearly from year 1.
+    # v0.7: Debt roll-forward (US-075). BOP debt − scheduled repayment = EOP,
+    # floored at 0. Opening balance from spec; repayment = spec
+    # debt_annual_repayment_eur_m (default 0 → debt stays flat). The matching
+    # cash outflow is booked in CFF below so the balance sheet stays balanced.
     rows["debt"] = r
     layout.write_row_label(ws, r, L("ts_debt").en, L("ts_debt").secondary, indent=True)
     cc = ws.cell(row=r, column=4, value=spec.opening_bs.debt_eur_m)
@@ -368,11 +368,29 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
+    # Debt repayment (CFF outflow) = the reduction in the debt balance this
+    # period. Booking it here makes the cash plug net the paydown so A = L + E
+    # holds when debt_annual_repayment_eur_m > 0 (previously the BS debt fell
+    # with no matching cash outflow, breaking the balance-sheet tie).
+    rows["cf_debt_repay"] = r
+    layout.write_row_label(ws, r, "Debt repayment", "Rimborso debito", indent=True)
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        if i == 0:
+            cc = ws.cell(row=r, column=col_idx, value="=0")
+        else:
+            prior = layout.year_col(i - 1)
+            cc = ws.cell(row=r, column=col_idx,
+                         value=f"=-(${prior}${rows['debt']}-${col}${rows['debt']})")
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 1
+
     rows["cf_cff"] = r
     layout.write_row_label(ws, r, L("ts_cff").en, L("ts_cff").secondary)
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
-        cc = ws.cell(row=r, column=col_idx, value=f"=${col}${rows['cf_div']}")
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"=${col}${rows['cf_div']}+${col}${rows['cf_debt_repay']}")
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 

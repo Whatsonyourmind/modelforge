@@ -417,11 +417,13 @@ def _build_fund_returns_sheet(wb, spec) -> None:
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
         r += 1
 
-        # preferred amount = committed * ((1+pref)^years - 1)
+        # preferred amount = paid-in * ((1+pref)^years - 1). The hurdle compounds
+        # on capital actually drawn, not committed (committed overstates the
+        # hurdle and understates carry). Management fees stay on committed.
         pref_row = r
         layout.write_row_label(ws, r, "Preferred (hurdle) amount", "Importo hurdle", indent=True)
         c = ws.cell(row=r, column=4,
-                    value=f"=$D${committed_row}*((1+$D${prefrate_row})^$D${feeyears_row}-1)")
+                    value=f"=$D${paidin_row}*((1+$D${prefrate_row})^$D${feeyears_row}-1)")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
         r += 1
 

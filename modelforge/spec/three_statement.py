@@ -52,6 +52,7 @@ class OpeningBalanceSheet(BaseModel):
     other_assets_eur_m: float = 0.0
     payables_eur_m: float
     debt_eur_m: float
+    debt_annual_repayment_eur_m: float = 0.0  # scheduled linear paydown / yr (0 = flat)
     other_liabilities_eur_m: float = 0.0
     equity_eur_m: float  # historical equity — must balance
 
