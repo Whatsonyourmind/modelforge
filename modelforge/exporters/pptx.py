@@ -1,5 +1,14 @@
 """PowerPoint exporter — executive committee deck from a ModelForge workbook.
 
+.. note:: **Deprecation note (v0.12):** this 5-slide summary exporter is
+   superseded by the certified deck pipeline — ``modelforge deck`` (CLI),
+   ``export_deck`` (MCP), and ``modelforge.deck.pipeline`` (library) — which
+   is fail-closed (manifest verify + CERTIFIED audit), renders full IC-memo /
+   teaser decks with a mandatory "Certification & Red Flags" slide, and
+   stamps spec/workbook SHA-256 into the .pptx core properties. This module
+   is kept for backward compatibility (``export_pptx`` MCP tool) and is not
+   being extended.
+
 Generates a 5-slide deck:
     1. Cover (deal name, date, version, author)
     2. Key Assumptions (top-10 named-range drivers, with source citations)

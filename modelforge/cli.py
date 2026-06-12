@@ -1787,5 +1787,103 @@ def audit_all_cmd(examples_dir: Path, out_dir: Path, report_path: Path) -> None:
                   f"Moat-PASS: {n_pass_moat}")
 
 
+@main.command("deck")
+@click.argument("target", type=click.Path(exists=True, path_type=Path))
+@click.option("--type", "deck_type", type=click.Choice(["ic_memo", "teaser"]),
+              default="ic_memo", show_default=True,
+              help="Deck composer to use.")
+@click.option("--theme", default=None,
+              help="Deck theme (e.g. finance-pro, executive-dark). "
+                   "Defaults to the composer's theme.")
+@click.option("--out", "out_path", type=click.Path(path_type=Path), default=None,
+              help="Output .pptx path. Defaults to "
+                   "<workbook_stem>_<type>.pptx next to the workbook.")
+def deck_cmd(target: Path, deck_type: str, theme: str | None,
+             out_path: Path | None) -> None:
+    """Render a certified board deck (.pptx) from a spec or built workbook.
+
+    TARGET may be a ``.yaml``/``.yml`` spec or a built ``.xlsx``. A spec is
+    built exactly as the ``build`` command ships it (Trust/Moat sheets +
+    deterministic finishing + manifest) before the deck chain runs. A
+    workbook requires its ``<stem>.manifest.json`` sidecar next to it.
+
+    Fail-closed: the deck is only rendered when the manifest verifies AND
+    the certification audit returns CERTIFIED. Every deck ends with a
+    mandatory "Certification & Red Flags" slide and embeds
+    spec_sha256 + workbook_sha256 in the .pptx core properties; the file is
+    byte-deterministic for a given workbook (same workbook in →
+    byte-identical deck out).
+    """
+    try:
+        from modelforge.deck.pipeline import DeckAdapterError, build_deck_from_workbook
+    except ImportError as e:
+        console.print(
+            "[red]deck rendering requires the deck extras: "
+            "pip install 'modelforge-finance\\[deck]'[/red]"
+        )
+        console.print(f"[dim](missing dependency: {getattr(e, 'name', None) or e})[/dim]")
+        sys.exit(1)
+
+    suffix = target.suffix.lower()
+    if suffix in (".yaml", ".yml"):
+        spec, model_type, spec_bytes = _load_and_validate_spec(target)
+        xlsx_out = Path("output") / f"{target.stem}.xlsx"
+        xlsx, _ = build_model(
+            spec, xlsx_out,
+            spec_source_bytes=spec_bytes,
+            spec_source_path=target,
+        )
+        # Ship the same artifact `build` delivers (RedFlags + MOAT +
+        # styler/determinism/manifest) so the deck certifies the real file.
+        _inject_trust_moat_and_finish(xlsx, spec, spec_bytes, target, quiet=True)
+        console.print(f"[green]Built:[/green] {xlsx}  [dim]({model_type})[/dim]")
+        workbook = Path(xlsx)
+    elif suffix == ".xlsx":
+        workbook = target
+    else:
+        console.print(
+            f"[red]{target.name}: expected a .yaml/.yml spec or a built "
+            f".xlsx workbook.[/red]"
+        )
+        sys.exit(1)
+
+    try:
+        result = build_deck_from_workbook(
+            workbook, deck_type=deck_type, theme=theme, out_path=out_path,
+        )
+    except DeckAdapterError as e:
+        from rich.markup import escape as _rich_escape
+
+        # escape: adapter errors may contain literal brackets (e.g. the
+        # "pip install 'modelforge-finance[deck]'" hint) that rich would
+        # otherwise swallow as markup tags.
+        console.print(f"[red]{_rich_escape(str(e))}[/red]")
+        sys.exit(1)
+    except ImportError as e:
+        console.print(
+            "[red]deck rendering requires the deck extras: "
+            "pip install 'modelforge-finance\\[deck]'[/red]"
+        )
+        console.print(f"[dim](missing dependency: {getattr(e, 'name', None) or e})[/dim]")
+        sys.exit(1)
+
+    console.print(
+        f"[green]Deck:[/green] {result.pptx_path}  "
+        f"[dim]({result.deck_type} · {result.slide_count} slides · "
+        f"theme {result.theme})[/dim]"
+    )
+    console.print(
+        f"[green]Certified:[/green] {result.audit_verdict}  "
+        f"[dim]workbook {result.workbook_sha256[:16]}…  "
+        f"spec {result.spec_sha256[:16]}…  (embedded in core properties)[/dim]"
+    )
+    if result.red_flag_count:
+        console.print(
+            f"[yellow]Red flags:[/yellow] {result.red_flag_count} Trust-Layer "
+            f"entr{'y' if result.red_flag_count == 1 else 'ies'} carried onto "
+            f"the certification slide."
+        )
+
+
 if __name__ == "__main__":
     main()
