@@ -124,7 +124,7 @@ def build_deal_structure(ws: Worksheet, spec) -> dict[str, int]:
 
     write_formula(r, "Shares issued by acquirer (m)", "Azioni emesse acquirer (m)",
                   f"=D{refs['stock_cons']}/acquirer_share_price_eur",
-                  styles.FMT_MULTIPLE)
+                  styles.FMT_EUR_M)  # share COUNT, not a multiple
     refs["new_shares"] = r
     _define_name(wb, "new_shares_issued", ws.title, f"D{r}")
     r += 1

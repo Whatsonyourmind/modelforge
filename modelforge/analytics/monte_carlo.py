@@ -437,6 +437,12 @@ def _emit_sheet(
         ("Min", float(np.min(result.samples))),
         ("Max", float(np.max(result.samples))),
     ]
+    # A FRACTIONAL delta is a unitless ratio (× base); rendering it as a percent
+    # produces runaway "-417%/+333%" labels when the base output is small. Show
+    # fractional deltas as plain numbers; keep percent only for the absolute
+    # (near-zero-base) regime where the delta is already an output-unit value.
+    delta_fmt = (styles.FMT_NUMBER_2DP if result.delta_mode == "fractional"
+                 else styles.FMT_PCT_2DP)
     for i, (label, frac) in enumerate(rows):
         r = stats_row + 1 + i
         ws.cell(row=r, column=1, value=label).font = styles.font_subheader
@@ -445,7 +451,7 @@ def _emit_sheet(
         # scenario — style as static_value (grey/italic) so it is visually
         # distinct from a blue live input and never looks recomputable.
         fc = ws.cell(row=r, column=2, value=frac)
-        styles.style_static_value(fc, number_format=styles.FMT_PCT_2DP)
+        styles.style_static_value(fc, number_format=delta_fmt)
         fc.comment = Comment(
             f"Computed from {result.n_runs:,} {result.distribution} draws "
             f"across {len(factors)} factors. Seed={MCConfig().seed}. "
@@ -477,11 +483,11 @@ def _emit_sheet(
         # build-time snapshot, not editable live data.
         styles.style_static_value(
             ws.cell(row=r, column=1, value=float(edges[i])),
-            number_format=styles.FMT_PCT_2DP,
+            number_format=delta_fmt,
         )
         styles.style_static_value(
             ws.cell(row=r, column=2, value=float(edges[i + 1])),
-            number_format=styles.FMT_PCT_2DP,
+            number_format=delta_fmt,
         )
         styles.style_static_value(
             ws.cell(row=r, column=3, value=int(counts[i])),

@@ -267,21 +267,41 @@ def build_football_field(ws: Worksheet, spec) -> None:
 
     r_last = r0 + len(spec.valuation_ranges) - 1
 
-    # ── Football field bar chart (EV low/high per methodology)
+    # Floating-bar helper column: spread = EV high − EV low. A football field
+    # must show each method's bar FLOATING from its low to its high, not two
+    # bars both anchored at zero. We achieve that with the standard stacked-bar
+    # technique: an invisible EV-low base series + a visible spread series.
+    spread_col = 11  # col K — past all data columns
+    styles.style_header(ws.cell(row=hr, column=spread_col, value="EV range (€m)"))
+    for i in range(len(spec.valuation_ranges)):
+        rr = r0 + i
+        sc = ws.cell(row=rr, column=spread_col, value=f"=C{rr}-B{rr}")
+        styles.style_formula(sc, number_format=styles.FMT_EUR_M)
+
+    # ── Football field bar chart — floating low→high bars per methodology
     chart = BarChart()
     chart.type = "bar"
+    chart.grouping = "stacked"
+    chart.overlap = 100
     chart.style = 11
     chart.title = "Football field — EV range by methodology"
     chart.y_axis.title = "Method"
     chart.x_axis.title = "EV (€m)"
-    chart.overlap = 100
 
-    low_ref = Reference(ws, min_col=2, min_row=hr, max_col=2, max_row=r_last)
-    high_ref = Reference(ws, min_col=3, min_row=hr, max_col=3, max_row=r_last)
-    chart.add_data(low_ref, titles_from_data=True)
-    chart.add_data(high_ref, titles_from_data=True)
+    base_ref = Reference(ws, min_col=2, min_row=hr, max_col=2, max_row=r_last)
+    spread_ref = Reference(ws, min_col=spread_col, min_row=hr,
+                           max_col=spread_col, max_row=r_last)
+    chart.add_data(base_ref, titles_from_data=True)      # EV low (invisible base)
+    chart.add_data(spread_ref, titles_from_data=True)    # spread (visible bar)
     cats = Reference(ws, min_col=1, min_row=r0, max_col=1, max_row=r_last)
     chart.set_categories(cats)
+
+    # Make the EV-low base series invisible so the spread bar floats from low.
+    from openpyxl.chart.shapes import GraphicalProperties
+    _gp = GraphicalProperties()
+    _gp.noFill = True
+    chart.series[0].graphicalProperties = _gp
+
     chart.height = max(8, 0.7 * (r_last - r0 + 1))
     chart.width = 18
     ws.add_chart(chart, f"L{hr}")
