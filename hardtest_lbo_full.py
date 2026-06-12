@@ -146,6 +146,16 @@ print(f"Clean-room exit-year (Y{exit_year}) projected EBITDA = "
 print("\n=== EVALUATING LIVE WORKBOOK ===")
 import formulas
 
+# Build the workbook FRESH from the spec so the test always reflects current
+# builder code, never a stale pre-built artifact.
+from modelforge.templates import build_model as _build_model
+from modelforge.cli import _load_spec_class as _load_spec_class_hl
+_spec_obj_hl = _load_spec_class_hl(S.get("model_type", "sponsor_lbo")).model_validate(S)
+os.makedirs(os.path.dirname(XLSX_PATH), exist_ok=True)
+_build_model(_spec_obj_hl, XLSX_PATH,
+             spec_source_bytes=open(SPEC_PATH, "rb").read(),
+             spec_source_path=SPEC_PATH)
+
 xl = formulas.ExcelModel().loads(XLSX_PATH).finish()
 sol = xl.calculate()
 
@@ -275,17 +285,27 @@ implied_entry_mult = exp_entry_ev_econ / entry_ebitda
 print(f"   -> implied entry EV/EBITDA (econ) = {implied_entry_mult:.3f}x "
       f"(EV {exp_entry_ev_econ} / EBITDA {entry_ebitda})")
 
-# (d) EXIT EV == exit-year EBITDA x exit multiple.
-#     Independent ground truth uses the PROJECTED exit-year EBITDA.
+# (d) EXIT proceeds == exit EQUITY = exit-year EBITDA × exit multiple − net
+#     debt OUTSTANDING at exit. The sponsor receives equity, NOT the whole
+#     enterprise value: the tranche debt at exit is repaid from proceeds first
+#     (audit fix 2026-06; the prior model booked EV and overstated IRR/MoIC).
+from modelforge.builder import layout as _hl_layout
+_hist_years = S["horizon"]["historical_years"]
+# Exit-year column in the DebtSchedule (D..F historical, projection year k at
+# year_col(h+k-1)); read total debt outstanding at exit (senior closing row 11,
+# == total for this single-tranche deal — validated by the roll-forward in (e)).
+_exit_col = _hl_layout.year_col(_hist_years + exit_year - 1)
+exit_net_debt = cell("DebtSchedule", f"{_exit_col}11")
 exp_exit_ev_strat = strat_x * exit_ebitda_proj
-# What the model actually books as exit proceeds (col I=Y5 in strat CF):
-model_exit_proceeds_strat = strat_cf[exit_year]   # index 5 == Y5
-check("EXIT EV strategic == exit_mult * PROJECTED exit EBITDA",
-      model_exit_proceeds_strat, exp_exit_ev_strat,
+exp_exit_equity_strat = exp_exit_ev_strat - exit_net_debt
+# What the model actually books as exit proceeds (the exit-year col in strat CF):
+model_exit_proceeds_strat = strat_cf[exit_year]   # index == exit_year (Y5)
+check("EXIT proceeds strategic == exit EV (proj EBITDA) − net debt at exit",
+      model_exit_proceeds_strat, exp_exit_equity_strat,
       detail_extra=(f"model booked {model_exit_proceeds_strat:.4f} "
-                    f"vs proj-EBITDA EV {exp_exit_ev_strat:.4f}; "
-                    f"entry-EBITDA EV would be "
-                    f"{strat_x*entry_ebitda:.4f}"))
+                    f"vs exit-equity {exp_exit_equity_strat:.4f} "
+                    f"(EV {exp_exit_ev_strat:.4f} − net debt "
+                    f"{exit_net_debt:.4f})"))
 
 # (e) DEBT SCHEDULE invariants — read every period of senior closing/opening.
 DS = "DebtSchedule"
