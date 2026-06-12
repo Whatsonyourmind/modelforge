@@ -1,0 +1,283 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ModelForge benchmark spec — BM-DCF-001 "dcf_industrial"
+#
+# SAME deal as benchmarks/briefs/dcf_industrial.md, expressed as a ModelForge
+# YAML spec. All figures are SYNTHETIC (no real company, no real counterparty).
+# Conventions pinned by the brief: end-of-year discounting, no stub, no fade,
+# Gordon terminal value, plain CAPM WACC (no CRP decomposition, no Hamada
+# comps, no size premium / alpha).
+# ─────────────────────────────────────────────────────────────────────────────
+
+model_type: dcf
+
+meta:
+  project_code: BM-DCF-001
+  deliverable:
+    en: Benchmark DCF — Generic US Industrial (synthetic)
+    it: DCF benchmark — industriale USA generico (sintetico)
+  analyst: Benchmark
+  version: v1.0
+  status: final
+  valuation_date: 2026-01-01
+  currency: USD
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - version: v1.0
+      date: 2026-01-01
+      analyst: Benchmark
+      note: Frozen benchmark input — must match briefs/dcf_industrial.md exactly.
+
+target:
+  name: "IndustrialCo (synthetic benchmark)"
+  sector:
+    en: Diversified Industrials
+    it: Industriali diversificati
+  country: US
+  currency: USD
+  revenue_last_fy_eur_m: 1000.0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 180.0
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon:
+  historical_years: 3
+  projection_years: 5
+
+sources:
+  - id: S-001
+    doc: benchmarks/briefs/dcf_industrial.md
+    page: 1
+    publisher: ModelForge public benchmark (synthetic deal brief)
+    date: 2026-01-01
+    verified: true
+    note: All operating, WACC and bridge inputs are defined in the frozen benchmark brief.
+
+net_debt_eur_m: 250.0
+net_debt_source_id: S-001
+shares_outstanding_m: 150.0
+valuation_date_price_eur: 8.00
+
+net_debt_assum:
+  id: A-501
+  name: net_debt_assum
+  label: { en: "Net debt ($m)", it: "Indebitamento netto ($m)" }
+  unit: eur_m
+  base: 250.0
+  rationale: Frozen benchmark input per brief BM-DCF-001.
+  confidence: H
+  source_id: S-001
+
+shares_outstanding_assum:
+  id: A-502
+  name: shares_outstanding_assum
+  label: { en: "Shares outstanding (m)", it: "Azioni in circolazione (m)" }
+  unit: count
+  base: 150.0
+  rationale: Frozen benchmark input per brief BM-DCF-001.
+  confidence: H
+  source_id: S-001
+
+current_price_assum:
+  id: A-503
+  name: current_price_assum
+  label: { en: "Reference share price ($)", it: "Prezzo di riferimento ($)" }
+  unit: eur
+  base: 8.00
+  rationale: Frozen benchmark input per brief BM-DCF-001.
+  confidence: H
+  source_id: S-001
+
+# Brief convention: END-OF-YEAR discounting, full first year, no fade.
+mid_year_convention: false
+stub_period_days: 365
+fade_years: 0
+
+wacc:
+  risk_free_rate:
+    id: A-001
+    name: risk_free_rate
+    label: { en: "Risk-free rate (10Y UST)", it: "Tasso risk-free (UST 10A)" }
+    unit: pct
+    base: 0.0425
+    rationale: Frozen benchmark input per brief BM-DCF-001.
+    confidence: H
+    source_id: S-001
+  equity_risk_premium:
+    id: A-002
+    name: equity_risk_premium
+    label: { en: "Equity risk premium", it: "Premio per il rischio azionario" }
+    unit: pct
+    base: 0.050
+    rationale: Frozen benchmark input per brief BM-DCF-001.
+    confidence: H
+    source_id: S-001
+  beta_levered:
+    id: A-003
+    name: beta_levered
+    label: { en: "Beta (levered)", it: "Beta (levered)" }
+    unit: x
+    base: 1.10
+    rationale: Frozen benchmark input per brief BM-DCF-001.
+    confidence: H
+    source_id: S-001
+  pretax_cost_of_debt:
+    id: A-004
+    name: pretax_cost_of_debt
+    label: { en: "Pre-tax cost of debt", it: "Costo del debito pre-tax" }
+    unit: pct
+    base: 0.0575
+    rationale: Frozen benchmark input per brief BM-DCF-001.
+    confidence: H
+    source_id: S-001
+  target_debt_weight:
+    id: A-005
+    name: target_debt_weight
+    label: { en: "Target D / (D+E)", it: "Leva obiettivo" }
+    unit: pct
+    base: 0.30
+    rationale: Frozen benchmark input per brief BM-DCF-001.
+    confidence: H
+    source_id: S-001
+  effective_tax_rate:
+    id: A-006
+    name: effective_tax_rate
+    label: { en: "Effective tax rate", it: "Aliquota effettiva" }
+    unit: pct
+    base: 0.25
+    rationale: Frozen benchmark input per brief BM-DCF-001.
+    confidence: H
+    source_id: S-001
+
+fcf:
+  revenue_growth_by_year:
+    - id: A-101
+      name: revenue_growth_y1
+      label: { en: "Revenue growth Y1", it: "Crescita ricavi A1" }
+      unit: pct
+      base: 0.040
+      rationale: Frozen benchmark fade path per brief BM-DCF-001.
+      confidence: H
+      source_id: S-001
+    - id: A-102
+      name: revenue_growth_y2
+      label: { en: "Revenue growth Y2", it: "Crescita ricavi A2" }
+      unit: pct
+      base: 0.035
+      rationale: Frozen benchmark fade path per brief BM-DCF-001.
+      confidence: H
+      source_id: S-001
+    - id: A-103
+      name: revenue_growth_y3
+      label: { en: "Revenue growth Y3", it: "Crescita ricavi A3" }
+      unit: pct
+      base: 0.030
+      rationale: Frozen benchmark fade path per brief BM-DCF-001.
+      confidence: H
+      source_id: S-001
+    - id: A-104
+      name: revenue_growth_y4
+      label: { en: "Revenue growth Y4", it: "Crescita ricavi A4" }
+      unit: pct
+      base: 0.025
+      rationale: Frozen benchmark fade path per brief BM-DCF-001.
+      confidence: H
+      source_id: S-001
+    - id: A-105
+      name: revenue_growth_y5
+      label: { en: "Revenue growth Y5", it: "Crescita ricavi A5" }
+      unit: pct
+      base: 0.020
+      rationale: Frozen benchmark fade path per brief BM-DCF-001.
+      confidence: H
+      source_id: S-001
+  ebitda_margin_by_year:
+    - id: A-201
+      name: ebitda_margin_y1
+      label: { en: "EBITDA margin Y1", it: "Margine EBITDA A1" }
+      unit: pct
+      base: 0.18
+      rationale: Frozen benchmark input per brief BM-DCF-001.
+      confidence: H
+      source_id: S-001
+    - id: A-202
+      name: ebitda_margin_y2
+      label: { en: "EBITDA margin Y2", it: "Margine EBITDA A2" }
+      unit: pct
+      base: 0.18
+      rationale: Frozen benchmark input per brief BM-DCF-001.
+      confidence: H
+      source_id: S-001
+    - id: A-203
+      name: ebitda_margin_y3
+      label: { en: "EBITDA margin Y3", it: "Margine EBITDA A3" }
+      unit: pct
+      base: 0.18
+      rationale: Frozen benchmark input per brief BM-DCF-001.
+      confidence: H
+      source_id: S-001
+    - id: A-204
+      name: ebitda_margin_y4
+      label: { en: "EBITDA margin Y4", it: "Margine EBITDA A4" }
+      unit: pct
+      base: 0.18
+      rationale: Frozen benchmark input per brief BM-DCF-001.
+      confidence: H
+      source_id: S-001
+    - id: A-205
+      name: ebitda_margin_y5
+      label: { en: "EBITDA margin Y5", it: "Margine EBITDA A5" }
+      unit: pct
+      base: 0.18
+      rationale: Frozen benchmark input per brief BM-DCF-001.
+      confidence: H
+      source_id: S-001
+  da_pct_revenue:
+    id: A-301
+    name: da_pct_revenue
+    label: { en: "D&A % revenue", it: "Ammortamenti % ricavi" }
+    unit: pct
+    base: 0.060
+    rationale: Frozen benchmark input per brief BM-DCF-001 (EBIT margin = 18% - 6% = 12%).
+    confidence: H
+    source_id: S-001
+  capex_pct_revenue:
+    id: A-302
+    name: capex_pct_revenue
+    label: { en: "Capex % revenue", it: "Capex % ricavi" }
+    unit: pct
+    base: 0.065
+    rationale: Frozen benchmark input per brief BM-DCF-001.
+    confidence: H
+    source_id: S-001
+  nwc_pct_revenue_delta:
+    id: A-303
+    name: nwc_pct_revenue_delta
+    label: { en: "dNWC % dRevenue", it: "dCCN % dRicavi" }
+    unit: pct
+    base: 0.10
+    rationale: Frozen benchmark input per brief BM-DCF-001.
+    confidence: H
+    source_id: S-001
+
+terminal:
+  terminal_growth_pct:
+    id: A-401
+    name: terminal_growth_pct
+    label: { en: "Terminal growth", it: "Crescita terminale" }
+    unit: pct
+    base: 0.020
+    rationale: Frozen benchmark input per brief BM-DCF-001 (g = 2.0% < rf = 4.25%).
+    confidence: H
+    source_id: S-001
+  exit_ev_ebitda_x:
+    id: A-402
+    name: exit_ev_ebitda_x
+    label: { en: "Exit EV/EBITDA (cross-check only)", it: "EV/EBITDA uscita (solo verifica)" }
+    unit: x
+    base: 8.0
+    rationale: Displayed for reconciliation only; the brief pins Gordon as the terminal method.
+    confidence: M
+    source_id: S-001
+  terminal_method_choice: 1  # 1 = Gordon growth (per brief)

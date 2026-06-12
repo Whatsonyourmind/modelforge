@@ -1,0 +1,855 @@
+{
+  "protocol": "benchmarks/PROTOCOL.md v1",
+  "modelforge_version": "0.11.4",
+  "model_id_arm_b": null,
+  "ground_truth": {
+    "lbo_us_saas": {
+      "sponsor_irr": 0.1546057952742501,
+      "sponsor_moic": 2.0519589343724935,
+      "exit_equity_proceeds": 358.06683404800015,
+      "sponsor_equity_cheque": 174.5
+    },
+    "dcf_industrial": {
+      "wacc": 0.0811875,
+      "enterprise_value": 1509.9691580978006,
+      "equity_value": 1259.9691580978006,
+      "implied_price_per_share": 8.399794387318671
+    },
+    "three_statement_mfg": {
+      "final_net_income": 49.30590069675,
+      "final_total_assets": 529.3621981609784,
+      "final_total_liabilities_equity": 529.3621981609783,
+      "final_balance_check": 1.1368683772161603e-13,
+      "final_cash": 26.48343378093733,
+      "final_debt": 40.0
+    }
+  },
+  "artifacts": [
+    {
+      "artifact": "dcf_industrial__armA__run1.xlsx",
+      "brief": "dcf_industrial",
+      "arm": "A",
+      "m1": {
+        "formula_error_cells": 0,
+        "error_cell_list": [],
+        "recalc_ran": true
+      },
+      "m2": {
+        "headline_accuracy": 1.0,
+        "headlines": {
+          "wacc": {
+            "got": 0.0811875,
+            "expected": 0.0811875,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "enterprise_value": {
+            "got": 1509.9691580978003,
+            "expected": 1509.9691580978006,
+            "rel_err": 1.50581668654523e-16,
+            "pass": true
+          },
+          "equity_value": {
+            "got": 1259.9691580978003,
+            "expected": 1259.9691580978006,
+            "rel_err": 1.8045971520961864e-16,
+            "pass": true
+          },
+          "implied_price_per_share": {
+            "got": 8.39979438731867,
+            "expected": 8.399794387318671,
+            "rel_err": 2.1147622876127184e-16,
+            "pass": true
+          }
+        }
+      },
+      "m3": {
+        "hardcode_rate": 0.42144638403990026,
+        "numeric_constant_cells": 169,
+        "formula_cells": 232
+      },
+      "m5": {
+        "lineage": true,
+        "lineage_sheet": true,
+        "cell_comments": 96
+      },
+      "m6": {
+        "completeness": 1.0,
+        "items": {
+          "wacc_build": true,
+          "terminal_value": true,
+          "fcff_forecast": true,
+          "sensitivity": true
+        }
+      },
+      "notes": []
+    },
+    {
+      "artifact": "dcf_industrial__armB__run1.xlsx",
+      "brief": "dcf_industrial",
+      "arm": "B",
+      "m1": {
+        "formula_error_cells": 0,
+        "error_cell_list": [],
+        "recalc_ran": true
+      },
+      "m2": {
+        "headline_accuracy": 1.0,
+        "headlines": {
+          "wacc": {
+            "got": 0.0811875,
+            "expected": 0.0811875,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "enterprise_value": {
+            "got": 1509.9691580978006,
+            "expected": 1509.9691580978006,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "equity_value": {
+            "got": 1259.9691580978006,
+            "expected": 1259.9691580978006,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "implied_price_per_share": {
+            "got": 8.399794387318671,
+            "expected": 8.399794387318671,
+            "rel_err": 0.0,
+            "pass": true
+          }
+        }
+      },
+      "m3": {
+        "hardcode_rate": 0.004629629629629629,
+        "numeric_constant_cells": 1,
+        "formula_cells": 215
+      },
+      "m5": {
+        "lineage": true,
+        "lineage_sheet": true,
+        "cell_comments": 0
+      },
+      "m6": {
+        "completeness": 1.0,
+        "items": {
+          "wacc_build": true,
+          "terminal_value": true,
+          "fcff_forecast": true,
+          "sensitivity": true
+        }
+      },
+      "notes": []
+    },
+    {
+      "artifact": "dcf_industrial__armB__run2.xlsx",
+      "brief": "dcf_industrial",
+      "arm": "B",
+      "m1": {
+        "formula_error_cells": 0,
+        "error_cell_list": [],
+        "recalc_ran": true
+      },
+      "m2": {
+        "headline_accuracy": 1.0,
+        "headlines": {
+          "wacc": {
+            "got": 0.0811875,
+            "expected": 0.0811875,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "enterprise_value": {
+            "got": 1509.9691580978006,
+            "expected": 1509.9691580978006,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "equity_value": {
+            "got": 1259.9691580978006,
+            "expected": 1259.9691580978006,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "implied_price_per_share": {
+            "got": 8.399794387318671,
+            "expected": 8.399794387318671,
+            "rel_err": 0.0,
+            "pass": true
+          }
+        }
+      },
+      "m3": {
+        "hardcode_rate": 0.0,
+        "numeric_constant_cells": 0,
+        "formula_cells": 199
+      },
+      "m5": {
+        "lineage": true,
+        "lineage_sheet": true,
+        "cell_comments": 0
+      },
+      "m6": {
+        "completeness": 1.0,
+        "items": {
+          "wacc_build": true,
+          "terminal_value": true,
+          "fcff_forecast": true,
+          "sensitivity": true
+        }
+      },
+      "notes": []
+    },
+    {
+      "artifact": "dcf_industrial__armB__run3.xlsx",
+      "brief": "dcf_industrial",
+      "arm": "B",
+      "m1": {
+        "formula_error_cells": 0,
+        "error_cell_list": [],
+        "recalc_ran": true
+      },
+      "m2": {
+        "headline_accuracy": 1.0,
+        "headlines": {
+          "wacc": {
+            "got": 0.0811875,
+            "expected": 0.0811875,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "enterprise_value": {
+            "got": 1509.9691580978003,
+            "expected": 1509.9691580978006,
+            "rel_err": 1.50581668654523e-16,
+            "pass": true
+          },
+          "equity_value": {
+            "got": 1259.9691580978003,
+            "expected": 1259.9691580978006,
+            "rel_err": 1.8045971520961864e-16,
+            "pass": true
+          },
+          "implied_price_per_share": {
+            "got": 8.39979438731867,
+            "expected": 8.399794387318671,
+            "rel_err": 2.1147622876127184e-16,
+            "pass": true
+          }
+        }
+      },
+      "m3": {
+        "hardcode_rate": 0.005263157894736842,
+        "numeric_constant_cells": 1,
+        "formula_cells": 189
+      },
+      "m5": {
+        "lineage": true,
+        "lineage_sheet": true,
+        "cell_comments": 0
+      },
+      "m6": {
+        "completeness": 1.0,
+        "items": {
+          "wacc_build": true,
+          "terminal_value": true,
+          "fcff_forecast": true,
+          "sensitivity": true
+        }
+      },
+      "notes": []
+    },
+    {
+      "artifact": "lbo_us_saas__armA__run1.xlsx",
+      "brief": "lbo_us_saas",
+      "arm": "A",
+      "m1": {
+        "formula_error_cells": 0,
+        "error_cell_list": [],
+        "recalc_ran": true
+      },
+      "m2": {
+        "headline_accuracy": 1.0,
+        "headlines": {
+          "sponsor_irr": {
+            "got": 0.1546057952742501,
+            "expected": 0.1546057952742501,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "sponsor_moic": {
+            "got": 2.0519589343724935,
+            "expected": 2.0519589343724935,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "exit_equity_proceeds": {
+            "got": 358.06683404800015,
+            "expected": 358.06683404800015,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "sponsor_equity_cheque": {
+            "got": 174.5,
+            "expected": 174.5,
+            "rel_err": 0.0,
+            "pass": true
+          }
+        }
+      },
+      "m3": {
+        "hardcode_rate": 0.2230769230769231,
+        "numeric_constant_cells": 174,
+        "formula_cells": 606
+      },
+      "m5": {
+        "lineage": true,
+        "lineage_sheet": true,
+        "cell_comments": 111
+      },
+      "m6": {
+        "completeness": 1.0,
+        "items": {
+          "sources_and_uses": true,
+          "debt_schedule": true,
+          "returns_irr_moic": true,
+          "sensitivity": true
+        }
+      },
+      "notes": []
+    },
+    {
+      "artifact": "lbo_us_saas__armB__run1.xlsx",
+      "brief": "lbo_us_saas",
+      "arm": "B",
+      "m1": {
+        "formula_error_cells": 0,
+        "error_cell_list": [],
+        "recalc_ran": true
+      },
+      "m2": {
+        "headline_accuracy": 1.0,
+        "headlines": {
+          "sponsor_irr": {
+            "got": 0.1546057952742501,
+            "expected": 0.1546057952742501,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "sponsor_moic": {
+            "got": 2.0519589343724935,
+            "expected": 2.0519589343724935,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "exit_equity_proceeds": {
+            "got": 358.06683404800015,
+            "expected": 358.06683404800015,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "sponsor_equity_cheque": {
+            "got": 174.5,
+            "expected": 174.5,
+            "rel_err": 0.0,
+            "pass": true
+          }
+        }
+      },
+      "m3": {
+        "hardcode_rate": 0.10029498525073746,
+        "numeric_constant_cells": 34,
+        "formula_cells": 305
+      },
+      "m5": {
+        "lineage": true,
+        "lineage_sheet": true,
+        "cell_comments": 0
+      },
+      "m6": {
+        "completeness": 1.0,
+        "items": {
+          "sources_and_uses": true,
+          "debt_schedule": true,
+          "returns_irr_moic": true,
+          "sensitivity": true
+        }
+      },
+      "notes": []
+    },
+    {
+      "artifact": "lbo_us_saas__armB__run2.xlsx",
+      "brief": "lbo_us_saas",
+      "arm": "B",
+      "m1": {
+        "formula_error_cells": 0,
+        "error_cell_list": [],
+        "recalc_ran": true
+      },
+      "m2": {
+        "headline_accuracy": 1.0,
+        "headlines": {
+          "sponsor_irr": {
+            "got": 0.1546057952742501,
+            "expected": 0.1546057952742501,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "sponsor_moic": {
+            "got": 2.0519589343724935,
+            "expected": 2.0519589343724935,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "exit_equity_proceeds": {
+            "got": 358.06683404800015,
+            "expected": 358.06683404800015,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "sponsor_equity_cheque": {
+            "got": 174.5,
+            "expected": 174.5,
+            "rel_err": 0.0,
+            "pass": true
+          }
+        }
+      },
+      "m3": {
+        "hardcode_rate": 0.0,
+        "numeric_constant_cells": 0,
+        "formula_cells": 273
+      },
+      "m5": {
+        "lineage": true,
+        "lineage_sheet": true,
+        "cell_comments": 0
+      },
+      "m6": {
+        "completeness": 1.0,
+        "items": {
+          "sources_and_uses": true,
+          "debt_schedule": true,
+          "returns_irr_moic": true,
+          "sensitivity": true
+        }
+      },
+      "notes": []
+    },
+    {
+      "artifact": "lbo_us_saas__armB__run3.xlsx",
+      "brief": "lbo_us_saas",
+      "arm": "B",
+      "m1": {
+        "formula_error_cells": 0,
+        "error_cell_list": [],
+        "recalc_ran": true
+      },
+      "m2": {
+        "headline_accuracy": 1.0,
+        "headlines": {
+          "sponsor_irr": {
+            "got": 0.1546057952742501,
+            "expected": 0.1546057952742501,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "sponsor_moic": {
+            "got": 2.0519589343724935,
+            "expected": 2.0519589343724935,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "exit_equity_proceeds": {
+            "got": 358.06683404800015,
+            "expected": 358.06683404800015,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "sponsor_equity_cheque": {
+            "got": 174.5,
+            "expected": 174.5,
+            "rel_err": 0.0,
+            "pass": true
+          }
+        }
+      },
+      "m3": {
+        "hardcode_rate": 0.08797653958944282,
+        "numeric_constant_cells": 30,
+        "formula_cells": 311
+      },
+      "m5": {
+        "lineage": true,
+        "lineage_sheet": true,
+        "cell_comments": 0
+      },
+      "m6": {
+        "completeness": 1.0,
+        "items": {
+          "sources_and_uses": true,
+          "debt_schedule": true,
+          "returns_irr_moic": true,
+          "sensitivity": true
+        }
+      },
+      "notes": []
+    },
+    {
+      "artifact": "three_statement_mfg__armA__run1.xlsx",
+      "brief": "three_statement_mfg",
+      "arm": "A",
+      "m1": {
+        "formula_error_cells": 0,
+        "error_cell_list": [],
+        "recalc_ran": true
+      },
+      "m2": {
+        "headline_accuracy": 1.0,
+        "headlines": {
+          "final_net_income": {
+            "got": 49.30590069675,
+            "expected": 49.30590069675,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "final_total_assets": {
+            "got": 529.3621981609784,
+            "expected": 529.3621981609784,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "final_total_liabilities_equity": {
+            "got": 529.3621981609783,
+            "expected": 529.3621981609783,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "final_balance_check": {
+            "got": 1.1368683772161603e-13,
+            "expected": 1.1368683772161603e-13,
+            "rel_err": null,
+            "pass": true
+          },
+          "final_cash": {
+            "got": 26.48343378093733,
+            "expected": 26.48343378093733,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "final_debt": {
+            "got": 40.0,
+            "expected": 40.0,
+            "rel_err": 0.0,
+            "pass": true
+          }
+        }
+      },
+      "m3": {
+        "hardcode_rate": 0.34628378378378377,
+        "numeric_constant_cells": 205,
+        "formula_cells": 387
+      },
+      "m5": {
+        "lineage": true,
+        "lineage_sheet": true,
+        "cell_comments": 88
+      },
+      "m6": {
+        "completeness": 1.0,
+        "items": {
+          "income_statement": true,
+          "balance_sheet": true,
+          "cash_flow_statement": true,
+          "bs_tie": true
+        }
+      },
+      "notes": []
+    },
+    {
+      "artifact": "three_statement_mfg__armB__run1.xlsx",
+      "brief": "three_statement_mfg",
+      "arm": "B",
+      "m1": {
+        "formula_error_cells": 0,
+        "error_cell_list": [],
+        "recalc_ran": true
+      },
+      "m2": {
+        "headline_accuracy": 0.6666666666666666,
+        "headlines": {
+          "final_net_income": {
+            "got": 49.30590069675,
+            "expected": 49.30590069675,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "final_total_assets": {
+            "got": 529.3621981609784,
+            "expected": 529.3621981609784,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "final_total_liabilities_equity": {
+            "got": 529.3621981609784,
+            "expected": 529.3621981609783,
+            "rel_err": 2.1476191181872798e-16,
+            "pass": true
+          },
+          "final_balance_check": {
+            "got": 0.0,
+            "expected": 1.1368683772161603e-13,
+            "rel_err": null,
+            "pass": true
+          },
+          "final_cash": {
+            "got": 40.0,
+            "expected": 26.48343378093733,
+            "rel_err": 0.510378160583989,
+            "pass": false
+          },
+          "final_debt": {
+            "got": 180.0,
+            "expected": 40.0,
+            "rel_err": 3.5,
+            "pass": false
+          }
+        }
+      },
+      "m3": {
+        "hardcode_rate": 0.0,
+        "numeric_constant_cells": 0,
+        "formula_cells": 351
+      },
+      "m5": {
+        "lineage": true,
+        "lineage_sheet": true,
+        "cell_comments": 0
+      },
+      "m6": {
+        "completeness": 1.0,
+        "items": {
+          "income_statement": true,
+          "balance_sheet": true,
+          "cash_flow_statement": true,
+          "bs_tie": true
+        }
+      },
+      "notes": []
+    },
+    {
+      "artifact": "three_statement_mfg__armB__run2.xlsx",
+      "brief": "three_statement_mfg",
+      "arm": "B",
+      "m1": {
+        "formula_error_cells": 0,
+        "error_cell_list": [],
+        "recalc_ran": true
+      },
+      "m2": {
+        "headline_accuracy": 0.6666666666666666,
+        "headlines": {
+          "final_net_income": {
+            "got": 49.30590069675,
+            "expected": 49.30590069675,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "final_total_assets": {
+            "got": 529.3621981609784,
+            "expected": 529.3621981609784,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "final_total_liabilities_equity": {
+            "got": 529.3621981609784,
+            "expected": 529.3621981609783,
+            "rel_err": 2.1476191181872798e-16,
+            "pass": true
+          },
+          "final_balance_check": {
+            "got": 0.0,
+            "expected": 1.1368683772161603e-13,
+            "rel_err": null,
+            "pass": true
+          },
+          "final_cash": {
+            "got": 40.0,
+            "expected": 26.48343378093733,
+            "rel_err": 0.510378160583989,
+            "pass": false
+          },
+          "final_debt": {
+            "got": 180.0,
+            "expected": 40.0,
+            "rel_err": 3.5,
+            "pass": false
+          }
+        }
+      },
+      "m3": {
+        "hardcode_rate": 0.0,
+        "numeric_constant_cells": 0,
+        "formula_cells": 406
+      },
+      "m5": {
+        "lineage": true,
+        "lineage_sheet": true,
+        "cell_comments": 0
+      },
+      "m6": {
+        "completeness": 1.0,
+        "items": {
+          "income_statement": true,
+          "balance_sheet": true,
+          "cash_flow_statement": true,
+          "bs_tie": true
+        }
+      },
+      "notes": []
+    },
+    {
+      "artifact": "three_statement_mfg__armB__run3.xlsx",
+      "brief": "three_statement_mfg",
+      "arm": "B",
+      "m1": {
+        "formula_error_cells": 0,
+        "error_cell_list": [],
+        "recalc_ran": true
+      },
+      "m2": {
+        "headline_accuracy": 1.0,
+        "headlines": {
+          "final_net_income": {
+            "got": 49.30590069675,
+            "expected": 49.30590069675,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "final_total_assets": {
+            "got": 529.3621981609784,
+            "expected": 529.3621981609784,
+            "rel_err": 0.0,
+            "pass": true
+          },
+          "final_total_liabilities_equity": {
+            "got": 529.3621981609784,
+            "expected": 529.3621981609783,
+            "rel_err": 2.1476191181872798e-16,
+            "pass": true
+          },
+          "final_balance_check": {
+            "got": 0.0,
+            "expected": 1.1368683772161603e-13,
+            "rel_err": null,
+            "pass": true
+          },
+          "final_cash": {
+            "got": 26.483433780937343,
+            "expected": 26.48343378093733,
+            "rel_err": 5.365941151268277e-16,
+            "pass": true
+          },
+          "final_debt": {
+            "got": 40.0,
+            "expected": 40.0,
+            "rel_err": 0.0,
+            "pass": true
+          }
+        }
+      },
+      "m3": {
+        "hardcode_rate": 0.07875894988066826,
+        "numeric_constant_cells": 33,
+        "formula_cells": 386
+      },
+      "m5": {
+        "lineage": false,
+        "lineage_sheet": false,
+        "cell_comments": 0
+      },
+      "m6": {
+        "completeness": 1.0,
+        "items": {
+          "income_statement": true,
+          "balance_sheet": true,
+          "cash_flow_statement": true,
+          "bs_tie": true
+        }
+      },
+      "notes": []
+    }
+  ],
+  "m4": {
+    "dcf_industrial": {
+      "arm_a": {
+        "byte_identical": true,
+        "sha256": [
+          "fe028599ddafa35fba7e4672a7bbe2290dd2e93b94b3338b8f98bfe1c9e6c0bb",
+          "fe028599ddafa35fba7e4672a7bbe2290dd2e93b94b3338b8f98bfe1c9e6c0bb"
+        ]
+      },
+      "arm_b": {
+        "headline_value_range": {
+          "wacc": 0.0,
+          "enterprise_value": 1.50581668654523e-16,
+          "equity_value": 1.8045971520961864e-16,
+          "implied_price_per_share": 2.1147622876127184e-16
+        },
+        "structural_identical": false,
+        "n_runs": 3
+      }
+    },
+    "lbo_us_saas": {
+      "arm_a": {
+        "byte_identical": true,
+        "sha256": [
+          "5c9157f457fb588aa718b79671e8984510091fafee6a9cc8705048a6e14f2eb5",
+          "5c9157f457fb588aa718b79671e8984510091fafee6a9cc8705048a6e14f2eb5"
+        ]
+      },
+      "arm_b": {
+        "headline_value_range": {
+          "sponsor_irr": 0.0,
+          "sponsor_moic": 0.0,
+          "exit_equity_proceeds": 0.0,
+          "sponsor_equity_cheque": 0.0
+        },
+        "structural_identical": false,
+        "n_runs": 3
+      }
+    },
+    "three_statement_mfg": {
+      "arm_a": {
+        "byte_identical": true,
+        "sha256": [
+          "92600a6c59cbd15c07d22a00359f8e7f2c706a96de7ad5fc9617cb4514fee424",
+          "92600a6c59cbd15c07d22a00359f8e7f2c706a96de7ad5fc9617cb4514fee424"
+        ]
+      },
+      "arm_b": {
+        "headline_value_range": {
+          "final_net_income": 0.0,
+          "final_total_assets": 0.0,
+          "final_total_liabilities_equity": 0.0,
+          "final_balance_check": null,
+          "final_cash": 0.3808075793330321,
+          "final_debt": 1.0499999999999998
+        },
+        "structural_identical": false,
+        "n_runs": 3
+      }
+    }
+  },
+  "skipped_files": [],
+  "metrics_registered": [
+    "m1_formula_error_cells",
+    "m2_headline_accuracy",
+    "m3_hardcode_rate",
+    "m4_reproducibility",
+    "m5_lineage",
+    "m6_completeness"
+  ]
+}

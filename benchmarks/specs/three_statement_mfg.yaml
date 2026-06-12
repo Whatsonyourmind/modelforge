@@ -1,0 +1,108 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ModelForge benchmark spec — BM-3S-001 "three_statement_mfg"
+#
+# SAME deal as benchmarks/briefs/three_statement_mfg.md, expressed as a
+# ModelForge YAML spec. All figures are SYNTHETIC (no real company).
+# Supplementary engine features (SBC, revolver commitment fee, book-tax DTL)
+# are explicitly zeroed so the workbook matches the brief's plain mechanics.
+# ─────────────────────────────────────────────────────────────────────────────
+
+model_type: three_statement
+
+meta:
+  project_code: BM-3S-001
+  deliverable:
+    en: Benchmark 3-Statement Model — Generic US Manufacturer (synthetic)
+    it: Modello a 3 prospetti benchmark — manifatturiero USA generico (sintetico)
+  analyst: Benchmark
+  version: v1.0
+  status: final
+  valuation_date: 2026-01-01
+  currency: USD
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - version: v1.0
+      date: 2026-01-01
+      analyst: Benchmark
+      note: Frozen benchmark input — must match briefs/three_statement_mfg.md exactly.
+
+target:
+  name: "MfgCo (synthetic benchmark)"
+  sector:
+    en: Industrial Manufacturing
+    it: Manifattura industriale
+  country: US
+  currency: USD
+  revenue_last_fy_eur_m: 600.0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 84.0
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon:
+  historical_years: 3
+  projection_years: 5
+
+sources:
+  - id: S-001
+    doc: benchmarks/briefs/three_statement_mfg.md
+    page: 1
+    publisher: ModelForge public benchmark (synthetic deal brief)
+    date: 2026-01-01
+    verified: true
+    note: All P&L, balance-sheet and opening-BS inputs are defined in the frozen benchmark brief.
+
+pl:
+  revenue_growth_by_year:
+    - { id: A-001, name: revenue_growth_y1, label: { en: "Revenue growth Y1", it: "Crescita ricavi A1" }, unit: pct, base: 0.050, rationale: "Frozen benchmark input per brief BM-3S-001.", confidence: H, source_id: S-001 }
+    - { id: A-002, name: revenue_growth_y2, label: { en: "Revenue growth Y2", it: "Crescita ricavi A2" }, unit: pct, base: 0.045, rationale: "Frozen benchmark input per brief BM-3S-001.", confidence: H, source_id: S-001 }
+    - { id: A-003, name: revenue_growth_y3, label: { en: "Revenue growth Y3", it: "Crescita ricavi A3" }, unit: pct, base: 0.040, rationale: "Frozen benchmark input per brief BM-3S-001.", confidence: H, source_id: S-001 }
+    - { id: A-004, name: revenue_growth_y4, label: { en: "Revenue growth Y4", it: "Crescita ricavi A4" }, unit: pct, base: 0.035, rationale: "Frozen benchmark input per brief BM-3S-001.", confidence: H, source_id: S-001 }
+    - { id: A-005, name: revenue_growth_y5, label: { en: "Revenue growth Y5", it: "Crescita ricavi A5" }, unit: pct, base: 0.030, rationale: "Frozen benchmark input per brief BM-3S-001.", confidence: H, source_id: S-001 }
+  ebitda_margin_by_year:
+    - { id: A-011, name: ebitda_margin_y1, label: { en: "EBITDA margin Y1", it: "Margine EBITDA A1" }, unit: pct, base: 0.140, rationale: "Frozen benchmark input per brief BM-3S-001.", confidence: H, source_id: S-001 }
+    - { id: A-012, name: ebitda_margin_y2, label: { en: "EBITDA margin Y2", it: "Margine EBITDA A2" }, unit: pct, base: 0.145, rationale: "Frozen benchmark input per brief BM-3S-001.", confidence: H, source_id: S-001 }
+    - { id: A-013, name: ebitda_margin_y3, label: { en: "EBITDA margin Y3", it: "Margine EBITDA A3" }, unit: pct, base: 0.150, rationale: "Frozen benchmark input per brief BM-3S-001.", confidence: H, source_id: S-001 }
+    - { id: A-014, name: ebitda_margin_y4, label: { en: "EBITDA margin Y4", it: "Margine EBITDA A4" }, unit: pct, base: 0.150, rationale: "Frozen benchmark input per brief BM-3S-001.", confidence: H, source_id: S-001 }
+    - { id: A-015, name: ebitda_margin_y5, label: { en: "EBITDA margin Y5", it: "Margine EBITDA A5" }, unit: pct, base: 0.150, rationale: "Frozen benchmark input per brief BM-3S-001.", confidence: H, source_id: S-001 }
+  da_pct_revenue:
+    { id: A-020, name: da_pct_revenue, label: { en: "D&A % revenue", it: "Ammortamenti % ricavi" }, unit: pct, base: 0.055, rationale: "Frozen benchmark input per brief BM-3S-001.", confidence: H, source_id: S-001 }
+  interest_on_debt_pct:
+    { id: A-021, name: interest_on_debt_pct, label: { en: "Interest rate on debt", it: "Tasso sul debito" }, unit: pct, base: 0.060, rationale: "Frozen benchmark input per brief BM-3S-001. Charged on opening debt balance.", confidence: H, source_id: S-001 }
+  effective_tax_rate:
+    { id: A-022, name: effective_tax_rate, label: { en: "Effective tax rate", it: "Aliquota effettiva" }, unit: pct, base: 0.250, rationale: "Frozen benchmark input per brief BM-3S-001.", confidence: H, source_id: S-001 }
+
+bs:
+  receivables_days:
+    { id: A-030, name: receivables_days, label: { en: "Receivables days (DSO)", it: "Giorni crediti (DSO)" }, unit: count, base: 55, rationale: "Frozen benchmark input per brief BM-3S-001 (on revenue, 365-day year).", confidence: H, source_id: S-001 }
+  inventory_days:
+    { id: A-031, name: inventory_days, label: { en: "Inventory days (on revenue)", it: "Giorni magazzino (su ricavi)" }, unit: count, base: 60, rationale: "Frozen benchmark input per brief BM-3S-001 (on revenue, 365-day year).", confidence: H, source_id: S-001 }
+  payables_days:
+    { id: A-032, name: payables_days, label: { en: "Payables days (on revenue)", it: "Giorni debiti (su ricavi)" }, unit: count, base: 40, rationale: "Frozen benchmark input per brief BM-3S-001 (on revenue, 365-day year).", confidence: H, source_id: S-001 }
+  capex_pct_revenue:
+    { id: A-033, name: capex_pct_revenue, label: { en: "Capex % revenue", it: "Capex % ricavi" }, unit: pct, base: 0.060, rationale: "Frozen benchmark input per brief BM-3S-001.", confidence: H, source_id: S-001 }
+  dividend_payout_ratio:
+    { id: A-034, name: dividend_payout_ratio, label: { en: "Dividend payout ratio", it: "Payout dividendi" }, unit: pct, base: 0.30, rationale: "Frozen benchmark input per brief BM-3S-001 (30% of positive net income).", confidence: H, source_id: S-001 }
+
+opening_bs:
+  cash_eur_m: 40.0
+  receivables_eur_m: 90.0
+  inventory_eur_m: 75.0
+  net_ppe_eur_m: 250.0
+  payables_eur_m: 55.0
+  debt_eur_m: 180.0
+  debt_annual_repayment_eur_m: 20.0   # scheduled linear amortization per year
+  equity_eur_m: 220.0  # balances: 40+90+75+250 = 455 = 55+180+220
+
+historical_revenue_eur_m: [540.0, 570.0, 600.0]
+historical_ebitda_eur_m:  [70.2, 76.95, 84.0]
+historical_net_debt_eur_m: 140.0   # 180.0 debt - 40.0 cash
+historical_net_debt_source_id: S-001
+
+# ── Supplementary engine features ZEROED per the brief ──────────────────────
+sbc_pct_revenue: 0.0
+revolver_capacity_eur_m: 0.0
+revolver_commitment_fee_pct: 0.0
+book_tax_diff_da_pct: 0.0
+nol_util_cap_pct: 0.80   # irrelevant here (net income positive every year)
