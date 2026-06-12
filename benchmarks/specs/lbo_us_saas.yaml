@@ -1,0 +1,250 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ModelForge benchmark spec — BM-LBO-001 "lbo_us_saas"
+#
+# SAME deal as benchmarks/briefs/lbo_us_saas.md, expressed as a ModelForge
+# YAML spec. All figures are SYNTHETIC (no real company, no real lender).
+# Conventions pinned by the brief: bullet debt, NO cash sweep, NO dividend
+# recap, NO management rollover, exit equity = exit EV (projected exit-year
+# EBITDA x exit multiple) minus debt outstanding at exit.
+# ─────────────────────────────────────────────────────────────────────────────
+
+model_type: sponsor_lbo
+
+meta:
+  project_code: BM-LBO-001
+  deliverable:
+    en: Benchmark Sponsor LBO — Generic US Enterprise SaaS (synthetic)
+    it: LBO sponsor benchmark — SaaS enterprise USA generico (sintetico)
+  analyst: Benchmark
+  version: v1.0
+  status: final
+  valuation_date: 2026-01-01
+  currency: USD
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - version: v1.0
+      date: 2026-01-01
+      analyst: Benchmark
+      note: Frozen benchmark input — must match briefs/lbo_us_saas.md exactly.
+
+target:
+  name: "SaaSCo (synthetic benchmark)"
+  sector:
+    en: Enterprise SaaS
+    it: SaaS enterprise
+  country: US
+  currency: USD
+  revenue_last_fy_eur_m: 100.0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 35.0
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon:
+  historical_years: 3
+  projection_years: 7
+
+sources:
+  - id: S-001
+    doc: benchmarks/briefs/lbo_us_saas.md
+    page: 1
+    publisher: ModelForge public benchmark (synthetic deal brief)
+    date: 2026-01-01
+    verified: true
+    note: All purchase-price, debt, operating and exit inputs are defined in the frozen benchmark brief.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OPERATING ASSUMPTIONS (7 projection years; exit at year 5)
+# ─────────────────────────────────────────────────────────────────────────────
+operating:
+  revenue_growth_by_year:
+    - { id: A-001, name: revenue_growth_y1, label: { en: "Revenue growth Y1", it: "Crescita ricavi A1" }, unit: pct, base: 0.12, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+    - { id: A-002, name: revenue_growth_y2, label: { en: "Revenue growth Y2", it: "Crescita ricavi A2" }, unit: pct, base: 0.11, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+    - { id: A-003, name: revenue_growth_y3, label: { en: "Revenue growth Y3", it: "Crescita ricavi A3" }, unit: pct, base: 0.10, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+    - { id: A-004, name: revenue_growth_y4, label: { en: "Revenue growth Y4", it: "Crescita ricavi A4" }, unit: pct, base: 0.09, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+    - { id: A-005, name: revenue_growth_y5, label: { en: "Revenue growth Y5", it: "Crescita ricavi A5" }, unit: pct, base: 0.08, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+    - { id: A-006, name: revenue_growth_y6, label: { en: "Revenue growth Y6", it: "Crescita ricavi A6" }, unit: pct, base: 0.07, rationale: "Post-hold convergence (display only — exit at year 5).", confidence: M, source_id: S-001 }
+    - { id: A-007, name: revenue_growth_y7, label: { en: "Revenue growth Y7", it: "Crescita ricavi A7" }, unit: pct, base: 0.06, rationale: "Post-hold convergence (display only — exit at year 5).", confidence: M, source_id: S-001 }
+  ebitda_margin_by_year:
+    - { id: A-011, name: ebitda_margin_y1, label: { en: "EBITDA margin Y1", it: "Margine EBITDA A1" }, unit: pct, base: 0.35, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+    - { id: A-012, name: ebitda_margin_y2, label: { en: "EBITDA margin Y2", it: "Margine EBITDA A2" }, unit: pct, base: 0.36, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+    - { id: A-013, name: ebitda_margin_y3, label: { en: "EBITDA margin Y3", it: "Margine EBITDA A3" }, unit: pct, base: 0.36, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+    - { id: A-014, name: ebitda_margin_y4, label: { en: "EBITDA margin Y4", it: "Margine EBITDA A4" }, unit: pct, base: 0.37, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+    - { id: A-015, name: ebitda_margin_y5, label: { en: "EBITDA margin Y5", it: "Margine EBITDA A5" }, unit: pct, base: 0.38, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+    - { id: A-016, name: ebitda_margin_y6, label: { en: "EBITDA margin Y6", it: "Margine EBITDA A6" }, unit: pct, base: 0.38, rationale: "Post-hold steady state (display only — exit at year 5).", confidence: M, source_id: S-001 }
+    - { id: A-017, name: ebitda_margin_y7, label: { en: "EBITDA margin Y7", it: "Margine EBITDA A7" }, unit: pct, base: 0.38, rationale: "Post-hold steady state (display only — exit at year 5).", confidence: M, source_id: S-001 }
+  da_pct_revenue:
+    { id: A-020, name: da_pct_revenue, label: { en: "D&A % revenue", it: "Ammortamenti % ricavi" }, unit: pct, base: 0.04, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+  maintenance_capex_pct_revenue:
+    { id: A-021, name: maintenance_capex_pct_revenue, label: { en: "Maintenance capex % revenue", it: "Capex manutenzione % ricavi" }, unit: pct, base: 0.03, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+  growth_capex_pct_revenue:
+    { id: A-022, name: growth_capex_pct_revenue, label: { en: "Growth capex % revenue", it: "Capex crescita % ricavi" }, unit: pct, base: 0.01, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+  nwc_pct_revenue_delta:
+    { id: A-023, name: nwc_pct_revenue_delta, label: { en: "dNWC % dRevenue", it: "dCCN % dRicavi" }, unit: pct, base: 0.05, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+  effective_tax_rate:
+    { id: A-024, name: effective_tax_rate, label: { en: "Effective tax rate", it: "Aliquota effettiva" }, unit: pct, base: 0.25, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEBT STRUCTURE — two bullet tranches, NO cash sweep (per brief)
+# ─────────────────────────────────────────────────────────────────────────────
+debt:
+  tranches:
+    - name:
+        en: Senior Term Loan
+        it: Term Loan Senior
+      seniority: senior
+      tenor_years: 7
+      amortization: bullet
+      reference_rate:
+        name: SOFR
+        rate_decimal:
+          { id: A-030, name: sofr_rate, label: { en: "SOFR (reference)", it: "SOFR (riferimento)" }, unit: pct, base: 0.0400, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      amount:
+        { id: A-031, name: senior_tl_amount, label: { en: "Senior Term Loan amount", it: "Importo Term Loan Senior" }, unit: eur_m, base: 157.5, rationale: "4.5x entry EBITDA of 35.0 per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      margin_bps:
+        { id: A-032, name: senior_tl_margin_bps, label: { en: "Senior margin (bps)", it: "Margine senior (bps)" }, unit: bps, base: 350, rationale: "Frozen benchmark input per brief BM-LBO-001 (all-in 7.50%).", confidence: H, source_id: S-001 }
+      floor_pct:
+        { id: A-033, name: senior_tl_floor, label: { en: "SOFR floor (senior)", it: "Floor SOFR (senior)" }, unit: pct, base: 0.0, rationale: "No floor per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      arrangement_fee_pct:
+        { id: A-034, name: senior_tl_arrangement_fee, label: { en: "Arrangement fee % (senior)", it: "Commissione strutturazione % (senior)" }, unit: pct, base: 0.0, rationale: "All financing fees carried in the single financing-fee line per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      commitment_fee_bps:
+        { id: A-035, name: senior_tl_commitment_fee, label: { en: "Commitment fee bps (senior)", it: "Commitment fee bps (senior)" }, unit: bps, base: 0, rationale: "Fully drawn at close per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      oid_pct:
+        { id: A-036, name: senior_tl_oid, label: { en: "OID % (senior)", it: "OID % (senior)" }, unit: pct, base: 0.0, rationale: "No OID per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+    - name:
+        en: Mezzanine Notes
+        it: Note Mezzanine
+      seniority: mezz
+      tenor_years: 8
+      amortization: bullet
+      reference_rate:
+        name: SOFR
+        rate_decimal:
+          { id: A-040, name: sofr_rate_mezz, label: { en: "SOFR (reference, mezz)", it: "SOFR (riferimento, mezz)" }, unit: pct, base: 0.0400, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      amount:
+        { id: A-041, name: mezz_amount, label: { en: "Mezzanine amount", it: "Importo mezzanine" }, unit: eur_m, base: 35.0, rationale: "1.0x entry EBITDA of 35.0 per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      margin_bps:
+        { id: A-042, name: mezz_margin_bps, label: { en: "Mezzanine margin (bps)", it: "Margine mezzanine (bps)" }, unit: bps, base: 700, rationale: "Frozen benchmark input per brief BM-LBO-001 (all-in 11.00%).", confidence: H, source_id: S-001 }
+      floor_pct:
+        { id: A-043, name: mezz_floor, label: { en: "SOFR floor (mezz)", it: "Floor SOFR (mezz)" }, unit: pct, base: 0.0, rationale: "No floor per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      arrangement_fee_pct:
+        { id: A-044, name: mezz_arrangement_fee, label: { en: "Arrangement fee % (mezz)", it: "Commissione strutturazione % (mezz)" }, unit: pct, base: 0.0, rationale: "All financing fees carried in the single financing-fee line per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      commitment_fee_bps:
+        { id: A-045, name: mezz_commitment_fee, label: { en: "Commitment fee bps (mezz)", it: "Commitment fee bps (mezz)" }, unit: bps, base: 0, rationale: "Fully drawn at close per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      oid_pct:
+        { id: A-046, name: mezz_oid, label: { en: "OID % (mezz)", it: "OID % (mezz)" }, unit: pct, base: 0.0, rationale: "No OID per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+  rcf:
+    enabled: false
+  cash_sweep:
+    enabled: false   # per brief: NO cash sweep — debt stays at face until exit
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COVENANTS (monitoring only — generous headroom, not binding)
+# ─────────────────────────────────────────────────────────────────────────────
+covenants:
+  - name:
+      en: Total Net Leverage
+      it: Leva finanziaria netta totale
+    kind: leverage
+    test_frequency: annual
+    equity_cure: true
+    threshold_by_year:
+      - { id: A-050, name: leverage_threshold_y1, label: { en: "Leverage threshold Y1", it: "Soglia leva A1" }, unit: x, base: 7.00, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      - { id: A-051, name: leverage_threshold_y2, label: { en: "Leverage threshold Y2", it: "Soglia leva A2" }, unit: x, base: 6.75, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      - { id: A-052, name: leverage_threshold_y3, label: { en: "Leverage threshold Y3", it: "Soglia leva A3" }, unit: x, base: 6.50, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      - { id: A-053, name: leverage_threshold_y4, label: { en: "Leverage threshold Y4", it: "Soglia leva A4" }, unit: x, base: 6.25, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      - { id: A-054, name: leverage_threshold_y5, label: { en: "Leverage threshold Y5", it: "Soglia leva A5" }, unit: x, base: 6.00, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      - { id: A-055, name: leverage_threshold_y6, label: { en: "Leverage threshold Y6", it: "Soglia leva A6" }, unit: x, base: 6.00, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      - { id: A-056, name: leverage_threshold_y7, label: { en: "Leverage threshold Y7", it: "Soglia leva A7" }, unit: x, base: 6.00, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+  - name:
+      en: Interest Coverage Ratio
+      it: Rapporto di copertura interessi
+    kind: icr
+    test_frequency: annual
+    equity_cure: true
+    threshold_by_year:
+      - { id: A-060, name: icr_threshold_y1, label: { en: "ICR threshold Y1", it: "Soglia ICR A1" }, unit: x, base: 1.50, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      - { id: A-061, name: icr_threshold_y2, label: { en: "ICR threshold Y2", it: "Soglia ICR A2" }, unit: x, base: 1.50, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      - { id: A-062, name: icr_threshold_y3, label: { en: "ICR threshold Y3", it: "Soglia ICR A3" }, unit: x, base: 1.75, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      - { id: A-063, name: icr_threshold_y4, label: { en: "ICR threshold Y4", it: "Soglia ICR A4" }, unit: x, base: 1.75, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      - { id: A-064, name: icr_threshold_y5, label: { en: "ICR threshold Y5", it: "Soglia ICR A5" }, unit: x, base: 2.00, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      - { id: A-065, name: icr_threshold_y6, label: { en: "ICR threshold Y6", it: "Soglia ICR A6" }, unit: x, base: 2.00, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+      - { id: A-066, name: icr_threshold_y7, label: { en: "ICR threshold Y7", it: "Soglia ICR A7" }, unit: x, base: 2.00, rationale: "Frozen benchmark covenant per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FEES & EXIT (lender-side fee lines zeroed — deal fees live in the
+# sponsor-side ma_advisory / financing_fees lines below, per brief)
+# ─────────────────────────────────────────────────────────────────────────────
+fees:
+  legal:
+    { id: A-070, name: legal_fees_eur_m, label: { en: "Legal fees (at close)", it: "Spese legali (al closing)" }, unit: eur_m, base: 0.0, rationale: "Carried inside the M&A advisory fee line per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+  advisory:
+    { id: A-071, name: advisory_fees_eur_m, label: { en: "Advisory fees (at close)", it: "Advisory (al closing)" }, unit: eur_m, base: 0.0, rationale: "Carried inside the M&A advisory fee line per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+  other:
+    { id: A-072, name: other_fees_eur_m, label: { en: "Other transaction fees", it: "Altre spese transazionali" }, unit: eur_m, base: 0.0, rationale: "Carried inside the M&A advisory fee line per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+
+exit:
+  expected_hold_years:
+    { id: A-080, name: expected_hold_years, label: { en: "Expected hold (years)", it: "Durata prevista (anni)" }, unit: years, base: 5.0, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+  call_protection_years: 2
+  make_whole_pct:
+    { id: A-081, name: make_whole_pct, label: { en: "Make-whole premium %", it: "Make-whole %" }, unit: pct, base: 0.0, rationale: "Not exercised — sponsor exits at year 5 per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HISTORICAL FINANCIALS
+# ─────────────────────────────────────────────────────────────────────────────
+historical_revenue_eur_m: [81.0, 90.0, 100.0]
+historical_ebitda_eur_m:  [26.7, 30.6, 35.0]
+historical_net_debt_eur_m: 20.0
+historical_net_debt_source_id: S-001
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SPONSOR LBO ADDITIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Purchase price build: offer $4.40 x (1 + 25%) = $5.50/share x 60.0m FD
+# shares = 330.0 equity purchase price; + 20.0 net debt = 350.0 entry EV
+# = 10.0x entry EBITDA of 35.0 (per brief).
+offer_premium_pct:
+  { id: A-201, name: offer_premium_pct, label: { en: "Offer premium", it: "Premio sull'offerta" }, unit: pct, base: 0.25, rationale: "Frozen benchmark input per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+target_fd_shares_m: 60.0
+target_share_price_eur: 4.40
+option_buyout_eur_m: 0.0
+target_net_debt_close_eur_m: 20.0
+
+# Transaction fees
+ma_advisory_fees_eur_m: 7.0
+financing_fees_eur_m: 5.0
+
+# Capital structure: sponsor equity = balancing plug
+#   uses  = 330.0 equity PP + 20.0 net-debt refi + 7.0 M&A + 5.0 financing
+#           + 5.0 minimum cash = 367.0
+#   debt  = 157.5 senior + 35.0 mezz = 192.5
+#   plug  = 367.0 - 192.5 - 0.0 rollover = 174.5  (per brief)
+sponsor_equity_eur_m:
+  { id: A-210, name: sponsor_equity_eur_m, label: { en: "Sponsor equity (new money)", it: "Equity sponsor" }, unit: eur_m, base: 174.5, rationale: "Balancing plug: total uses 367.0 minus debt 192.5 minus rollover 0.0, per brief BM-LBO-001.", confidence: H, source_id: S-001 }
+mgmt_rollover_eur_m: 0.0
+mip_pool_pct: 0.0
+mip_vesting_years: 4
+
+# No dividend recap, no earnout (per brief)
+div_recap_enabled: false
+earnout_fair_value_eur_m: 0.0
+
+# Exit: strategic sale at 9.0x EV/EBITDA on PROJECTED year-5 EBITDA.
+# IPO / secondary rows are engine display extras — the benchmark headline is
+# the STRATEGIC scenario only (per brief).
+exit_strategic_multiple: 9.0
+exit_ipo_multiple: 14.0
+exit_secondary_multiple: 8.0
+exit_year: 5
+
+# Hurdle / promote — engine defaults (display only, not benchmark headlines)
+hurdle_irr_pcts: [0.20, 0.25, 0.30]
+gp_pref_pct: 0.08
+gp_catchup_pct: 1.0
+gp_carry_pct: 0.20
+gp_waterfall_type: european
+
+nwc_target_peg_eur_m: 0.0
