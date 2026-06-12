@@ -49,7 +49,7 @@ ROW = {
     "cash": 20, "ar": 21, "inv": 22, "ppe": 23, "total_assets": 24,
     "ap": 26, "debt": 27, "equity": 28, "total_le": 29, "bs_check": 30,
     "cf_ni": 33, "cf_da": 34, "cf_nwc": 35, "cfo": 36, "capex": 37,
-    "cfi": 38, "cf_div": 39, "cff": 40, "net_change": 41,
+    "cfi": 38, "cf_div": 39, "debt_repay": 40, "cff": 41, "net_change": 42,
 }
 
 
