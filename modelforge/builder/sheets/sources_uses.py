@@ -312,7 +312,9 @@ def build(ws: Worksheet, spec, debt_refs: dict | None = None,
     layout.write_row_label(ws, r, "Fully-diluted shares outstanding (m)",
                            "Azioni fully-diluted (m)", indent=True)
     c = ws.cell(row=r, column=4, value=target_fd)
-    styles.style_input(c, number_format=styles.FMT_MULTIPLE)
+    # A share count is a count, not a multiple — use the accounting number
+    # format, not the 'x' multiple format.
+    styles.style_input(c, number_format=styles.FMT_EUR_ACTUAL)
     r += 1
     refs["pp_option_buyout"] = r
     layout.write_row_label(ws, r, "Option buyout (treasury / in-the-money)",

@@ -269,8 +269,12 @@ def _pick_fmt(label: str, value) -> str:
     ll = label.lower()
     if "pd" in ll or "rate" in ll or "volatility" in ll:
         return styles.FMT_PCT_2DP
-    if "distance" in ll or "d1" in ll or "d2" in ll:
-        return styles.FMT_MULTIPLE
+    # Horizon/tenor in years → '1.0 y', not a percentage.
+    if "year" in ll or "horizon" in ll or "tenor" in ll:
+        return styles.FMT_YEARS
+    # Distance-to-default and d1/d2 are z-scores (plain numbers), not multiples.
+    if "distance" in ll or ll.startswith("d1") or ll.startswith("d2"):
+        return styles.FMT_NUMBER_2DP
     return styles.FMT_EUR_M if isinstance(value, (int, float)) and abs(value) > 1 else styles.FMT_PCT_2DP
 
 
