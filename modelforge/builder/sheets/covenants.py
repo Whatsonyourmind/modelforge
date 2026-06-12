@@ -72,7 +72,12 @@ def build(
                 col = layout.year_col(i)
                 col_idx = ord(col) - ord("A") + 1
                 debt_ref = f"'{debt_sheet_name}'!{col}{closing_debt_row}"
-                ebitda_ref = f"'{operating_sheet_name}'!{col}{ebitda_row}"
+                # Entry leverage = CLOSE debt / TRAILING (LTM) EBITDA, matching
+                # the DebtSchedule interim-leverage line and how the facility is
+                # sized. Only the close/drawdown column (first projection, i==h)
+                # uses the prior column's EBITDA; later periods stay same-period.
+                ebitda_col = layout.year_col(i - 1) if (i == h and h > 0) else col
+                ebitda_ref = f"'{operating_sheet_name}'!{ebitda_col}{ebitda_row}"
                 c = ws.cell(row=r, column=col_idx, value=ebitda_multiple(debt_ref, ebitda_ref))
                 styles.style_xref(c, number_format=styles.FMT_MULTIPLE)
         elif cov.kind == "icr":

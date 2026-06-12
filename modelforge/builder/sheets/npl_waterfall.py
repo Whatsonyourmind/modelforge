@@ -168,52 +168,10 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 2
 
-    # Equity CF to fund
-    rows["equity_cf"] = r
-    layout.write_row_label(ws, r, "Equity CF to fund", "CF equity al fondo")
-    for i in range(n):
-        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
-        if i == 0:
-            # Outflow: purchase - debt raised
-            cc = ws.cell(row=r, column=col_idx,
-                         value=f"=-$D${rows['purchase']}+$D${rows['senior_note_size']}+$D${rows['mezz_note_size']}+${col}${rows['net_collections']}")
-        elif i == n - 1:
-            # Final year: net collections - debt principal repayment + interest
-            cc = ws.cell(row=r, column=col_idx,
-                         value=f"=${col}${rows['net_collections']}+${col}${rows['interest_service']}-$D${rows['senior_note_size']}-$D${rows['mezz_note_size']}")
-        else:
-            cc = ws.cell(row=r, column=col_idx,
-                         value=f"=${col}${rows['net_collections']}+${col}${rows['interest_service']}")
-        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
-        cc.font = styles.font_subheader
-        cc.border = styles.BORDER_TOP_THIN
-    r += 2
-
-    # Returns
-    layout.write_section_header(ws, r, "Fund returns", "Rendimento fondo")
-    r += 1
-    first_col = layout.year_col(0); last_col = layout.year_col(n - 1)
-    layout.write_row_label(ws, r, "Equity IRR", "IRR equity", indent=True)
-    cc = ws.cell(row=r, column=4,
-                 value=f"=IRR(${first_col}${rows['equity_cf']}:${last_col}${rows['equity_cf']},0.15)")
-    styles.style_formula(cc, number_format=styles.FMT_PCT_2DP)
-    cc.font = styles.font_subheader
-    r += 1
-
-    layout.write_row_label(ws, r, "Equity MoIC", "MoIC equity", indent=True)
-    cc = ws.cell(row=r, column=4,
-                 value=f"=IFERROR(SUMIF(${first_col}${rows['equity_cf']}:${last_col}${rows['equity_cf']},\">0\")"
-                       f"/ABS(SUMIF(${first_col}${rows['equity_cf']}:${last_col}${rows['equity_cf']},\"<0\")),0)")
-    styles.style_formula(cc, number_format=styles.FMT_MULTIPLE)
-    r += 1
-
-    # Gross recovery rate
-    layout.write_row_label(ws, r, "Gross recovery rate (cum / GBV)",
-                           "Tasso di recupero lordo (cum/GBV)", indent=True)
-    cc = ws.cell(row=r, column=4,
-                 value=f"=${last_col}${rows['cum_collection_pct']}")
-    styles.style_xref(cc, number_format=styles.FMT_PCT)
-    r += 2
+    # NOTE: the "Equity CF to fund" + "Fund returns" block is built AFTER the
+    # strict-priority waterfall below, so the equity stream can reference the
+    # subordination-correct `residual_to_equity` (equity is paid only after
+    # senior + mezz are fully retired).
 
     # ── v0.7: STRICT PRIORITY WATERFALL + PDL ────────────────────────────
     # Italian L.130/1999 + GACS compliant waterfall (applied to cumulative
@@ -353,7 +311,56 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
                 ),
             )
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    r += 2
+
+    # ── Equity CF to fund (subordination-correct) + Fund returns ─────────
+    # Built AFTER the waterfall so t>=1 reads the strict-priority residual.
+    rows["equity_cf"] = r
+    layout.write_row_label(ws, r, "Equity CF to fund", "CF equity al fondo")
+    for i in range(n):
+        col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
+        if i == 0:
+            # Outflow: purchase − debt raised + net collections at close (the
+            # t=0 net_collections already embeds one-off setup/data-tape costs,
+            # so this is the true equity contribution incl. fees).
+            cc = ws.cell(row=r, column=col_idx,
+                         value=f"=-$D${rows['purchase']}+$D${rows['senior_note_size']}+$D${rows['mezz_note_size']}+${col}${rows['net_collections']}")
+        else:
+            # Equity receives ONLY the strict-priority residual — zero until
+            # senior + mezz are fully retired. The prior code paid equity all
+            # net collections every year, bypassing the model's own waterfall.
+            cc = ws.cell(row=r, column=col_idx,
+                         value=f"=${col}${rows['residual_to_equity']}")
+        styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+        cc.font = styles.font_subheader
+        cc.border = styles.BORDER_TOP_THIN
+    r += 2
+
+    # Returns
+    layout.write_section_header(ws, r, "Fund returns", "Rendimento fondo")
     r += 1
+    first_col = layout.year_col(0); last_col = layout.year_col(n - 1)
+    layout.write_row_label(ws, r, "Equity IRR", "IRR equity", indent=True)
+    cc = ws.cell(row=r, column=4,
+                 value=f"=IRR(${first_col}${rows['equity_cf']}:${last_col}${rows['equity_cf']},0.15)")
+    styles.style_formula(cc, number_format=styles.FMT_PCT_2DP)
+    cc.font = styles.font_subheader
+    r += 1
+
+    layout.write_row_label(ws, r, "Equity MoIC", "MoIC equity", indent=True)
+    cc = ws.cell(row=r, column=4,
+                 value=f"=IFERROR(SUMIF(${first_col}${rows['equity_cf']}:${last_col}${rows['equity_cf']},\">0\")"
+                       f"/ABS(SUMIF(${first_col}${rows['equity_cf']}:${last_col}${rows['equity_cf']},\"<0\")),0)")
+    styles.style_formula(cc, number_format=styles.FMT_MULTIPLE)
+    r += 1
+
+    # Gross recovery rate
+    layout.write_row_label(ws, r, "Gross recovery rate (cum / GBV)",
+                           "Tasso di recupero lordo (cum/GBV)", indent=True)
+    cc = ws.cell(row=r, column=4,
+                 value=f"=${last_col}${rows['cum_collection_pct']}")
+    styles.style_xref(cc, number_format=styles.FMT_PCT)
+    r += 2
 
     ws.freeze_panes = "D7"
     ws.print_title_rows = "5:5"

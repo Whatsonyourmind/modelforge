@@ -479,6 +479,45 @@ def _build_fund_returns_sheet(wb, spec) -> None:
         )
         r += 1
 
+        # Net IRR — the deliverable promises "gross & net IRR" but previously
+        # rendered only gross. Build an auditable post-fee LP cashflow row, then
+        # take its IRR. Fee/carry timing matches the gross-to-net bridge above:
+        # annual management fee (committed × rate) on periods 1..N, total carried
+        # interest charged at the terminal period.
+        netvec_row = r
+        layout.write_row_label(ws, r, "Net LP cashflow (after fees & carry)",
+                               "CF netto LP (dopo fee e carry)", indent=True)
+        for i in range(n):
+            col = layout.year_col(i)
+            col_idx = ord(col) - ord("A") + 1
+            if i == 0:
+                f = f"={col}{vec_row}"
+            elif i == last_i:
+                f = (f"={col}{vec_row}-($D${feerate_row}*$D${committed_row})"
+                     f"-$D${carry_row}")
+            else:
+                f = f"={col}{vec_row}-($D${feerate_row}*$D${committed_row})"
+            c = ws.cell(row=r, column=col_idx, value=f)
+            styles.style_formula(c, number_format=styles.FMT_EUR_M)
+        r += 1
+
+        netirr_row = r
+        layout.write_row_label(ws, r, "Net IRR (after fees & carry)",
+                               "IRR netto (dopo fee e carry)", indent=True)
+        c = ws.cell(
+            row=r, column=4,
+            value=f"=IRR({first_col}{netvec_row}:{last_col}{netvec_row},0.1)",
+        )
+        styles.style_formula(c, number_format=styles.FMT_PCT_2DP)
+        c.font = _FONT_METRIC_BOLD
+        c.comment = Comment(
+            "Net IRR = periodic IRR of the LP cashflow net of annual management "
+            "fees (committed × fee rate, periods 1..N) and carried interest "
+            "(charged at the terminal period). Always ≤ gross IRR.",
+            "ModelForge",
+        )
+        r += 1
+
     ws.freeze_panes = "D5"
 
 

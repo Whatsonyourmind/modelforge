@@ -37,24 +37,36 @@ def merger_primary_output(spec, overrides: dict[str, float]) -> float:
     acq = spec.acquirer
     tgt = spec.target_financials
 
-    # Year 1 = first projection year. Revenues grown 3% (acquirer) / 4%
-    # (target) per emitter convention. Synergies ramp at syn_y1_pct.
-    rev_y1 = acq.revenue_eur_m * 1.03 + tgt.revenue_eur_m * 1.04 + rev_syn_rr * syn_y1_pct
-    # EBITDA at the acquirer + target FY0 margins (proxy — acquirer
-    # margin × 1.03 growth applied to revenue line, same for target)
+    # Growth assumptions read from the spec so the shadow ground truth stays in
+    # lockstep with the live merger_proforma sheet (which reads the same fields).
+    # Hardcoding 1.03/1.04 made an analyst's growth overrides a silent no-op in
+    # the shadow — diverging the tornado / Monte Carlo from the rendered model.
+    acq_g = getattr(spec, "acquirer_revenue_growth_pct", 0.03)
+    tgt_g = getattr(spec, "target_revenue_growth_pct", 0.04)
+    int_g = getattr(spec, "combined_interest_growth_pct", 0.03)
+    da_g = getattr(spec, "combined_da_growth_pct", 0.03)
+    eps_g = getattr(spec, "standalone_eps_growth_pct", 0.03)
+
+    # Year 1 = first projection year. Revenues grown per spec; synergies ramp
+    # at syn_y1_pct.
+    rev_y1 = (acq.revenue_eur_m * (1 + acq_g) + tgt.revenue_eur_m * (1 + tgt_g)
+              + rev_syn_rr * syn_y1_pct)
+    # EBITDA at the acquirer + target FY0 margins (proxy — growth applied to the
+    # revenue line, margins held).
     acq_margin = acq.ebitda_eur_m / max(acq.revenue_eur_m, 1.0)
     tgt_margin = tgt.ebitda_eur_m / max(tgt.revenue_eur_m, 1.0)
-    ebitda = (acq.revenue_eur_m * 1.03 * acq_margin
-              + tgt.revenue_eur_m * 1.04 * tgt_margin
+    ebitda = (acq.revenue_eur_m * (1 + acq_g) * acq_margin
+              + tgt.revenue_eur_m * (1 + tgt_g) * tgt_margin
               + cost_syn_rr * syn_y1_pct
               - integ_cost)  # one-time Y1 hit
 
-    # Walk EBITDA → EBIT using real combined D&A (grown 3%)
-    da_combined = (acq.da_eur_m + tgt.da_eur_m) * 1.03
+    # Walk EBITDA → EBIT using real combined D&A (grown per spec)
+    da_combined = (acq.da_eur_m + tgt.da_eur_m) * (1 + da_g)
     ebit = ebitda - da_combined
 
     # Interest: standalone combined + incremental
-    standalone_int = (acq.interest_expense_eur_m + tgt.interest_expense_eur_m) * 1.03
+    standalone_int = ((acq.interest_expense_eur_m + tgt.interest_expense_eur_m)
+                      * (1 + int_g))
     pretax = ebit - standalone_int + incr_int
     tax = max(pretax * tax_rate, 0.0)
     pf_ni = pretax - tax
@@ -62,8 +74,8 @@ def merger_primary_output(spec, overrides: dict[str, float]) -> float:
     pf_shares = acq.shares_outstanding_m + new_shares
     pf_eps = pf_ni / pf_shares if pf_shares > 0 else 0.0
 
-    # Standalone acquirer Y1 EPS (grown 3%)
-    std_eps = (acq.net_income_eur_m * 1.03) / max(acq.shares_outstanding_m, 1.0)
+    # Standalone acquirer Y1 EPS (grown per spec)
+    std_eps = (acq.net_income_eur_m * (1 + eps_g)) / max(acq.shares_outstanding_m, 1.0)
 
     if std_eps <= 0:
         return 0.0
