@@ -155,6 +155,109 @@ def _load_spec_class(model_type: str):
     raise ValueError(f"Unknown model_type {model_type!r}. Known: {known}")
 
 
+def _warn_unknown_top_keys(raw: dict, SpecClass, source_name: str) -> None:
+    """Warn (not fail) about unknown TOP-LEVEL spec keys.
+
+    Pydantic silently drops an unknown key, so a fat-fingered field name
+    (e.g. ``risk_free_ratee``) is dropped and the model builds with the default
+    — a silent wrong-number risk. Surface it as a visible warning so it is never
+    silent. (Stays a warning, not a hard error, so a slightly-ahead-of-schema
+    spec still builds.)
+    """
+    extras = sorted(set(raw) - set(SpecClass.model_fields))
+    if extras:
+        console.print(
+            f"[yellow]warning:[/yellow] {source_name}: unknown field(s) ignored "
+            f"(typo?): {', '.join(extras)}"
+        )
+
+
+def _check_dangling_sources(spec, source_name: str) -> None:
+    """Fail on a referenced source_id that is not defined in `sources`.
+
+    A `*_source_id` that points at a non-existent Source plants a fabricated
+    "Source: S-xxx" citation on the workbook — an integrity defect in a finance
+    deliverable. Walk the validated spec, collect every Source.id (defined) and
+    every `*_source_id`/`source_id` value (referenced), and exit non-zero if any
+    referenced id is undefined.
+    """
+    from pydantic import BaseModel as _BM
+    from modelforge.spec.base import Source
+
+    defined: set[str] = set()
+    referenced: set[str] = set()
+    seen: set[int] = set()
+
+    def walk(o):
+        if id(o) in seen:
+            return
+        if isinstance(o, _BM):
+            seen.add(id(o))
+            if isinstance(o, Source) and isinstance(o.id, str) and o.id.strip():
+                defined.add(o.id)
+            for fname, fval in o.__dict__.items():
+                if ((fname == "source_id" or fname.endswith("_source_id"))
+                        and isinstance(fval, str) and fval.strip()):
+                    referenced.add(fval)
+                walk(fval)
+        elif isinstance(o, (list, tuple)):
+            for it in o:
+                walk(it)
+        elif isinstance(o, dict):
+            for it in o.values():
+                walk(it)
+
+    walk(spec)
+    dangling = sorted(referenced - defined)
+    if dangling:
+        console.print(
+            f"[red]{source_name}: source id(s) referenced but not defined in "
+            f"`sources`: {', '.join(dangling)}. Add them to the sources list "
+            f"(or fix the reference) — a dangling source_id plants a citation "
+            f"for a source that isn't in the workbook.[/red]"
+        )
+        sys.exit(1)
+
+
+def _load_and_validate_spec(spec_path: Path):
+    """Parse + validate a YAML spec with FRIENDLY errors. Shared by build /
+    certify / monte-carlo / audit so none of them ever dumps a raw Python
+    traceback on a malformed or incomplete spec. Exits non-zero with a plain-
+    language message on: YAML parse errors, a non-mapping document, an unknown
+    model_type, or validation failures. Returns (spec, model_type, spec_bytes).
+    """
+    from pydantic import ValidationError
+    from modelforge.spec.errors import format_validation_error
+
+    spec_bytes = spec_path.read_bytes()
+    try:
+        raw = yaml.safe_load(spec_bytes)
+    except yaml.YAMLError as e:
+        console.print(f"[red]YAML parse error in {spec_path.name}:[/red] {e}")
+        sys.exit(1)
+    if not isinstance(raw, dict):
+        console.print(f"[red]{spec_path.name} is not a YAML mapping "
+                      f"(expected a spec document).[/red]")
+        sys.exit(1)
+
+    model_type = raw.get("model_type", "unitranche")
+    try:
+        SpecClass = _load_spec_class(model_type)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(2)
+
+    try:
+        spec = SpecClass.model_validate(raw)
+    except ValidationError as e:
+        console.print(f"[red]{format_validation_error(e)}[/red]")
+        sys.exit(1)
+
+    _warn_unknown_top_keys(raw, SpecClass, spec_path.name)
+    _check_dangling_sources(spec, spec_path.name)
+    return spec, model_type, spec_bytes
+
+
 def _finish_after_injection(xlsx, spec, spec_bytes, spec_path) -> None:
     """Re-run the deterministic finishing chain after Trust/Moat injection.
 
@@ -276,17 +379,7 @@ def build_cmd(spec_path: Path, out_path: Path | None,
     sheet with any plausibility violations. Use --no-trust to skip it
     or --trust-strict to fail the build on FAIL-severity issues.
     """
-    spec_bytes = spec_path.read_bytes()
-    raw = yaml.safe_load(spec_bytes)
-    model_type = raw.get("model_type", "unitranche")
-
-    try:
-        SpecClass = _load_spec_class(model_type)
-    except ValueError as e:
-        console.print(f"[red]{e}[/red]")
-        sys.exit(2)
-
-    spec = SpecClass.model_validate(raw)
+    spec, model_type, spec_bytes = _load_and_validate_spec(spec_path)
 
     if out_path is None:
         out_path = Path("output") / f"{spec_path.stem}.xlsx"
@@ -327,6 +420,14 @@ def _template_description(name: str) -> str:
         "npl": "NPL portfolio recovery waterfall (collection curves, IRR)",
         "structured_credit": "Securitization tranche waterfall (senior/mezz/junior)",
         "three_statement": "Classic 3-statement corporate model (P&L + BS + CFS)",
+        "dcf": "DCF / WACC enterprise valuation with terminal value + sensitivity",
+        "merger": "M&A merger model with EPS accretion/dilution + synergies",
+        "fairness": "Fairness opinion football field (trading/transaction comps + DCF/LBO)",
+        "sponsor_lbo": "Sponsor LBO — sources & uses, debt schedule, returns waterfall",
+        "ipo": "IPO valuation + offering structure (primary/secondary, greenshoe)",
+        "restructuring": "Restructuring / distressed recovery waterfall by class",
+        "hgb_carveout": "HGB carve-out — standalone EBITDA bridge + carve-out EV",
+        "portfolio_review": "PE fund portfolio review — TVPI/DPI/RVPI + gross & net IRR",
     }
     if name in curated:
         return curated[name]
@@ -393,11 +494,13 @@ def validate_cmd(spec_path: Path, max_errors: int) -> None:
         sys.exit(1)
 
     try:
-        SpecClass.model_validate(raw)
+        spec = SpecClass.model_validate(raw)
     except ValidationError as e:
         console.print(f"[red]{format_validation_error(e, limit=max_errors)}[/red]")
         sys.exit(1)
 
+    _warn_unknown_top_keys(raw, SpecClass, spec_path.name)
+    _check_dangling_sources(spec, spec_path.name)
     console.print(f"[green]OK[/green] {spec_path.name} is a valid "
                   f"[bold]{model_type}[/bold] spec.")
     sys.exit(0)
@@ -422,6 +525,13 @@ def schema_cmd(model_type: str, indent: int) -> None:
         console.print(f"[red]{e}[/red]")
         sys.exit(1)
     schema = SpecClass.model_json_schema()
+    # Prepend the JSON-Schema dialect + an $id so editors/IDEs treat the output
+    # as a real schema for the autocomplete use case this command advertises.
+    schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": f"modelforge://{model_type}.schema.json",
+        **schema,
+    }
     # Plain stdout (not rich) so the output is valid, pipeable JSON.
     print(json.dumps(schema, indent=indent, ensure_ascii=False))
 
@@ -440,7 +550,7 @@ def scaffold_cmd(model_type: str, out_path: Path | None) -> None:
         modelforge scaffold dcf -o my_dcf.yaml
         modelforge validate my_dcf.yaml
     """
-    from modelforge.spec.scaffold import scaffold_yaml
+    from modelforge.spec.scaffold import scaffold_yaml, _SEED_EXAMPLE
     try:
         SpecClass = _load_spec_class(model_type)
     except ValueError as e:
@@ -452,9 +562,19 @@ def scaffold_cmd(model_type: str, out_path: Path | None) -> None:
         console.print(f"[red]No scaffold available for {model_type!r}.[/red]")
         sys.exit(1)
 
+    # ipo/restructuring ship no full example yet — their stub is a minimal
+    # required-field skeleton that needs values before it validates/builds.
+    is_stub = model_type not in _SEED_EXAMPLE
+
     if out_path is not None:
         out_path.write_text(text, encoding="utf-8")
         console.print(f"[green]Scaffold written:[/green] {out_path}")
+        if is_stub:
+            console.print(
+                f"[yellow]note:[/yellow] {model_type} ships no full example yet — "
+                f"this is a minimal skeleton; fill the required fields before "
+                f"`validate`/`build`."
+            )
         console.print(f"[dim]Next: modelforge validate {out_path}[/dim]")
     else:
         # Plain stdout so it pipes cleanly to a file.
@@ -501,15 +621,7 @@ def certify_cmd(target: Path, out_path: Path | None, max_gaps: int,
     from modelforge.qc import audit_workbook
 
     if target.suffix.lower() in (".yaml", ".yml"):
-        spec_bytes = target.read_bytes()
-        raw = yaml.safe_load(spec_bytes)
-        model_type = raw.get("model_type", "unitranche")
-        try:
-            SpecClass = _load_spec_class(model_type)
-        except ValueError as e:
-            console.print(f"[red]{e}[/red]")
-            sys.exit(2)
-        spec = SpecClass.model_validate(raw)
+        spec, model_type, spec_bytes = _load_and_validate_spec(target)
         if out_path is None:
             out_path = Path("output") / f"{target.stem}.xlsx"
         xlsx, _ = build_model(
@@ -781,15 +893,7 @@ def monte_carlo_cmd(xlsx_path: Path, spec_path: Path,
         MCConfig, append_monte_carlo_sheet,
     )
 
-    spec_bytes = spec_path.read_bytes()
-    raw = yaml.safe_load(spec_bytes)
-    model_type = raw.get("model_type", "unitranche")
-    try:
-        SpecClass = _load_spec_class(model_type)
-    except ValueError as e:
-        console.print(f"[red]{e}[/red]")
-        sys.exit(2)
-    spec = SpecClass.model_validate(raw)
+    spec, model_type, spec_bytes = _load_and_validate_spec(spec_path)
 
     base = MCConfig()
     config = MCConfig(

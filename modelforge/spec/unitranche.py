@@ -23,6 +23,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from modelforge.spec.risk_block import RiskAnalysisSpec
+from modelforge.spec.compliance import ComplianceContext
 from modelforge.spec.base import (
     Assumption,
     Label,
@@ -224,6 +225,10 @@ class UnitrancheSpec(BaseModel):
     # Metadata and identification.
     model_type: Literal["unitranche"] = "unitranche"
     meta: ModelMeta
+    # Optional regulatory-compliance context, honored by the ComplianceCheck
+    # sheet (covers SponsorLBOSpec via inheritance). Defaults reproduce the
+    # prior hardcodes when omitted, so byte-determinism is preserved.
+    compliance: ComplianceContext | None = None
     target: Target
     horizon: ProjectionHorizon = Field(default_factory=ProjectionHorizon)
 

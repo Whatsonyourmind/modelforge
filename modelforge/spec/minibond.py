@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, field_validator
 from modelforge.spec.base import (
     Assumption, Label, ModelMeta, Source, Target,
 )
+from modelforge.spec.compliance import ComplianceContext
 
 
 class ProjectionHorizon(BaseModel):
@@ -96,6 +97,9 @@ class MinibondSpec(BaseModel):
     """Full Minibond model spec."""
 
     model_type: Literal["minibond"] = "minibond"
+    # Optional regulatory-compliance context, honored by the ComplianceCheck
+    # sheet; defaults reproduce prior hardcodes when omitted.
+    compliance: ComplianceContext | None = None
     meta: ModelMeta
     target: Target  # issuer
     horizon: ProjectionHorizon = Field(default_factory=ProjectionHorizon)
