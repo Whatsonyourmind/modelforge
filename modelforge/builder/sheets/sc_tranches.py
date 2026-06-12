@@ -194,14 +194,21 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
                            "PDL (cumulative losses allocated to tranches)",
                            "PDL (perdite cumulative allocate alle tranche)",
                            indent=True)
-    # Sum cumulative tranche losses across all tranches
+    # PDL = cumulative principal losses (€m) at the FINAL period, summed across
+    # tranches and weighted by tranche size. The prior formula summed column D
+    # (t=0, where every loss% is hard-coded 0) and added bare percentages, so the
+    # ledger always read 0 even when junior/equity were fully written down.
     if tranche_rows:
-        loss_terms = [f"'Tranches'!D{tr['loss']}" for tr in tranche_rows]
+        pdl_last_col = layout.year_col(n - 1)
+        loss_terms = [
+            f"'Tranches'!{pdl_last_col}{tr['loss']}*$D${tr['size']}"
+            for tr in tranche_rows
+        ]
         formula = "=" + "+".join(loss_terms) if loss_terms else "=0"
     else:
         formula = "=0"
     cc = ws.cell(row=r, column=4, value=formula)
-    styles.style_formula(cc, number_format=styles.FMT_PCT_2DP)
+    styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
     layout.write_row_label(ws, r,
                            "Priority of payments (strict senior→mezz→equity)",
