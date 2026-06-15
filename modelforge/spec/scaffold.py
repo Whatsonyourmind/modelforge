@@ -43,6 +43,7 @@ _SEED_EXAMPLE: dict[str, str] = {
     "portfolio_review": "portfolio_review_us_lower_mm.yaml",
     "development_re": "development_pbsa_genericcity.yaml",
     "bank_fig": "bank_fig_meridian.yaml",
+    "loan_tape_securitization": "clo_midmarket.yaml",
     # ipo + restructuring ship no full example yet — handled by the
     # required-field stub fallback below.
 }

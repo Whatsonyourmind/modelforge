@@ -21,6 +21,7 @@ from modelforge.templates import (
     hgb_carveout, portfolio_review,
     development_re,
     bank_fig,
+    loan_tape_securitization,
 )
 
 REGISTRY: dict[str, Callable] = {
@@ -45,6 +46,9 @@ REGISTRY: dict[str, Callable] = {
     "development_re": development_re.build,
     # Bank / FIG: NII, RWA, CET1, leverage, MDA-gated capital return:
     "bank_fig": bank_fig.build,
+    # Loan-tape cash securitization (CLO/RMBS): stratified tape → pool cashflow
+    # → sequential-pay turbo waterfall + OC/IC + reserve → note WAL/IRR/rating:
+    "loan_tape_securitization": loan_tape_securitization.build,
 }
 
 # v0.10 templates flagged as preview. CLI and MCP server can surface this.

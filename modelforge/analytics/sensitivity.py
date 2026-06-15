@@ -154,6 +154,8 @@ _PRIMARY_OUTPUT_LOCATORS: list[tuple[str, str, str]] = [
     ("AccretionDilution", "Accretion / (dilution) %", "Y1 Accretion / Dilution"),
     # Bank / FIG — net income is the headline P&L output (col D).
     ("P&L", "Net income (NI)", "Net Income"),
+    # Loan-tape securitization — residual/equity IRR headline (Notes sheet, col D).
+    ("Notes", "Residual IRR", "Residual Equity IRR"),
 ]
 
 
@@ -374,6 +376,17 @@ _ELASTICITY_REGISTRY: dict[str, float] = {
     "loan_growth": 0.15,                 # more earning assets over time → higher NI (modest)
     "rwa_density": -0.05,                # density drives CET1 ratio, ~no direct NI effect
     "fee_income_growth": 0.20,           # higher fees → higher NI (modest near-term)
+    # loan_tape_securitization — elasticity of the RESIDUAL IRR to each driver.
+    "recovery_pct": 0.60,                # more recovery → more cash to the residual (strong)
+    "tape_a_cdr": -0.40,                 # secured defaults erode excess spread
+    "tape_b_cdr": -0.50,                 # unsecured defaults erode it more (higher LGD)
+    "cpr_pct": -0.25,                    # faster prepay → less excess spread captured
+    "servicing_fee_pct": -0.30,          # fees skim the top of the waterfall
+    "senior_coupon": -0.35,              # higher senior cost → thinner residual spread
+    "mezz_coupon": -0.30,                # higher mezz cost → thinner residual spread
+    "oc_trigger_pct": -0.20,             # tighter OC → more turbo diversion from residual
+    "ic_trigger_pct": -0.10,             # tighter IC → more turbo diversion (modest)
+    "reserve_pct_initial": -0.10,        # larger reserve ties up residual cash (released late)
 }
 
 

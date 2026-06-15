@@ -402,6 +402,26 @@ _BANK_FIG = [
 ]
 
 
+_SEC_LOANTAPE = [
+    # Driver names match loan_tape_securitization Assumption.name values
+    # (see examples/clo_midmarket.yaml). Tornado is on the residual IRR.
+    SensitivityFactor(driver_name="recovery_pct", label="Recovery % ±20%",
+                      low_shock=-0.20, high_shock=+0.20),
+    SensitivityFactor(driver_name="tape_b_cdr", label="Unsecured CDR ±50%",
+                      low_shock=-0.50, high_shock=+0.50),
+    SensitivityFactor(driver_name="tape_a_cdr", label="Secured CDR ±50%",
+                      low_shock=-0.50, high_shock=+0.50),
+    SensitivityFactor(driver_name="cpr_pct", label="Prepayment (CPR) ±50%",
+                      low_shock=-0.50, high_shock=+0.50),
+    SensitivityFactor(driver_name="servicing_fee_pct", label="Servicing fee ±25%",
+                      low_shock=-0.25, high_shock=+0.25),
+    SensitivityFactor(driver_name="senior_coupon", label="Senior coupon ±20%",
+                      low_shock=-0.20, high_shock=+0.20),
+    SensitivityFactor(driver_name="oc_trigger_pct", label="OC trigger ±10%",
+                      low_shock=-0.10, high_shock=+0.10),
+]
+
+
 DEFAULT_FACTORS_BY_TYPE: dict[str, list[SensitivityFactor]] = {
     "unitranche": _UNITRANCHE_CREDIT,
     "credit_memo": _UNITRANCHE_CREDIT,
@@ -432,6 +452,8 @@ DEFAULT_FACTORS_BY_TYPE: dict[str, list[SensitivityFactor]] = {
     "development_re": _DEVELOPMENT_RE,
     # Bank / FIG: yield, funding cost, cost of risk, efficiency, growth, RWA.
     "bank_fig": _BANK_FIG,
+    # Loan-tape securitization: recovery, CDR, prepayment, fees, coupon, OC.
+    "loan_tape_securitization": _SEC_LOANTAPE,
 }
 
 

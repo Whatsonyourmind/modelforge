@@ -121,6 +121,10 @@ def _spec_loader_map() -> dict[str, "Callable[[], type]"]:
         from modelforge.spec.bank_fig import BankFigSpec
         return BankFigSpec
 
+    def _loan_tape_securitization():
+        from modelforge.spec.loan_tape_securitization import LoanTapeSecuritizationSpec
+        return LoanTapeSecuritizationSpec
+
     return {
         "unitranche": _unitranche,
         "minibond": _minibond,
@@ -140,6 +144,7 @@ def _spec_loader_map() -> dict[str, "Callable[[], type]"]:
         "portfolio_review": _portfolio_review,
         "development_re": _development_re,
         "bank_fig": _bank_fig,
+        "loan_tape_securitization": _loan_tape_securitization,
     }
 
 
@@ -445,6 +450,7 @@ def _template_description(name: str) -> str:
         "portfolio_review": "PE fund portfolio review — TVPI/DPI/RVPI + gross & net IRR",
         "development_re": "Ground-up RE development — phased capex, lease-up S-curve, forward-NOI exit, LTC debt, promote",
         "bank_fig": "Bank / FIG — NII, RWA, CET1 & leverage ratios, MDA-gated dividends & buybacks",
+        "loan_tape_securitization": "Loan-tape securitization (CLO/RMBS) — stratified tape, pool cashflow (CPR/CDR/recovery), sequential-pay turbo waterfall with OC/IC + reserve, note WAL/IRR/rating",
     }
     if name in curated:
         return curated[name]

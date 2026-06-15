@@ -1,0 +1,81 @@
+# Synthetic mid-market CLO / cash securitization — Template 19
+# €400m stratified loan tape, 8 annual periods, 3-note sequential-pay structure.
+# Entirely generic / synthetic: no real obligor, originator or institution.
+
+model_type: loan_tape_securitization
+
+meta:
+  project_code: DEMO-CLO-MM
+  deliverable: { en: "Mid-Market CLO — Cashflow & Rating Deck", it: "CLO mid-market — Deck cassa e rating" }
+  analyst: Analyst
+  version: v0.1
+  status: draft
+  valuation_date: 2026-06-15
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - { version: v0.1, date: 2026-06-15, analyst: Analyst, note: "Synthetic mid-market CLO, 2 strata, 3 notes." }
+
+target:
+  name: "Meridian Mid-Market CLO 2026-1 (synthetic)"
+  sector: { en: "Mid-market senior secured & second-lien loans", it: "Prestiti mid-market senior e second-lien" }
+  country: XX
+  currency: EUR
+  revenue_last_fy_eur_m: 0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 0
+  ebitda_source_id: S-001
+  last_fy_end: 2026-03-31
+
+horizon: { periods: 8, recovery_lag_periods: 1 }
+
+sources:
+  - { id: S-001, doc: Synthetic_loan_data_tape.xlsx, page: 1, publisher: "Synthetic originator", date: 2026-04-30, verified: true, note: "Stratified loan tape — balances, WAC, WAM, default vintages (synthetic)." }
+  - { id: S-002, doc: Generic_loan_loss_study.pdf, page: 12, publisher: "Synthetic rating agency", date: 2026-02-15, verified: false, note: "Mid-market loan CDR / recovery benchmarks (synthetic placeholders)." }
+  - { id: S-003, doc: Synthetic_offering_circular.pdf, page: 40, publisher: "Synthetic arranger", date: 2026-05-20, verified: true, note: "Capital structure, coupons, OC/IC triggers, reserve (synthetic)." }
+  - { id: S-004, doc: Generic_prepayment_study.pdf, page: 7, publisher: "Synthetic research", date: 2026-03-01, verified: false, note: "Prepayment (CPR) assumption for amortizing loan pools (synthetic)." }
+
+tape:
+  - name: { en: "Senior secured loans", it: "Prestiti senior secured" }
+    balance_eur_m: { id: A-001, name: tape_a_balance, label: { en: "Senior secured UPB", it: "UPB senior secured" }, unit: eur_m, base: 300.0, rationale: "€300m senior secured stratum.", confidence: H, source_id: S-001 }
+    wac_pct:       { id: A-002, name: tape_a_wac, label: { en: "Senior secured WAC", it: "WAC senior secured" }, unit: pct, base: 0.070, rationale: "7.0% gross coupon on senior secured.", confidence: H, source_id: S-001 }
+    wam_years:     { id: A-003, name: tape_a_wam, label: { en: "Senior secured WAM", it: "WAM senior secured" }, unit: years, base: 5.0, rationale: "5y weighted-average remaining maturity.", confidence: H, source_id: S-001 }
+    cdr_pct:       { id: A-004, name: tape_a_cdr, label: { en: "Senior secured CDR", it: "CDR senior secured" }, unit: pct, base: 0.020, worst: 0.040, best: 0.010, rationale: "2.0% annual default rate (synthetic benchmark).", confidence: M, source_id: S-002 }
+  - name: { en: "Second-lien / unsecured", it: "Second-lien / unsecured" }
+    balance_eur_m: { id: A-005, name: tape_b_balance, label: { en: "Second-lien UPB", it: "UPB second-lien" }, unit: eur_m, base: 100.0, rationale: "€100m second-lien / unsecured stratum.", confidence: H, source_id: S-001 }
+    wac_pct:       { id: A-006, name: tape_b_wac, label: { en: "Second-lien WAC", it: "WAC second-lien" }, unit: pct, base: 0.095, rationale: "9.5% gross coupon on second-lien.", confidence: H, source_id: S-001 }
+    wam_years:     { id: A-007, name: tape_b_wam, label: { en: "Second-lien WAM", it: "WAM second-lien" }, unit: years, base: 4.0, rationale: "4y weighted-average remaining maturity.", confidence: H, source_id: S-001 }
+    cdr_pct:       { id: A-008, name: tape_b_cdr, label: { en: "Second-lien CDR", it: "CDR second-lien" }, unit: pct, base: 0.040, worst: 0.070, best: 0.025, rationale: "4.0% annual default rate (synthetic benchmark).", confidence: M, source_id: S-002 }
+
+pool:
+  cpr_pct:           { id: A-010, name: cpr_pct, label: { en: "Prepayment rate (CPR)", it: "Tasso prepagamento (CPR)" }, unit: pct, base: 0.080, worst: 0.150, best: 0.040, rationale: "8% annual CPR for amortizing mid-market loans.", confidence: M, source_id: S-004 }
+  recovery_pct:      { id: A-011, name: recovery_pct, label: { en: "Recovery on default", it: "Recupero su default" }, unit: pct, base: 0.60, worst: 0.40, best: 0.70, rationale: "60% blended recovery (1 − severity), synthetic.", confidence: M, source_id: S-002 }
+  servicing_fee_pct: { id: A-012, name: servicing_fee_pct, label: { en: "Servicing fee %", it: "Fee servicing %" }, unit: pct, base: 0.005, rationale: "50bps servicing on performing balance.", confidence: H, source_id: S-003 }
+  senior_fees_eur_m: { id: A-013, name: senior_fees_eur_m, label: { en: "Trustee / senior fees", it: "Fee trustee" }, unit: eur_m, base: 0.3, rationale: "€0.3m fixed trustee/admin fee per period.", confidence: H, source_id: S-003 }
+
+notes:
+  - name: { en: "Class A (Senior)", it: "Classe A (Senior)" }
+    rating: AAA
+    advance_pct: { id: A-020, name: senior_advance, label: { en: "Class A advance %", it: "Anticipo Classe A %" }, unit: pct, base: 0.70, rationale: "70% advance rate — AAA-equivalent for this collateral.", confidence: H, source_id: S-003 }
+    coupon_pct:  { id: A-021, name: senior_coupon, label: { en: "Class A coupon", it: "Cedola Classe A" }, unit: pct, base: 0.045, rationale: "4.5% senior coupon (AAA 2026 pricing).", confidence: H, source_id: S-003 }
+  - name: { en: "Class B (Mezz)", it: "Classe B (Mezz)" }
+    rating: BBB
+    advance_pct: { id: A-030, name: mezz_advance, label: { en: "Class B advance %", it: "Anticipo Classe B %" }, unit: pct, base: 0.18, rationale: "18% mezzanine tranche.", confidence: H, source_id: S-003 }
+    coupon_pct:  { id: A-031, name: mezz_coupon, label: { en: "Class B coupon", it: "Cedola Classe B" }, unit: pct, base: 0.065, rationale: "6.5% mezzanine coupon (BBB).", confidence: H, source_id: S-003 }
+  - name: { en: "Residual (first-loss)", it: "Residuale (prima perdita)" }
+    rating: Equity
+    advance_pct: { id: A-040, name: residual_advance, label: { en: "Residual advance %", it: "Anticipo residuale %" }, unit: pct, base: 0.12, rationale: "12% first-loss residual closes the structure to 100%.", confidence: H, source_id: S-003 }
+    coupon_pct:  { id: A-041, name: residual_coupon, label: { en: "Residual coupon", it: "Cedola residuale" }, unit: pct, base: 0.0, rationale: "Residual receives excess spread, not a contractual coupon.", confidence: H, source_id: S-003 }
+
+enhancement:
+  oc_trigger_pct:      { id: A-050, name: oc_trigger_pct, label: { en: "OC trigger", it: "Trigger OC" }, unit: x, base: 1.10, rationale: "110% overcollateralisation trigger (synthetic).", confidence: H, source_id: S-003 }
+  ic_trigger_pct:      { id: A-051, name: ic_trigger_pct, label: { en: "IC trigger", it: "Trigger IC" }, unit: x, base: 1.10, rationale: "110% interest-coverage trigger (synthetic).", confidence: H, source_id: S-003 }
+  reserve_pct_initial: { id: A-052, name: reserve_pct_initial, label: { en: "Reserve % of initial pool", it: "Riserva % pool iniziale" }, unit: pct, base: 0.01, rationale: "1% cash reserve (of the initial pool) funded at close from the residual.", confidence: H, source_id: S-003 }
+
+effective_tax_rate: { id: A-060, name: effective_tax_rate, label: { en: "Effective tax (SPV)", it: "Aliquota (SPV)" }, unit: pct, base: 0.0, rationale: "Legge 130/1999-style SPV is tax-neutral.", confidence: H, source_id: S-003 }
+
+historical_revenue_eur_m: []
+historical_ebitda_eur_m: []
+historical_net_debt_eur_m: 0.0
+historical_net_debt_source_id: S-001

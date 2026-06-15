@@ -255,6 +255,24 @@ def _bank_fig_sections():
     ]
 
 
+def _loan_tape_securitization_sections():
+    """Loan-tape cash securitization (CLO/RMBS): the stratified loan tape, the
+    pool cashflow drivers, the note capital structure and the credit
+    enhancement / triggers."""
+    from modelforge.spec.loan_tape_securitization import (
+        CreditEnhancement, LoanStratum, LoanTapeSecuritizationSpec,
+        PoolAssumptions, SecuritizationNote,
+    )
+    from modelforge.spec.base import Target
+    return LoanTapeSecuritizationSpec, [
+        ("target", Target),
+        ("tape", LoanStratum),
+        ("pool", PoolAssumptions),
+        ("notes", SecuritizationNote),
+        ("enhancement", CreditEnhancement),
+    ]
+
+
 TEMPLATE_SECTIONS = {
     "project_finance": _pf_sections,
     "unitranche": _unitranche_sections,
@@ -278,6 +296,8 @@ TEMPLATE_SECTIONS = {
     "development_re": _development_re_sections,
     # Bank / FIG (NII, RWA, CET1, leverage, capital return)
     "bank_fig": _bank_fig_sections,
+    # Loan-tape cash securitization (CLO/RMBS)
+    "loan_tape_securitization": _loan_tape_securitization_sections,
 }
 
 
@@ -367,6 +387,8 @@ def _default_horizon(template: str) -> dict:
         return {"collection_years": 10}
     if template == "structured_credit":
         return {"weighted_average_life": 5}
+    if template == "loan_tape_securitization":
+        return {"periods": 8, "recovery_lag_periods": 1}
     if template == "merger":
         return {"projection_years": 5}
     # fairness has no horizon field
