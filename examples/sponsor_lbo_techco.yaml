@@ -629,3 +629,20 @@ gp_waterfall_type: european
 
 # US-213 NWC closing adjustment
 nwc_target_peg_eur_m: 6.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SCREENING (optional) — headline metrics for `modelforge screen`.
+# Build-irrelevant: read only by the deal-screener to filter/rank candidates
+# without building each workbook. Figures derived from the assumptions above.
+# ─────────────────────────────────────────────────────────────────────────────
+screening:
+  deal_id: DEMO-LBO-CDMO-01
+  sector: "Specialty Pharma / CDMO"
+  geography: "EU"
+  deal_size_eur_m: 73        # sponsor equity 35 + senior unitranche 38
+  vintage: 2026
+  irr_base: 0.196            # illustrative base-case sponsor IRR
+  irr_worst: 0.082
+  leverage_x: 4.1            # senior unitranche 38 / FY25 EBITDA 9.2 ~4.1x
+  ebitda_margin: 0.219       # FY25 EBITDA 9.2 / revenue 42.0
+  tags: ["EU CDMO", "healthcare", "sponsor-lbo"]

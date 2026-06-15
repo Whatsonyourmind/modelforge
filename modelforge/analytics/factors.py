@@ -352,6 +352,36 @@ _RESTRUCTURING = [
 ]
 
 
+_DEVELOPMENT_RE = [
+    # Driver names match the development_re Assumption.name values
+    # (see examples/development_pbsa_genericcity.yaml). Drivers absent on a
+    # given spec (e.g. dev_rent_per_bed_year on a generic-kind deal) are
+    # silently skipped by the sensitivity builder, so the same list works for
+    # both the PBSA and generic revenue kinds.
+    SensitivityFactor(driver_name="dev_hard_costs",
+                      label="Hard construction costs ±10%",
+                      low_shock=-0.10, high_shock=+0.10),
+    SensitivityFactor(driver_name="dev_exit_cap_rate",
+                      label="Exit cap rate ±50bps",
+                      low_shock=-0.10, high_shock=+0.10),
+    SensitivityFactor(driver_name="dev_rent_per_bed_year",
+                      label="Rent per bed / year ±10%",
+                      low_shock=-0.10, high_shock=+0.10),
+    SensitivityFactor(driver_name="dev_senior_rate",
+                      label="Senior all-in rate ±75bps",
+                      low_shock=-0.15, high_shock=+0.15),
+    SensitivityFactor(driver_name="dev_equity_pct",
+                      label="Equity share (loan-to-cost) ±10%",
+                      low_shock=-0.10, high_shock=+0.10),
+    SensitivityFactor(driver_name="dev_rev_growth_pct",
+                      label="NOI growth to exit ±50bps",
+                      low_shock=-0.40, high_shock=+0.40),
+    SensitivityFactor(driver_name="dev_contingency_pct",
+                      label="Contingency % ±25%",
+                      low_shock=-0.25, high_shock=+0.25),
+]
+
+
 DEFAULT_FACTORS_BY_TYPE: dict[str, list[SensitivityFactor]] = {
     "unitranche": _UNITRANCHE_CREDIT,
     "credit_memo": _UNITRANCHE_CREDIT,
@@ -377,6 +407,9 @@ DEFAULT_FACTORS_BY_TYPE: dict[str, list[SensitivityFactor]] = {
     # holds; the post-build sensitivity engine skips this template (no
     # Assumption objects to shock). Real portfolio-level sensitivity is v0.11.
     "portfolio_review": _THREE_STATEMENT,
+    # Ground-up development underwriting: cost, cap-rate, rent, financing,
+    # leverage, growth and contingency drivers (development-specific names).
+    "development_re": _DEVELOPMENT_RE,
 }
 
 

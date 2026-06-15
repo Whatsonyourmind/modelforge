@@ -219,6 +219,24 @@ def _portfolio_review_sections():
     ]
 
 
+def _development_re_sections():
+    """Ground-up development RE: phased capex + timeline + revenue (PBSA or
+    generic) + capital (LTC + grant) + exit + European promote waterfall."""
+    from modelforge.spec.development_re import (
+        DevCapex, DevCapital, DevExit, DevRevenue, DevelopmentRESpec,
+    )
+    from modelforge.spec.real_estate import EquityWaterfall
+    from modelforge.spec.base import Target
+    return DevelopmentRESpec, [
+        ("target", Target),
+        ("capex", DevCapex),
+        ("revenue", DevRevenue),
+        ("capital", DevCapital),
+        ("exit", DevExit),
+        ("waterfall", EquityWaterfall),
+    ]
+
+
 TEMPLATE_SECTIONS = {
     "project_finance": _pf_sections,
     "unitranche": _unitranche_sections,
@@ -238,6 +256,8 @@ TEMPLATE_SECTIONS = {
     # v0.10: foreign-market additions
     "hgb_carveout": _hgb_carveout_sections,
     "portfolio_review": _portfolio_review_sections,
+    # Ground-up development underwriting (phased capex, lease-up, promote)
+    "development_re": _development_re_sections,
 }
 
 

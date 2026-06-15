@@ -89,3 +89,20 @@ historical_revenue_eur_m: []
 historical_ebitda_eur_m: []
 historical_net_debt_eur_m: 0.0
 historical_net_debt_source_id: S-001
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SCREENING (optional) — headline metrics for `modelforge screen`.
+# Build-irrelevant: read only by the deal-screener to filter/rank candidates
+# without building each workbook. Figures derived from the assumptions above.
+# ─────────────────────────────────────────────────────────────────────────────
+screening:
+  deal_id: DEMO-PBSA-EU-01
+  sector: "PBSA / Living"
+  geography: "EU/UK"
+  deal_size_eur_m: 42        # acquisition price 300 beds x ~140k/bed
+  vintage: 2026
+  irr_base: 0.142            # illustrative levered base-case equity IRR (7y hold)
+  irr_worst: 0.071
+  exit_cap_rate: 0.050       # exit cap (lower = richer exit)
+  ltv: 0.55                  # debt LTV at close
+  tags: ["EU/UK PBSA", "student-housing", "real-estate"]

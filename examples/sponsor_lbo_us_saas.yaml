@@ -629,3 +629,20 @@ gp_waterfall_type: european
 
 # US-213 NWC closing adjustment
 nwc_target_peg_eur_m: 6.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SCREENING (optional) — headline metrics for `modelforge screen`.
+# Build-irrelevant: read only by the deal-screener to filter/rank candidates
+# without building each workbook. Figures derived from the assumptions above.
+# ─────────────────────────────────────────────────────────────────────────────
+screening:
+  deal_id: DEMO-LBO-USTECH-01
+  sector: "US SaaS"
+  geography: "US"
+  deal_size_eur_m: 73        # sponsor equity 35 + senior unitranche 38
+  vintage: 2026
+  irr_base: 0.241            # illustrative base-case sponsor IRR
+  irr_worst: 0.118
+  leverage_x: 4.1            # senior unitranche 38 / FY25 EBITDA 9.3-equiv ~4.1x
+  ebitda_margin: 0.288       # FY25 EBITDA 24.5 / revenue 85.0
+  tags: ["US SaaS", "vertical-software", "sponsor-lbo"]

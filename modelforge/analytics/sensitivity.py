@@ -355,6 +355,15 @@ _ELASTICITY_REGISTRY: dict[str, float] = {
     "unsecured_recovery_pct": 0.60,
     "time_to_emergence_months": -0.25,      # longer tail erodes IRR via discounting
     "exit_financing_rate": -0.30,           # higher exit rate compresses TEV
+    # Ground-up development RE (driver names = development_re Assumption.name)
+    "dev_hard_costs": -0.55,             # higher build cost → lower equity IRR
+    "dev_exit_cap_rate": -0.60,          # higher exit cap → lower exit value (strong)
+    "dev_rent_per_bed_year": 0.85,       # higher rent → higher stabilised NOI (strong)
+    "dev_rent_sqm_year": 0.85,           # generic-kind rent analogue
+    "dev_senior_rate": -0.30,            # higher debt rate → lower equity IRR
+    "dev_equity_pct": -0.40,             # more equity / less leverage → lower equity IRR
+    "dev_rev_growth_pct": 0.55,          # higher NOI growth → higher forward exit
+    "dev_contingency_pct": -0.20,        # higher contingency → higher TDC → lower IRR
 }
 
 

@@ -1,0 +1,138 @@
+# ─────────────────────────────────────────────────────────────────────────
+# FULLY SYNTHETIC EXAMPLE — Ground-up PBSA development (development_re template)
+#
+# Northgate Student Living — a 350-bed purpose-built student accommodation
+# development in the generic city of "Brookfield". Every figure below is an
+# ILLUSTRATIVE, INVENTED placeholder for a synthetic teaching example. No real
+# deal, sponsor, asset, institution, or jurisdiction-specific programme is
+# referenced. The "public development grant" is a generic regeneration grant,
+# not any named programme.
+#
+# Economics: ~£41m total development cost (~£118k/bed), 60% loan-to-cost senior
+# debt, 18-month construction, 12-month lease-up, 5-year hold, 5.25% exit cap
+# rate, European whole-fund LP/GP promote (8% pref → catch-up → 80/20 residual).
+# The deal is tuned to a defensible ground-up development spread: yield-on-cost
+# ~6.5% vs an exit cap ~5.25%, which produces a genuine development margin —
+# unlevered project IRR in the low teens (~11.8%) and POSITIVE leverage from the
+# 60% LTC senior facility (levered equity IRR ~17.5%, materially above the
+# unlevered project IRR). Construction interest CAPITALISES into the senior
+# balance during the build (IDC), and the full facility is repaid at exit.
+# ─────────────────────────────────────────────────────────────────────────
+
+model_type: development_re
+
+meta:
+  project_code: DEMO-DEV-PBSA-BF
+  deliverable: { en: "Ground-Up PBSA Development Underwriting", it: "Underwriting Sviluppo PBSA Greenfield" }
+  analyst: Analyst
+  version: v0.1
+  status: draft
+  valuation_date: 2026-04-16
+  currency: GBP
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - { version: v0.1, date: 2026-04-16, analyst: Analyst, note: "Synthetic 350-bed PBSA development, generic city Brookfield, 5y hold." }
+
+target:
+  name: "Northgate Student Living (Brookfield) — SPV"
+  sector: { en: "PBSA — Purpose-Built Student Accommodation (development)", it: "PBSA — Studentato (sviluppo)" }
+  country: GB
+  currency: GBP
+  revenue_last_fy_eur_m: 0
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 0
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+sources:
+  - { id: S-001, doc: "Northgate_Brookfield_Development_Appraisal.pdf", page: 4, publisher: "Sponsor (synthetic)", date: 2026-03-05, verified: false, note: "Synthetic development appraisal — 350 beds, build costs, programme. Illustrative placeholder." }
+  - { id: S-002, doc: "Generic_PBSA_Market_Note_2026.pdf", page: 11, publisher: "Synthetic research", date: 2026-02-28, verified: false, note: "Illustrative PBSA rent growth ~2.5%/yr, stabilised occupancy 95%+. Synthetic." }
+  - { id: S-003, doc: "Generic_Living_Cap_Rate_Survey_2026.pdf", page: 7, publisher: "Synthetic research", date: 2026-04-10, verified: false, note: "Illustrative prime PBSA cap rates ~5.0-5.5%. Synthetic placeholder." }
+  - { id: S-004, doc: "Generic_Development_Finance_Pricing_2026.pdf", page: 9, publisher: "Synthetic research", date: 2026-03-20, verified: false, note: "Illustrative development senior all-in ~5.5%, 50-60% LTC. Synthetic." }
+  - { id: S-005, doc: "Generic_Regeneration_Grant_Guidance.pdf", page: 2, publisher: "Generic public body (synthetic)", date: 2026-01-15, verified: false, note: "Generic public development grant for student-housing regeneration. Synthetic, non-jurisdictional." }
+
+capex:
+  acquisition_eur_m:
+    { id: A-001, name: dev_acquisition, label: { en: "Site acquisition", it: "Acquisto terreno" }, unit: eur_m, base: 6.0, rationale: "Synthetic site acquisition (~£17k/bed, regional brownfield).", confidence: M, source_id: S-001 }
+  hard_costs_eur_m:
+    { id: A-002, name: dev_hard_costs, label: { en: "Hard construction costs", it: "Costi di costruzione" }, unit: eur_m, base: 25.0, worst: 27.5, best: 23.0, rationale: "Synthetic hard costs (~£71k/bed, mid-rise regional PBSA). Illustrative.", confidence: M, source_id: S-001 }
+  soft_costs_eur_m:
+    { id: A-003, name: dev_soft_costs, label: { en: "Soft costs (design/fees/legal)", it: "Costi soft" }, unit: eur_m, base: 5.0, rationale: "Synthetic soft costs ~20% of hard. Illustrative.", confidence: M, source_id: S-001 }
+  ffe_eur_m:
+    { id: A-004, name: dev_ffe, label: { en: "FF&E", it: "Arredi e attrezzature" }, unit: eur_m, base: 2.5, rationale: "Synthetic FF&E (~£7k/bed). Illustrative.", confidence: M, source_id: S-001 }
+  other_dev_charges_eur_m:
+    { id: A-005, name: dev_other_charges, label: { en: "Other dev charges (utilities/levies)", it: "Altri oneri" }, unit: eur_m, base: 1.0, rationale: "Synthetic utilities connections + levies. Illustrative.", confidence: M, source_id: S-001 }
+  contingency_pct:
+    { id: A-006, name: dev_contingency_pct, label: { en: "Contingency % (hard+soft+ffe)", it: "Imprevisti %" }, unit: pct, base: 0.06, worst: 0.08, best: 0.05, rationale: "Standard development contingency 6%.", confidence: H, source_id: S-001 }
+
+timeline:
+  permit_months: 6
+  construction_months: 18
+  leaseup_months: 12
+  hold_total_months: 60
+
+revenue:
+  kind: pbsa
+  beds:
+    { id: A-010, name: dev_beds, label: { en: "Beds", it: "Posti letto" }, unit: count, base: 350, rationale: "Synthetic 350-bed scheme.", confidence: H, source_id: S-001 }
+  rent_per_bed_year:
+    { id: A-011, name: dev_rent_per_bed_year, label: { en: "Rent per bed / year", it: "Canone per letto/anno" }, unit: eur, base: 11500, worst: 10500, best: 12250, rationale: "Synthetic regional-premium PBSA ~£960/bed/month. Illustrative.", confidence: M, source_id: S-002 }
+  operator_floor_occ:
+    { id: A-012, name: dev_operator_floor_occ, label: { en: "Operator floor occupancy (lease-up)", it: "Occupazione minima operatore" }, unit: pct, base: 0.90, rationale: "Operator nominated-let floor 90% during lease-up.", confidence: M, source_id: S-002 }
+  opex_per_unit_year:
+    { id: A-013, name: dev_opex_per_bed_year, label: { en: "Landlord opex per bed / year", it: "Opex per letto/anno" }, unit: eur, base: 3200, rationale: "Synthetic service-inclusive PBSA opex ~28% of rent. Illustrative.", confidence: M, source_id: S-001 }
+  rev_growth_pct:
+    { id: A-014, name: dev_rev_growth_pct, label: { en: "NOI growth to exit", it: "Crescita NOI a uscita" }, unit: pct, base: 0.025, rationale: "Illustrative PBSA rent growth 2.5%/yr.", confidence: M, source_id: S-002 }
+
+capital:
+  equity_pct:
+    { id: A-020, name: dev_equity_pct, label: { en: "Equity share of net dev need", it: "Quota equity fabbisogno" }, unit: pct, base: 0.40, worst: 0.45, best: 0.35, rationale: "60% loan-to-cost senior → 40% equity. Illustrative.", confidence: H, source_id: S-004 }
+  senior_rate_all_in:
+    { id: A-021, name: dev_senior_rate, label: { en: "Senior all-in rate", it: "Tasso senior all-in" }, unit: pct, base: 0.055, worst: 0.062, best: 0.050, rationale: "Synthetic development senior all-in ~5.5%. Illustrative.", confidence: M, source_id: S-004 }
+  arrangement_fee_pct:
+    { id: A-022, name: dev_arrangement_fee_pct, label: { en: "Arrangement fee %", it: "Commissione organizzazione %" }, unit: pct, base: 0.0125, rationale: "Development loan arrangement 1.0-1.5%.", confidence: M, source_id: S-004 }
+  public_grant_amount:
+    { id: A-023, name: dev_public_grant, label: { en: "Public development grant", it: "Contributo pubblico" }, unit: eur_m, base: 2.5, rationale: "Synthetic generic regeneration grant for student housing. Non-jurisdictional placeholder.", confidence: L, source_id: S-005 }
+  grant_name: "Public development grant"
+
+exit:
+  exit_cap_rate:
+    { id: A-030, name: dev_exit_cap_rate, label: { en: "Exit cap rate", it: "Cap rate uscita" }, unit: pct, base: 0.0525, worst: 0.0575, best: 0.0500, rationale: "Synthetic prime PBSA exit cap ~5.25%. Illustrative.", confidence: M, source_id: S-003 }
+  selling_costs_pct:
+    { id: A-031, name: dev_selling_costs_pct, label: { en: "Selling costs %", it: "Costi di vendita %" }, unit: pct, base: 0.015, rationale: "Standard disposal costs ~1.5%.", confidence: H, source_id: S-003 }
+
+waterfall:
+  lp_capital_commitment_pct:
+    { id: A-040, name: lp_capital_commitment_pct, label: { en: "LP capital %", it: "% capitale LP" }, unit: pct, base: 0.90, rationale: "90/10 LP/GP development JV. Illustrative.", confidence: H }
+  tiers:
+    - name: { en: "Return of capital", it: "Restituzione capitale" }
+      hurdle_irr_pct: { id: A-041, name: dev_tier1_hurdle, label: { en: "Tier 1 hurdle", it: "Tier 1 hurdle" }, unit: pct, base: 0.0, rationale: "Return of capital first.", confidence: H }
+      lp_share_pct: { id: A-042, name: dev_tier1_lp_share, label: { en: "LP share T1", it: "Quota LP T1" }, unit: pct, base: 1.0, rationale: "100% LP.", confidence: H }
+    - name: { en: "Pref return", it: "Rendimento preferenziale" }
+      hurdle_irr_pct: { id: A-043, name: dev_tier2_hurdle, label: { en: "Pref return %", it: "Pref return %" }, unit: pct, base: 0.08, rationale: "8% pref return, development standard.", confidence: H }
+      lp_share_pct: { id: A-044, name: dev_tier2_lp_share, label: { en: "LP share T2", it: "Quota LP T2" }, unit: pct, base: 1.0, rationale: "100% LP until pref.", confidence: H }
+    - name: { en: "Catch-up", it: "Catch-up" }
+      hurdle_irr_pct: { id: A-045, name: dev_tier3_hurdle, label: { en: "Catch-up hurdle", it: "Catch-up hurdle" }, unit: pct, base: 0.10, rationale: "Catch-up to 10%.", confidence: H }
+      lp_share_pct: { id: A-046, name: dev_tier3_lp_share, label: { en: "LP share T3", it: "Quota LP T3" }, unit: pct, base: 0.50, rationale: "50/50 catch-up.", confidence: H }
+    - name: { en: "Promote (residual)", it: "Promote residuale" }
+      lp_share_pct: { id: A-047, name: dev_tier4_lp_share, label: { en: "LP share T4", it: "Quota LP T4" }, unit: pct, base: 0.80, rationale: "80/20 above the catch-up.", confidence: H }
+
+discount_rate:
+  { id: A-050, name: dev_discount_rate, label: { en: "Discount rate (equity NPV)", it: "Tasso di sconto" }, unit: pct, base: 0.085, rationale: "Illustrative development equity discount rate 8.5%.", confidence: M }
+
+# Optional screening passthrough — lets the deal-screening engine filter/rank
+# this development without building the workbook. Geography is a generic,
+# non-Italian / pan-EU-UK tag.
+screening:
+  sector: "pbsa"
+  geography: "UK/EU"
+  deal_size_eur_m: 41
+  vintage: 2026
+  irr_base: 0.175
+  leverage_x: 1.5
+
+historical_revenue_eur_m: []
+historical_ebitda_eur_m: []
+historical_net_debt_eur_m: 0.0
+historical_net_debt_source_id: S-001

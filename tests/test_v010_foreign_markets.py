@@ -152,8 +152,12 @@ def test_v010_templates_flagged_preview():
 
 
 def test_registry_has_16_templates():
-    """v0.10 = v0.9.7 (14) + hgb_carveout + portfolio_review."""
-    assert len(REGISTRY) == 16
+    """v0.10 = v0.9.7 (14) + hgb_carveout + portfolio_review.
+
+    Later additions extend the registry beyond the v0.10 baseline (e.g.
+    development_re), so the floor is the v0.10 count, not an exact equality.
+    """
+    assert len(REGISTRY) >= 16
 
 
 # ---------- FR-6: foreign-market YAML examples build ----------

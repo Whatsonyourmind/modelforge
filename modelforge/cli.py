@@ -113,6 +113,10 @@ def _spec_loader_map() -> dict[str, "Callable[[], type]"]:
         from modelforge.spec.portfolio_review import PortfolioReviewSpec
         return PortfolioReviewSpec
 
+    def _development_re():
+        from modelforge.spec.development_re import DevelopmentRESpec
+        return DevelopmentRESpec
+
     return {
         "unitranche": _unitranche,
         "minibond": _minibond,
@@ -130,6 +134,7 @@ def _spec_loader_map() -> dict[str, "Callable[[], type]"]:
         "restructuring": _restructuring,
         "hgb_carveout": _hgb_carveout,
         "portfolio_review": _portfolio_review,
+        "development_re": _development_re,
     }
 
 
@@ -164,7 +169,12 @@ def _warn_unknown_top_keys(raw: dict, SpecClass, source_name: str) -> None:
     silent. (Stays a warning, not a hard error, so a slightly-ahead-of-schema
     spec still builds.)
     """
-    extras = sorted(set(raw) - set(SpecClass.model_fields))
+    # `screening` is an OPTIONAL, build-irrelevant convenience block read only by
+    # the deal-screener (`modelforge screen`); it is intentionally not a spec
+    # field, so tolerate it here rather than flag it as a typo on every spec that
+    # opts into screening.
+    tolerated = {"screening"}
+    extras = sorted(set(raw) - set(SpecClass.model_fields) - tolerated)
     if extras:
         console.print(
             f"[yellow]warning:[/yellow] {source_name}: unknown field(s) ignored "
@@ -428,6 +438,7 @@ def _template_description(name: str) -> str:
         "restructuring": "Restructuring / distressed recovery waterfall by class",
         "hgb_carveout": "HGB carve-out — standalone EBITDA bridge + carve-out EV",
         "portfolio_review": "PE fund portfolio review — TVPI/DPI/RVPI + gross & net IRR",
+        "development_re": "Ground-up RE development — phased capex, lease-up S-curve, forward-NOI exit, LTC debt, promote",
     }
     if name in curated:
         return curated[name]
@@ -1883,6 +1894,195 @@ def deck_cmd(target: Path, deck_type: str, theme: str | None,
             f"entr{'y' if result.red_flag_count == 1 else 'ies'} carried onto "
             f"the certification slide."
         )
+
+
+def _parse_kv_pairs(pairs: tuple[str, ...], *, what: str) -> dict[str, str]:
+    """Parse repeatable ``key=value`` CLI options into a dict.
+
+    Friendly-exits (code 2) on a token missing ``=`` or with an empty key, so a
+    fat-fingered ``--filter sectorindustrials`` is a clear message rather than a
+    silent no-op or a traceback.
+    """
+    out: dict[str, str] = {}
+    for raw in pairs:
+        if "=" not in raw:
+            console.print(
+                f"[red]--{what} expects key=value, got {raw!r} (no '='). "
+                f"Example: --{what} "
+                f"{'sector=industrials' if what == 'filter' else 'irr_base=1.0'}.[/red]"
+            )
+            sys.exit(2)
+        key, value = raw.split("=", 1)
+        key = key.strip()
+        if not key:
+            console.print(f"[red]--{what} has an empty key in {raw!r}.[/red]")
+            sys.exit(2)
+        out[key] = value.strip()
+    return out
+
+
+def _coerce_filter_value(value: str):
+    """Coerce a filter value string to bool/number/list when it clearly is one.
+
+    Keeps screening filters ergonomic on the command line: ``deal_size_eur_m_min``
+    compares numerically, ``geography_in`` accepts a comma list, and an
+    obviously-numeric equality (``vintage=2026``) matches an int spec value. Falls
+    back to the raw string so ``sector=industrials`` stays an exact text match.
+    """
+    v = value.strip()
+    if "," in v:
+        return [item.strip() for item in v.split(",") if item.strip()]
+    low = v.lower()
+    if low in ("true", "false"):
+        return low == "true"
+    try:
+        return int(v)
+    except ValueError:
+        pass
+    try:
+        return float(v)
+    except ValueError:
+        pass
+    return v
+
+
+@main.command("screen")
+@click.argument("spec_dir", type=click.Path(exists=False, path_type=Path))
+@click.option("--filter", "filters", multiple=True, metavar="KEY=VAL",
+              help="Repeatable filter predicate. Suffix the key with _min (>=), "
+                   "_max (<=), or _in (comma-list membership); a bare key is an "
+                   "exact match. E.g. --filter ebitda_margin_min=0.20 "
+                   "--filter sector=industrials.")
+@click.option("--rank", "ranks", multiple=True, metavar="METRIC=WEIGHT",
+              help="Repeatable ranking weight (float). Positive = higher-is-"
+                   "better, negative = lower-is-better. E.g. --rank irr_base=1.0 "
+                   "--rank leverage_x=-0.3.")
+@click.option("--top", "top_n", type=int, default=25, show_default=True,
+              help="Maximum number of ranked deals to show.")
+@click.option("--glob", "glob_pattern", default="**/*.yaml", show_default=True,
+              help="Glob used to discover spec files under SPEC_DIR.")
+def screen_cmd(spec_dir: Path, filters: tuple[str, ...],
+               ranks: tuple[str, ...], top_n: int,
+               glob_pattern: str) -> None:
+    """Filter + rank a directory of deal spec YAMLs — without building each one.
+
+    Triage many candidates at the spec layer (screening 1,000 deals never builds
+    1,000 workbooks). A spec is screenable when it carries an optional top-level
+    ``screening:`` block, e.g.::
+
+        screening:
+          sector: "US SaaS"
+          geography: "US"
+          deal_size_eur_m: 75
+          vintage: 2026
+          irr_base: 0.24
+          leverage_x: 4.1
+
+    Filter keys support ``_min`` (>=), ``_max`` (<=), ``_in`` (comma-list
+    membership) or a bare key (equality). Rank weights are floats; a negative
+    weight means lower-is-better. Prints a ranked table and exits 0.
+    """
+    from modelforge.screening import screen
+
+    filter_raw = _parse_kv_pairs(filters, what="filter")
+    parsed_filters = {k: _coerce_filter_value(v) for k, v in filter_raw.items()}
+
+    rank_raw = _parse_kv_pairs(ranks, what="rank")
+    parsed_ranks: dict[str, float] = {}
+    for metric, weight in rank_raw.items():
+        try:
+            parsed_ranks[metric] = float(weight)
+        except ValueError:
+            console.print(
+                f"[red]--rank weight for {metric!r} must be a number, "
+                f"got {weight!r}.[/red]"
+            )
+            sys.exit(2)
+
+    if not spec_dir.exists():
+        console.print(
+            f"[red]{spec_dir} does not exist.[/red] Point `screen` at a folder "
+            f"of deal spec YAMLs."
+        )
+        sys.exit(2)
+    if not spec_dir.is_dir():
+        console.print(
+            f"[red]{spec_dir} is not a directory.[/red] `screen` takes a folder "
+            f"of spec YAMLs (use `certify`/`build` for a single spec)."
+        )
+        sys.exit(2)
+
+    results = screen(
+        spec_dir,
+        filters=parsed_filters,
+        rank_by=parsed_ranks,
+        top_n=top_n,
+        glob_pattern=glob_pattern,
+    )
+
+    if not results:
+        console.print(
+            f"[yellow]No screenable deals matched in {spec_dir}.[/yellow]\n"
+            f"[dim]A spec is screenable only when it carries an optional "
+            f"top-level `screening:` block (keys like sector / geography / "
+            f"deal_size_eur_m / vintage / irr_base). Either no spec under "
+            f"`{glob_pattern}` has one, or your filters excluded them all.[/dim]"
+        )
+        sys.exit(0)
+
+    # Build a compact ranked table. Beyond rank/deal_id/score, surface the most
+    # useful summary fields when present (in a stable, finance-readable order),
+    # so the table reads like a screening grid rather than a JSON dump.
+    preferred = ["sector", "geography", "deal_size_eur_m",
+                 "vintage", "irr_base", "leverage_x"]
+    present = [f for f in preferred if any(f in r.summary for r in results)]
+
+    tbl = Table(title=f"Deal screen — {spec_dir} "
+                       f"({len(results)} of "
+                       f"{len(results) if len(results) < top_n else f'top {top_n}'} "
+                       f"shown)")
+    tbl.add_column("#", justify="right", style="bold")
+    tbl.add_column("Deal", style="bold")
+    tbl.add_column("Score", justify="right")
+    _labels = {
+        "deal_size_eur_m": "Size (m)",
+        "irr_base": "IRR base",
+        "leverage_x": "Leverage",
+    }
+    for f in present:
+        justify = "right" if f not in ("sector", "geography") else "left"
+        tbl.add_column(_labels.get(f, f.replace("_", " ").title()),
+                       justify=justify)
+
+    def _fmt(field: str, val) -> str:
+        if val is None:
+            return "—"
+        if field == "irr_base":
+            try:
+                return f"{float(val):.1%}"
+            except (TypeError, ValueError):
+                return str(val)
+        if field in ("deal_size_eur_m", "leverage_x"):
+            try:
+                return f"{float(val):,.1f}"
+            except (TypeError, ValueError):
+                return str(val)
+        return str(val)
+
+    for i, r in enumerate(results, start=1):
+        row = [str(i), r.deal_id, f"{r.score:.3f}"]
+        row.extend(_fmt(f, r.summary.get(f)) for f in present)
+        tbl.add_row(*row)
+    console.print(tbl)
+
+    if parsed_ranks:
+        weights = ", ".join(f"{m}={w:+g}" for m, w in parsed_ranks.items())
+        console.print(f"[dim]Ranked by: {weights} "
+                      f"(min-max normalized; negative = lower-is-better).[/dim]")
+    else:
+        console.print("[dim]No --rank given — all matches scored 0.0 "
+                      "(filter-only screen).[/dim]")
+    sys.exit(0)
 
 
 if __name__ == "__main__":

@@ -265,7 +265,10 @@ class TestFailClosed:
 class TestUnsupportedTemplate:
     def test_unsupported_template_friendly_error(self, tmp_path):
         """A verified + certifiable workbook of an unmapped template is
-        refused with the friendly supported-list message."""
+        refused with the friendly supported-list message.
+
+        ``unitranche`` is used as the still-unmapped template (sponsor_lbo
+        and real_estate are now both deck-mappable)."""
         from openpyxl import Workbook
 
         from modelforge.analytics.manifest import write_manifest
@@ -273,23 +276,23 @@ class TestUnsupportedTemplate:
             DeckAdapterError, build_deck_from_workbook,
         )
 
-        xlsx = tmp_path / "re_model.xlsx"
+        xlsx = tmp_path / "credit_model.xlsx"
         wb = Workbook()
         ws = wb.active
         ws.title = "Cover"
-        ws["A1"] = "Real-estate model (text only, zero numeric cells)"
+        ws["A1"] = "Unitranche model (text only, zero numeric cells)"
         rf = wb.create_sheet("RedFlags")
         rf["A1"] = "ModelForge Trust Layer — Red Flags"
-        rf["A3"] = "Template: real_estate"
+        rf["A3"] = "Template: unitranche"
         rf["B8"] = "ALL CLEAR"
         wb.save(xlsx)
         write_manifest(xlsx, SimpleNamespace(),
-                       spec_source_bytes=b"model_type: real_estate\n")
+                       spec_source_bytes=b"model_type: unitranche\n")
 
         with pytest.raises(DeckAdapterError) as exc:
             build_deck_from_workbook(xlsx)
         msg = str(exc.value)
-        assert "real_estate" in msg
+        assert "unitranche" in msg
         assert "not deck-mappable yet" in msg
         assert "sponsor_lbo" in msg
 
