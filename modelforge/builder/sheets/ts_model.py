@@ -425,6 +425,13 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     # offset (post Legge Bilancio 2024). Opening → Generated → Used (cap
     # 80% of positive EBT) → Expired (>5y) → Closing.
     rows["nol_opening"] = r
+    # Reserve the closing row symbolically so the opening roll-forward can never
+    # drift if an intermediate NOL row is ever inserted. The block is fixed:
+    #   opening(r) → generated(r+1) → used(r+2) → expired(r+3) → closing(r+4).
+    # A literal r+4 here would silently break under any future insertion (the
+    # same class as the debt.py/dev_schedule.py precedent); an assert at the
+    # closing write below hard-fails if this drifts.
+    nol_closing_row = r + 4
     layout.write_row_label(ws, r, "NOL balance (opening)",
                            "Perdite fiscali (apertura)", indent=True)
     ws.cell(row=r, column=4, value=0)  # opens at zero (or spec override)
@@ -432,7 +439,7 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         prior = layout.year_col(i - 1)
         cc = ws.cell(row=r, column=col_idx,
-                     value=f"=${prior}${r + 4}")  # forward ref to closing below
+                     value=f"=${prior}${nol_closing_row}")  # prior-year closing
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
@@ -468,6 +475,9 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
         ws.cell(row=r, column=col_idx, value=0)
     r += 1
 
+    assert r == nol_closing_row, (
+        f"NOL closing-row drift: expected {nol_closing_row}, got {r}"
+    )
     rows["nol_closing"] = r
     layout.write_row_label(ws, r, "NOL balance (closing)",
                            "Perdite fiscali (chiusura)", indent=True)

@@ -73,6 +73,18 @@ def build(
 
         # Opening debt
         block["opening"] = r
+        # Reserve the closing-balance row up front so the opening roll-forward
+        # references it SYMBOLICALLY and can never silently drift if a row is
+        # conditionally inserted between drawdown and repayment. The tranche
+        # block emits, in order:
+        #   opening(r) → drawdown(r+1) → [mandatory-amort-rate INPUT row, ONLY
+        #   when amortization == "mandatory_1pct"] → repayment → closing
+        # so closing is r+3 normally and r+4 when the mandatory-rate input row
+        # is present. A literal r+3 (the historical bug) pointed the opening
+        # balance at the REPAYMENT row under mandatory_1pct, silently breaking
+        # the debt roll-forward (certify-invisible: a valid in-range ref).
+        # An assert at the closing write below hard-fails if this drifts.
+        closing_row_reserved = r + (4 if tr.amortization == "mandatory_1pct" else 3)
         layout.write_row_label(ws, r, L("debt_opening").en, L("debt_opening").secondary)
         ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
         for i in range(n_years):
@@ -83,9 +95,11 @@ def build(
                 c = ws.cell(row=r, column=col_idx, value="=0")
                 styles.style_formula(c, number_format=styles.FMT_EUR_M)
             else:
-                # opening = prior closing
+                # opening = prior-year CLOSING balance (symbolic row reserved
+                # above; never a literal cursor offset).
                 prior_col = layout.year_col(i - 1)
-                c = ws.cell(row=r, column=col_idx, value=f"=${prior_col}${r + 3}")
+                c = ws.cell(row=r, column=col_idx,
+                            value=f"=${prior_col}${closing_row_reserved}")
                 styles.style_formula(c, number_format=styles.FMT_EUR_M)
         r += 1
 
@@ -187,6 +201,14 @@ def build(
 
         # Closing debt = opening + drawdown + repayment (repayment negative)
         block["closing"] = r
+        # Drift guard: the opening roll-forward above referenced this row
+        # symbolically (closing_row_reserved). If a future edit changes the
+        # block layout so the cursor no longer lands here, fail loudly at build
+        # time rather than silently mis-wiring the opening balance.
+        assert r == closing_row_reserved, (
+            f"debt closing-row drift for tranche {tr.name.en!r}: "
+            f"expected {closing_row_reserved}, got {r}"
+        )
         layout.write_row_label(ws, r, L("debt_closing").en, L("debt_closing").secondary)
         ws.cell(row=r, column=3, value=spec.meta.currency).font = styles.font_label_it
         for i in range(n_years):

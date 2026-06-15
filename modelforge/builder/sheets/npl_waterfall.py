@@ -208,6 +208,11 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
 
     # Senior principal outstanding (running balance)
     rows["senior_principal_outstanding"] = r
+    # Reserve the senior-principal-paid row symbolically (emitted immediately
+    # below). A literal r+1 here would silently break if a row were ever
+    # inserted between the two — the same class as the debt.py/dev_schedule.py
+    # precedent; an assert at the paid-row write below hard-fails on drift.
+    senior_pay_row = r + 1
     layout.write_row_label(ws, r, "Senior principal outstanding",
                            "Capitale senior residuo", indent=True)
     for i in range(n):
@@ -217,12 +222,16 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
                          value=f"=$D${rows['senior_note_size']}")
         else:
             prior = layout.year_col(i - 1)
+            # outstanding[i] = max(prior outstanding − principal paid this yr, 0)
             cc = ws.cell(row=r, column=col_idx,
-                         value=f"=MAX(${prior}${r}-${col}${r + 1},0)")
+                         value=f"=MAX(${prior}${r}-${col}${senior_pay_row},0)")
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
     # Senior principal amortized this year (subject to available cash after interest)
+    assert r == senior_pay_row, (
+        f"senior-principal-paid row drift: expected {senior_pay_row}, got {r}"
+    )
     rows["senior_principal_pay"] = r
     layout.write_row_label(ws, r, "Senior principal paid (this year)",
                            "Capitale senior pagato", indent=True)

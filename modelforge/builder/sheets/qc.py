@@ -225,6 +225,37 @@ def build(
         ],
     )
 
+    # 13. Debt roll-forward CONSERVED per tranche.
+    # The opening balance must roll forward from the prior period's CLOSING
+    # balance (opening[i] == closing[i-1]). When it does, and opening[0] == 0,
+    # the closing series telescopes exactly to Σdrawdowns + Σrepayments (the
+    # senior cash-sweep is already folded into the repayment row, so it nets in
+    # automatically). A broken roll-forward — e.g. opening referencing the
+    # repayment row instead of closing under a mandatory_1pct tranche — violates
+    # this identity by construction. This is the check that auto-catches the
+    # debt-schedule analogue of the dev_schedule.py off-by-one, which formula-
+    # integrity certification cannot see (the mis-wire is a valid in-range ref).
+    first_col_rf = layout.year_col(0)
+    last_col_rf = layout.year_col(n - 1)
+    if tranche_blocks:
+        cons_parts = []
+        for tb in tranche_blocks:
+            closing_final = f"'{debt_sheet}'!{last_col_rf}{tb['closing']}"
+            sum_draw = (f"SUM('{debt_sheet}'!{first_col_rf}{tb['drawdown']}"
+                        f":{last_col_rf}{tb['drawdown']})")
+            sum_repay = (f"SUM('{debt_sheet}'!{first_col_rf}{tb['repayment']}"
+                         f":{last_col_rf}{tb['repayment']})")
+            cons_parts.append(
+                f"ABS({closing_final}-({sum_draw}+{sum_repay}))<0.01")
+        cons_formula = "=IF(AND(" + ",".join(cons_parts) + "),1,0)"
+    else:
+        cons_formula = "=1"
+    _write_check(
+        "Debt roll-forward conserved (closing = Σdraws + Σrepays per tranche)",
+        "Roll-forward debito conservato (chiusura = Σtiraggi + Σrimborsi)",
+        formula=cons_formula,
+    )
+
     # Write the aggregate ALL_PASS formula
     all_pass_formula = "=IF(SUM(" + ",".join(check_cells) + f")={len(check_cells)},1,0)"
     all_pass_cell.value = all_pass_formula
