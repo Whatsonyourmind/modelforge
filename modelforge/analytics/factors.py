@@ -382,6 +382,26 @@ _DEVELOPMENT_RE = [
 ]
 
 
+_BANK_FIG = [
+    # Driver names match bank_fig Assumption.name values
+    # (see examples/bank_fig_meridian.yaml).
+    SensitivityFactor(driver_name="loan_yield", label="Loan yield ±50bps",
+                      low_shock=-0.10, high_shock=+0.10),
+    SensitivityFactor(driver_name="deposit_cost", label="Deposit cost ±15%",
+                      low_shock=-0.15, high_shock=+0.15),
+    SensitivityFactor(driver_name="cost_of_risk_bps", label="Cost of risk ±50%",
+                      low_shock=-0.50, high_shock=+0.50),
+    SensitivityFactor(driver_name="cost_income_ratio", label="Cost/income ratio ±10%",
+                      low_shock=-0.10, high_shock=+0.10),
+    SensitivityFactor(driver_name="loan_growth", label="Loan growth ±50%",
+                      low_shock=-0.50, high_shock=+0.50),
+    SensitivityFactor(driver_name="rwa_density", label="RWA density ±10%",
+                      low_shock=-0.10, high_shock=+0.10),
+    SensitivityFactor(driver_name="fee_income_growth", label="Fee income growth ±50%",
+                      low_shock=-0.50, high_shock=+0.50),
+]
+
+
 DEFAULT_FACTORS_BY_TYPE: dict[str, list[SensitivityFactor]] = {
     "unitranche": _UNITRANCHE_CREDIT,
     "credit_memo": _UNITRANCHE_CREDIT,
@@ -410,6 +430,8 @@ DEFAULT_FACTORS_BY_TYPE: dict[str, list[SensitivityFactor]] = {
     # Ground-up development underwriting: cost, cap-rate, rent, financing,
     # leverage, growth and contingency drivers (development-specific names).
     "development_re": _DEVELOPMENT_RE,
+    # Bank / FIG: yield, funding cost, cost of risk, efficiency, growth, RWA.
+    "bank_fig": _BANK_FIG,
 }
 
 

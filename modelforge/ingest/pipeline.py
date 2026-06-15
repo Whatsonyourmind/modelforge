@@ -237,6 +237,24 @@ def _development_re_sections():
     ]
 
 
+def _bank_fig_sections():
+    """Bank / FIG: NII drivers + P&L + balance + capital assumptions +
+    opening balance sheet (single-entity financial-statement model)."""
+    from modelforge.spec.bank_fig import (
+        BalanceAssumptions, BankFigSpec, CapitalAssumptions, NIIAssumptions,
+        OpeningBankBalanceSheet, PnLAssumptions,
+    )
+    from modelforge.spec.base import Target
+    return BankFigSpec, [
+        ("target", Target),
+        ("nii", NIIAssumptions),
+        ("pnl", PnLAssumptions),
+        ("balance", BalanceAssumptions),
+        ("capital", CapitalAssumptions),
+        ("opening_bs", OpeningBankBalanceSheet),
+    ]
+
+
 TEMPLATE_SECTIONS = {
     "project_finance": _pf_sections,
     "unitranche": _unitranche_sections,
@@ -258,6 +276,8 @@ TEMPLATE_SECTIONS = {
     "portfolio_review": _portfolio_review_sections,
     # Ground-up development underwriting (phased capex, lease-up, promote)
     "development_re": _development_re_sections,
+    # Bank / FIG (NII, RWA, CET1, leverage, capital return)
+    "bank_fig": _bank_fig_sections,
 }
 
 
@@ -339,6 +359,8 @@ def _default_horizon(template: str) -> dict:
     if template in ("unitranche", "credit_memo", "minibond",
                     "three_statement", "dcf"):
         return {"historical_years": 3, "projection_years": 5}
+    if template == "bank_fig":
+        return {"historical_years": 1, "projection_years": 5}
     if template == "real_estate":
         return {"hold_years": 5}
     if template == "npl":

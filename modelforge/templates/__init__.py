@@ -20,6 +20,7 @@ from modelforge.templates import (
     ipo, restructuring,
     hgb_carveout, portfolio_review,
     development_re,
+    bank_fig,
 )
 
 REGISTRY: dict[str, Callable] = {
@@ -42,6 +43,8 @@ REGISTRY: dict[str, Callable] = {
     "portfolio_review": portfolio_review.build,
     # Ground-up development underwriting (phased capex, lease-up, promote):
     "development_re": development_re.build,
+    # Bank / FIG: NII, RWA, CET1, leverage, MDA-gated capital return:
+    "bank_fig": bank_fig.build,
 }
 
 # v0.10 templates flagged as preview. CLI and MCP server can surface this.

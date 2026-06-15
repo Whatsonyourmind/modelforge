@@ -152,6 +152,8 @@ _PRIMARY_OUTPUT_LOCATORS: list[tuple[str, str, str]] = [
     ("DCF", "Implied EV", "Implied EV"),
     # M&A merger (US-003) — Y1 accretion/dilution %
     ("AccretionDilution", "Accretion / (dilution) %", "Y1 Accretion / Dilution"),
+    # Bank / FIG — net income is the headline P&L output (col D).
+    ("P&L", "Net income (NI)", "Net Income"),
 ]
 
 
@@ -364,6 +366,14 @@ _ELASTICITY_REGISTRY: dict[str, float] = {
     "dev_equity_pct": -0.40,             # more equity / less leverage → lower equity IRR
     "dev_rev_growth_pct": 0.55,          # higher NOI growth → higher forward exit
     "dev_contingency_pct": -0.20,        # higher contingency → higher TDC → lower IRR
+    # bank_fig — elasticity of NET INCOME to each driver.
+    "loan_yield": 0.90,                  # higher loan yield → much higher NII → NI (strong)
+    "deposit_cost": -0.35,               # higher funding cost → lower NII → NI
+    "cost_of_risk_bps": -0.30,           # higher CoR → higher provisions → lower NI
+    "cost_income_ratio": -0.55,          # higher C/I → higher opex → lower NI (strong)
+    "loan_growth": 0.15,                 # more earning assets over time → higher NI (modest)
+    "rwa_density": -0.05,                # density drives CET1 ratio, ~no direct NI effect
+    "fee_income_growth": 0.20,           # higher fees → higher NI (modest near-term)
 }
 
 

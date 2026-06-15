@@ -117,6 +117,10 @@ def _spec_loader_map() -> dict[str, "Callable[[], type]"]:
         from modelforge.spec.development_re import DevelopmentRESpec
         return DevelopmentRESpec
 
+    def _bank_fig():
+        from modelforge.spec.bank_fig import BankFigSpec
+        return BankFigSpec
+
     return {
         "unitranche": _unitranche,
         "minibond": _minibond,
@@ -135,6 +139,7 @@ def _spec_loader_map() -> dict[str, "Callable[[], type]"]:
         "hgb_carveout": _hgb_carveout,
         "portfolio_review": _portfolio_review,
         "development_re": _development_re,
+        "bank_fig": _bank_fig,
     }
 
 
@@ -439,6 +444,7 @@ def _template_description(name: str) -> str:
         "hgb_carveout": "HGB carve-out — standalone EBITDA bridge + carve-out EV",
         "portfolio_review": "PE fund portfolio review — TVPI/DPI/RVPI + gross & net IRR",
         "development_re": "Ground-up RE development — phased capex, lease-up S-curve, forward-NOI exit, LTC debt, promote",
+        "bank_fig": "Bank / FIG — NII, RWA, CET1 & leverage ratios, MDA-gated dividends & buybacks",
     }
     if name in curated:
         return curated[name]

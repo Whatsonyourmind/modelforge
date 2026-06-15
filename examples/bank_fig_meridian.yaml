@@ -1,0 +1,87 @@
+# BANK / FIG model — Meridian Regional Bank (FULLY SYNTHETIC, no real institution).
+# Basel III/IV + EU CRR/CRD framework at sell-side / equity-research fidelity
+# (Standardised-approach RWA density; CET1 = common equity − intangibles − adj).
+model_type: bank_fig
+
+meta:
+  project_code: DEMO-FIG-MERIDIAN
+  deliverable: { en: "Bank Capital & Returns Model", it: "Modello Capitale e Rendimenti Bancari" }
+  analyst: Analyst
+  version: v0.1
+  status: draft
+  valuation_date: 2026-06-15
+  currency: EUR
+  unit_scale: millions
+  sign_convention: costs_negative
+  revision_log:
+    - { version: v0.1, date: 2026-06-15, analyst: Analyst, note: "Synthetic FIG model — Basel III/IV + CRR proxy." }
+
+target:
+  name: "Meridian Regional Bank (synthetic)"
+  sector: { en: "Diversified retail & commercial bank", it: "Banca retail e commerciale diversificata" }
+  country: XX
+  currency: EUR
+  revenue_last_fy_eur_m: 1180.0      # total operating income proxy (meta only)
+  revenue_source_id: S-001
+  ebitda_last_fy_eur_m: 520.0        # PPOP proxy (no EBITDA for a bank; meta only)
+  ebitda_source_id: S-001
+  last_fy_end: 2025-12-31
+
+horizon: { historical_years: 1, projection_years: 5 }
+
+sources:
+  - { id: S-001, doc: Synthetic_FY25_Pillar3_and_AR.pdf, page: 1, publisher: "Meridian Regional Bank (synthetic)", date: 2026-03-01, verified: false, note: "Synthetic FY25 financials & Pillar 3 disclosures." }
+  - { id: S-002, doc: Synthetic_Sector_NIM_Benchmark_2026.pdf, page: 4, publisher: "Synthetic Research", date: 2026-02-10, verified: false, note: "Peer NIM / cost-income / CoR ranges (illustrative)." }
+  - { id: S-003, doc: CRR3_CRD6_Summary_Public.pdf, page: 1, publisher: "Public regulatory summary", date: 2026-01-15, verified: true, note: "CET1 Pillar1 4.5% + buffers; leverage min 3% (public-domain framework)." }
+
+nii:
+  loan_yield:        { id: A-101, name: loan_yield,        label: { en: "Loan yield", it: "Rendimento prestiti" }, unit: pct, base: 0.052, worst: 0.044, best: 0.058, rationale: "Mid-cycle gross loan yield; Worst = repricing lag.", confidence: M, source_id: S-002 }
+  securities_yield:  { id: A-102, name: securities_yield,  label: { en: "Securities yield", it: "Rendimento titoli" }, unit: pct, base: 0.030, worst: 0.024, best: 0.034, rationale: "Liquid book yield.", confidence: M }
+  deposit_cost:      { id: A-103, name: deposit_cost,      label: { en: "Deposit cost", it: "Costo depositi" }, unit: pct, base: 0.014, worst: 0.022, best: 0.010, rationale: "Blended deposit beta; Worst = higher beta.", confidence: M, source_id: S-002 }
+  wholesale_cost:    { id: A-104, name: wholesale_cost,    label: { en: "Wholesale funding cost", it: "Costo funding wholesale" }, unit: pct, base: 0.038, worst: 0.046, best: 0.033, rationale: "Senior/MREL spread over risk-free.", confidence: M }
+  risk_free_rate:    { id: A-105, name: risk_free_rate,    label: { en: "Risk-free rate", it: "Tasso risk-free" }, unit: pct, base: 0.025, worst: 0.030, best: 0.020, rationale: "Policy/reference anchor (memo).", confidence: M }
+
+pnl:
+  fee_income_growth:    { id: A-111, name: fee_income_growth,    label: { en: "Fee income growth", it: "Crescita commissioni" }, unit: pct, base: 0.04, worst: 0.00, best: 0.06, rationale: "Wealth/payments fee growth.", confidence: M }
+  trading_income_eur_m: { id: A-112, name: trading_income_eur_m, label: { en: "Net trading income", it: "Risultato negoziazione" }, unit: eur_m, base: 60.0, worst: -20.0, best: 90.0, rationale: "Volatile FV result; Worst negative.", confidence: L }
+  cost_income_ratio:    { id: A-113, name: cost_income_ratio,    label: { en: "Cost/income ratio", it: "Cost/income" }, unit: pct, base: 0.55, worst: 0.62, best: 0.50, rationale: "Mid-cap efficiency band.", confidence: M, source_id: S-002 }
+  cost_of_risk_bps:     { id: A-114, name: cost_of_risk_bps,     label: { en: "Cost of risk", it: "Costo del rischio" }, unit: bps, base: 45, worst: 110, best: 30, rationale: "Through-cycle CoR; Worst = downturn.", confidence: M, source_id: S-002 }
+  tax_rate:             { id: A-115, name: tax_rate,             label: { en: "Effective tax rate", it: "Aliquota effettiva" }, unit: pct, base: 0.28, worst: 0.28, best: 0.28, rationale: "Blended corporate tax.", confidence: H }
+  at1_coupon_eur_m:     { id: A-116, name: at1_coupon_eur_m,     label: { en: "AT1 coupon", it: "Cedola AT1" }, unit: eur_m, base: 18.0, worst: 18.0, best: 18.0, rationale: "AT1 coupon (CET1-deductible, discretionary).", confidence: H }
+
+balance:
+  loan_growth:                    { id: A-121, name: loan_growth,                    label: { en: "Loan growth", it: "Crescita prestiti" }, unit: pct, base: 0.04, worst: 0.00, best: 0.06, rationale: "Net loan book growth.", confidence: M }
+  deposit_growth:                 { id: A-122, name: deposit_growth,                 label: { en: "Deposit growth", it: "Crescita depositi" }, unit: pct, base: 0.03, worst: 0.01, best: 0.05, rationale: "Customer deposit growth.", confidence: M }
+  securities_growth:              { id: A-123, name: securities_growth,              label: { en: "Securities growth", it: "Crescita titoli" }, unit: pct, base: 0.02, worst: 0.00, best: 0.03, rationale: "Liquidity book growth.", confidence: L }
+  writeoff_pct_opening_allowance: { id: A-124, name: writeoff_pct_opening_allowance, label: { en: "Write-off % of allowance", it: "Stralci % fondo" }, unit: pct, base: 0.15, worst: 0.25, best: 0.10, rationale: "Annual utilisation of the allowance stock.", confidence: L }
+
+capital:
+  rwa_density:            { id: A-131, name: rwa_density,            label: { en: "RWA density", it: "Densità RWA" }, unit: pct, base: 0.52, worst: 0.58, best: 0.48, rationale: "RWA / (loans+securities), Std-approach proxy.", confidence: M, source_id: S-001 }
+  cet1_requirement_ratio: { id: A-132, name: cet1_requirement_ratio, label: { en: "CET1 requirement (OCR)", it: "Requisito CET1" }, unit: pct, base: 0.090, worst: 0.090, best: 0.090, rationale: "P1 4.5% + P2R + CBR (illustrative).", confidence: H, source_id: S-003 }
+  target_cet1_ratio:      { id: A-133, name: target_cet1_ratio,      label: { en: "Target CET1 ratio", it: "CET1 obiettivo" }, unit: pct, base: 0.135, worst: 0.135, best: 0.135, rationale: "Internal operating target.", confidence: H }
+  mda_buffer_pct:         { id: A-134, name: mda_buffer_pct,         label: { en: "Mgmt buffer over requirement", it: "Buffer gestionale" }, unit: pct, base: 0.020, worst: 0.020, best: 0.020, rationale: "Distance to MDA before throttling.", confidence: M }
+  leverage_min_ratio:     { id: A-135, name: leverage_min_ratio,     label: { en: "Leverage ratio minimum", it: "Leverage minimo" }, unit: pct, base: 0.030, worst: 0.030, best: 0.030, rationale: "CRR leverage-ratio minimum.", confidence: H, source_id: S-003 }
+  dividend_payout_ratio:  { id: A-136, name: dividend_payout_ratio,  label: { en: "Dividend payout", it: "Payout dividendi" }, unit: pct, base: 0.50, worst: 0.30, best: 0.55, rationale: "Policy payout; throttled by the MDA cap.", confidence: M }
+  buyback_target_eur_m:   { id: A-137, name: buyback_target_eur_m,   label: { en: "Buyback target", it: "Riacquisti obiettivo" }, unit: eur_m, base: 40.0, worst: 0.0, best: 80.0, rationale: "Uses residual MDA capacity only.", confidence: L }
+
+opening_bs:
+  # Assets:  net loans (13,790) + securities 3,500 + cash 1,500 + intangibles 300 + other 200 = 19,290
+  gross_loans_eur_m: 14000.0
+  allowance_eur_m:   -210.0        # contra-asset (≤ 0); ~1.5% coverage
+  securities_eur_m:   3500.0
+  cash_eur_m:         1500.0
+  intangibles_eur_m:   300.0
+  other_assets_eur_m:  200.0
+  # L & E:  deposits 14,500 + wholesale 2,435 + other_liab 390 + common equity (1,665) + at1 300 = 19,290
+  deposits_eur_m:        14500.0
+  wholesale_funding_eur_m: 2435.0
+  other_liabilities_eur_m:  390.0
+  cet1_eur_m:             1365.0    # opening CET1; common equity = cet1 + intangibles = 1,665
+  at1_eur_m:               300.0
+  # tie: assets 14000-210+3500+1500+300+200 = 19,290 ; L&E 14500+2435+390+(1365+300)+300 = 19,290 ✓
+  # opening CET1 ratio = 1365 / (0.52 × (14000+3500) = 9100) = 15.0% (> 13.5% target, > 9.0% requirement)
+
+cet1_regulatory_adjustments_eur_m: 0.0   # CRR Art.26-36 proxy; plug a COREP number here
+
+historical_total_income_eur_m: [1180.0]
+historical_net_income_eur_m:   [305.0]
