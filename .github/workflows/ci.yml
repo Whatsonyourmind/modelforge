@@ -31,7 +31,7 @@ jobs:
       - name: Install package + test deps
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[dev,data,export,mcp,web,ingest]"
+          python -m pip install -e ".[dev,data,export,mcp,web,ingest,deck]"
 
       - name: Materialize example workbooks (test fixtures)
         run: |
