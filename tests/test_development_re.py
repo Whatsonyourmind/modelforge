@@ -114,17 +114,40 @@ def test_spec_validates_from_example(example_dict):
     assert "dev_discount_rate" in names
 
 
+def _leak_denylist() -> list[str]:
+    """Real-world identifiers that must never appear in the shipped example.
+
+    Kept OUT of version control on purpose: hard-coding the strings in this
+    public test would itself publish the exact identifiers the check exists to
+    suppress. Supply them via a gitignored ``tests/_leak_denylist.txt`` (one
+    term per line, ``#`` comments allowed) or the ``MODELFORGE_LEAK_DENYLIST``
+    env var (comma-separated). When neither is present the positive
+    synthetic-identifier assertions below still run.
+    """
+    import os
+
+    terms: list[str] = []
+    f = Path(__file__).resolve().parent / "_leak_denylist.txt"
+    if f.exists():
+        terms += [
+            ln.strip()
+            for ln in f.read_text(encoding="utf-8").splitlines()
+            if ln.strip() and not ln.startswith("#")
+        ]
+    terms += [t.strip() for t in os.environ.get("MODELFORGE_LEAK_DENYLIST", "").split(",") if t.strip()]
+    return terms
+
+
 def test_example_is_fully_synthetic_and_generic(example_dict):
-    """Safety: no real institution / deal identifiers; grant name is generic."""
+    """Safety: the shipped example uses only synthetic, generic identifiers."""
     spec = DevelopmentRESpec.model_validate(example_dict)
     assert spec.capital.grant_name == "Public development grant"
-    raw = EXAMPLE_YAML.read_text(encoding="utf-8")
-    banned = [
-        "REDACTED", "REDACTED", "REDACTED", "REDACTED", "REDACTED",
-        "REDACTED", "REDACTED", "REDACTED", "REDACTED",
-    ]
-    for term in banned:
-        assert term not in raw, f"Banned term {term!r} present in example"
+    assert "genericcity" in EXAMPLE_YAML.name
+    raw = EXAMPLE_YAML.read_text(encoding="utf-8").lower()
+    for term in _leak_denylist():
+        assert term.lower() not in raw, (
+            "A denylisted real-world identifier appears in the shipped example"
+        )
 
 
 def test_timeline_validator_rejects_exit_before_delivery(example_dict):

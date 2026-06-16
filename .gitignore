@@ -52,3 +52,7 @@ _o_*.xlsx
 _out_*.xlsx
 output_*.txt
 output_*.json
+
+# private leak-denylist for the synthetic-example safety test (NEVER commit —
+# it holds the real-world identifiers the test guards against)
+tests/_leak_denylist.txt
