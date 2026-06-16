@@ -118,8 +118,12 @@ class TextMeasurer:
                 path = font_dir / candidate
                 if path.exists():
                     return path
-                # Try recursive search
-                matches = list(font_dir.rglob(candidate))
+                # Try recursive search (sorted: rglob/scandir order is
+                # filesystem-arbitrary on Linux, so an unsorted [0] makes the
+                # chosen font — and thus every text measurement and layout
+                # coordinate — non-deterministic across builds, breaking the
+                # byte-identical .pptx guarantee).
+                matches = sorted(font_dir.rglob(candidate))
                 if matches:
                     return matches[0]
 
@@ -134,7 +138,7 @@ class TextMeasurer:
                 path = font_dir / fallback
                 if path.exists():
                     return path
-                matches = list(font_dir.rglob(fallback.split("/")[-1]))
+                matches = sorted(font_dir.rglob(fallback.split("/")[-1]))
                 if matches:
                     return matches[0]
 
@@ -142,7 +146,7 @@ class TextMeasurer:
         for font_dir in self._font_dirs:
             if not font_dir.exists():
                 continue
-            ttf_files = list(font_dir.rglob("*.ttf"))
+            ttf_files = sorted(font_dir.rglob("*.ttf"))
             if ttf_files:
                 return ttf_files[0]
 
