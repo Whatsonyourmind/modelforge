@@ -2,11 +2,13 @@
 
 <!-- mcp-name: io.github.Whatsonyourmind/modelforge -->
 
-[![Version](https://img.shields.io/pypi/v/modelforge-finance?label=version&color=blue)](https://pypi.org/project/modelforge-finance/) [![Tests](https://img.shields.io/badge/tests-1486%2F1486-brightgreen)](./tests) [![Trust](https://img.shields.io/badge/trust--layer-v1%20(14%2F14%20FAIL--clean)-brightgreen)](./AUDIT_REPORT.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py) [![Templates](https://img.shields.io/badge/templates-16%20(14%20shipped%20%2B%202%20preview)-blue)](./modelforge/templates/) [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.5-purple)](./.github/workflows/ci.yml)
+[![Version](https://img.shields.io/pypi/v/modelforge-finance?label=version&color=blue)](https://pypi.org/project/modelforge-finance/) [![Tests](https://img.shields.io/badge/tests-1486%2F1486-brightgreen)](./tests) [![Trust](https://img.shields.io/badge/trust--layer-v1%20(14%2F14%20FAIL--clean)-brightgreen)](./AUDIT_REPORT.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py) [![Templates](https://img.shields.io/badge/templates-19%20(17%20shipped%20%2B%202%20preview)-blue)](./modelforge/templates/) [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.5-purple)](./.github/workflows/ci.yml)
 
 Bulge-tier Excel financial model factory for credit & structured finance. Every cell live-formulated. Every number traceable back to the source document page it came from.
 
 A developer tool for analysts and engineers who build credit and corporate-finance models programmatically. Covers unitranche, sponsor-backed LBO, project finance, real estate credit, NPL, structured credit, restructuring, M&A, DCF and IPO templates. Extensible to any asset class.
+
+**The moat:** builds are **byte-identical deterministic** (same spec → same workbook bytes, every run) and ship with a verifiable **manifest + certificate** — formula integrity, accounting/conservation invariants (balance sheet balances, cash ties out), and SHA-256 hashes of spec + sources + workbook. Run `certify --strict` / `build --trust-strict` and it's **fail-closed**: non-zero exit on any integrity violation, so a broken model never ships. That's model generation *with* a portable audit trail — not just generation. For an AI agent or an app that emits financial models, it's the layer that turns "the LLM produced a spreadsheet" into "here is a certificate that the spreadsheet is internally correct and reproducible."
 
 ---
 
@@ -80,16 +82,17 @@ The LLM never writes a number into a cell. It writes a typed YAML spec with sour
 ## Quick start
 
 ```bash
-pip install "modelforge-finance[mcp,export,data]"
+pip install "modelforge-finance[mcp,export]"
 
-# Build any of 16 templates from a YAML spec (14 shipped + 2 preview)
-modelforge build examples/unitranche_cdmo.yaml
+# Scaffold a ready-to-build spec — no repo checkout needed (works for any of the 19
+# templates; run `modelforge list-templates` to see them all)
+modelforge scaffold dcf -o demo_dcf.yaml
 
-# QC the workbook (8 structural checks + Trust Layer plausibility)
-modelforge qc output/unitranche_cdmo.xlsx --trust-strict
+# Build it: live-formula workbook + linkage graph + manifest sidecar
+modelforge build demo_dcf.yaml            # -> output/demo_dcf.xlsx
 
-# Audit every example (CI uses the same gate)
-modelforge audit-all examples/ --report AUDIT_REPORT.md
+# Certify the delivered artifact: zero formula errors, byte-identical, manifest-valid
+modelforge certify output/demo_dcf.xlsx
 ```
 
 ## Trust Layer v1 (new in v0.9.7)
@@ -110,7 +113,7 @@ The Trust Layer is a **semantic** gate (separate from the structural QC gate). I
 Each violation produces a `RedFlags` worksheet inside the built workbook with severity (`info` / `warn` / `fail`), the rule that fired, expected-vs-actual, and the recommended remediation.
 
 ```bash
-modelforge audit-all examples/   # 14/14 shipped templates, 0 FAIL violations in current ship
+modelforge audit-all examples/   # every shipped example, 0 FAIL violations in current ship
 ```
 
 See [AUDIT_REPORT.md](./AUDIT_REPORT.md) for the current ship's audit.
@@ -152,10 +155,10 @@ modelforge/
 │   └── sheets/       # One module per sheet (cover, sources, assumptions, ...)
 ├── qc/               # Quality gate (8 structural checks + PDF report)
 ├── data/             # Market data loaders (Damodaran, ECB, Borsa minibond)
-└── cli.py            # modelforge build|qc|sources|inspect
+└── cli.py            # build | certify | qc | scaffold | validate | screen | ingest | ...
 ```
 
-## Templates (16: 14 shipped + 2 preview)
+## Templates (19: 17 shipped + 2 preview)
 
 1. ✅ **Unitranche LBO** — Mid-market direct lending (Cash sweep + IFRS 9 EIR + covenant package)
 2. ✅ **Minibond / Private Placement Bond** — Direct private debt instrument (Gross YTM + Net YTM + jurisdiction-specific WHT)
@@ -171,8 +174,11 @@ modelforge/
 12. ✅ **Sponsor LBO** — Returns waterfall, debt schedule, 14-story block
 13. ✅ **IPO** — Float build, lock-up, stabilization, fee schedule
 14. ✅ **Restructuring** — Going-concern recovery, plan-feasibility, creditor classes
-15. 🔬 **HGB Carveout** *(preview)* — German HGB carve-out financials
-16. 🔬 **Portfolio Review** *(preview)* — Multi-asset portfolio performance review
+15. ✅ **Development (RE)** — Ground-up development: phased capex, lease-up S-curve, forward-NOI exit, LTC debt, promote
+16. ✅ **Bank / FIG** — NII, RWA, CET1 & leverage ratios, MDA-gated dividends & buybacks (Basel III/IV)
+17. ✅ **Loan-Tape Securitization** — CLO/RMBS: stratified tape, pool cashflow (CPR/CDR/recovery), sequential-pay turbo waterfall (OC/IC + reserve), note WAL/IRR/rating
+18. 🔬 **HGB Carveout** *(preview)* — German HGB carve-out financials
+19. 🔬 **Portfolio Review** *(preview)* — Multi-asset portfolio performance review
 
 Run `modelforge list-templates` to see them all (preview templates are flagged). Each shipped template has an anonymized example YAML in `examples/`.
 

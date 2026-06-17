@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.Whatsonyourmind/modelforge",
-  "description": "Financial model factory — live formulas, source-traced cells, 16 templates (14 shipped + 2 preview).",
+  "description": "Financial model factory — live formulas, source-traced cells, 19 templates (17 shipped + 2 preview).",
   "repository": {
     "url": "https://github.com/Whatsonyourmind/modelforge",
     "source": "github",
     "subfolder": "modelforge"
   },
-  "version": "0.9.7",
+  "version": "0.11.4",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "modelforge-finance",
-      "version": "0.9.7",
+      "version": "0.11.4",
       "transport": { "type": "stdio" },
       "environmentVariables": [
         {
