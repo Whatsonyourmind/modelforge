@@ -46,7 +46,7 @@ pip install "modelforge-finance[mcp,export]"
 Then in your AI assistant:
 > *"Build me a unitranche LBO model from this YAML spec, export the committee deck."*
 
-Tools available: `list_templates` · `build_model` · `qc_workbook` · `list_sources` · `lineage_walk` · `ingest_dataroom` · `screen_deals` · `compute_tax` · `export_pptx` · `export_docx` · plus 7 unified-feed tools (`data_providers_status` · `quote` · `history` · `fundamentals` · `search_filings` · `entity_lookup` · `search_securities`) across an 11-provider data stack.
+Tools available: `list_templates` · `build_model` · `qc_workbook` · `list_sources` · `lineage_walk` · `ingest_dataroom` · `screen_deals` · `compute_tax` · `export_pptx` · `export_docx` · plus 7 unified-feed tools (`data_providers_status` · `quote` · `history` · `fundamentals` · `search_filings` · `entity_lookup` · `search_securities`) across a 14-provider data stack.
 
 ## The architectural principle
 
@@ -194,10 +194,10 @@ JP  · NCT + LCT + Enterprise Tax + Special Local Corp Tax + R&D credit
 IT  · IRES / IRAP / SIIQ / PEX
 ```
 
-## Data providers (11, unified `Provider` Protocol)
+## Data providers (14, unified `Provider` Protocol)
 
-**Tier-0 (free, live today)**: EDGAR · OpenFIGI · GLEIF
-**Tier-1 (low-cost paid)**: Polygon ($29/mo) · FMP ($19/mo) · Finnhub · Tiingo
+**Tier-0 (free, live today)**: EDGAR · OpenFIGI · GLEIF · Yahoo Finance · FRED
+**Tier-1 (low-cost paid)**: Polygon ($29/mo) · FMP ($19/mo) · Finnhub · Tiingo · Alpha Vantage
 **Tier-2 (institutional)**: Bloomberg · Refinitiv · FactSet · S&P Capital IQ
 
 Tier-1 and Tier-2 are interface-complete — paid keys activate them via env vars. Local TTL cache prevents rate-limit blow-ups.

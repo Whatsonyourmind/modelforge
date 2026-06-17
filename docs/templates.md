@@ -1,6 +1,6 @@
 # Template Gallery
 
-Eleven templates ship with ModelForge today. Each has an example spec at `examples/<name>.yaml` and builds into a QC-passing workbook in `output/<name>.xlsx`.
+ModelForge ships **19 templates** today — **17 shipped + 2 preview** (`hgb_carveout`, `portfolio_review`). Each shipped template has an example spec at `examples/<name>.yaml` and builds into a QC-passing workbook in `output/<name>.xlsx`. Run `modelforge list-templates` for the authoritative, always-current list (preview templates are flagged); the [README](https://github.com/Whatsonyourmind/modelforge#templates-19-17-shipped--2-preview) carries the full annotated catalog. The table below details a representative subset.
 
 | Template | model_type | Example spec | Sheets |
 |---|---|---|---|

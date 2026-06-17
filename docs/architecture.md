@@ -93,4 +93,4 @@ Pass all 8 → deliverable-ready.
 
 ## Roadmap
 
-v0.4 ships the 11-template suite + sensitivity/MC + reproducibility + audit dossier + chat + ingest-wide + OCR. v0.5 brings probabilistic credit (Merton/KMV/IFRS 9 ECL), model diff, and a web SaaS thin layer. v1.0 brings SSO/SOC 2, on-prem, EDGAR/HKEX/PRA packs, model-memory agents, and a template marketplace. See `PRD_v04_to_v10_sota.md` for the full plan.
+v0.4 ships the multi-template suite (now 19: 17 shipped + 2 preview) + sensitivity/MC + reproducibility + audit dossier + chat + ingest-wide + OCR. v0.5 brings probabilistic credit (Merton/KMV/IFRS 9 ECL), model diff, and a web SaaS thin layer. v1.0 brings SSO/SOC 2, on-prem, EDGAR/HKEX/PRA packs, model-memory agents, and a template marketplace. See `PRD_v04_to_v10_sota.md` for the full plan.

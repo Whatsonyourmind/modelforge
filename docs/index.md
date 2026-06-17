@@ -13,11 +13,13 @@ The bar for deliverables at a credit committee or rating agency is different fro
 - **Deterministic emitter.** Claude produces the YAML spec; Python writes the cells. The LLM never writes numbers into the workbook.
 - **Audit dossier.** `modelforge dossier <xlsx>` emits a regulator-grade PDF that embeds the spec hash, every assumption, every source, every formula shape, and a QC sign-off page.
 
-## 11 templates ship today
+## 19 templates (17 shipped + 2 preview)
 
-Credit & structured finance: **Unitranche LBO · Credit Memo · Minibond · Project Finance · Real Estate · NPL waterfall · Structured Credit · 3-Statement**.
+Credit & structured finance: **Unitranche LBO · Credit Memo · Minibond · Project Finance · Real Estate · NPL waterfall · Structured Credit · 3-Statement · Development (RE) · Bank / FIG · Loan-Tape Securitization**.
 
-M&A and valuation: **M&A Merger (accretion/dilution) · DCF-WACC · Fairness Opinion football field**.
+M&A and valuation: **M&A Merger (accretion/dilution) · DCF-WACC · Fairness Opinion football field · Sponsor LBO · IPO · Restructuring**.
+
+Preview: **HGB Carveout · Portfolio Review**.
 
 See the [Template Gallery](templates.md) for spec and output details.
 
@@ -34,7 +36,7 @@ Optional extras:
 ## 30-second quickstart
 
 ```bash
-modelforge list-templates                                   # see all 11 templates
+modelforge list-templates                                   # see all 19 templates
 modelforge build examples/unitranche_cdmo.yaml             # build workbook + linkage graph
 modelforge qc output/unitranche_cdmo.xlsx                   # 8/8 QC gate
 modelforge dossier output/unitranche_cdmo.xlsx              # regulator-grade PDF

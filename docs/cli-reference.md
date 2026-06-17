@@ -14,7 +14,7 @@ Writes `output/<stem>.xlsx` and `output/<stem>.graph.db` by default. Runs sensit
 
 ## `modelforge list-templates`
 
-Print the table of all 11 supported `model_type` values.
+Print the table of all 19 supported `model_type` values (17 shipped + 2 preview).
 
 ## `modelforge qc`
 
@@ -81,7 +81,7 @@ Backends:
 - `cli` (default) uses Claude Code's local invocation — no API key required.
 - `api` uses the Anthropic SDK with prompt caching — requires `ANTHROPIC_API_KEY`.
 
-All 11 templates are supported; scanned PDFs are OCR'd automatically if the `[ingest-ocr]` extra and system tesseract are installed (see [Quickstart](quickstart.md)).
+All 19 templates are supported; scanned PDFs are OCR'd automatically if the `[ingest-ocr]` extra and system tesseract are installed (see [Quickstart](quickstart.md)).
 
 ## `modelforge chat`
 

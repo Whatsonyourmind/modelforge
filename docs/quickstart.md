@@ -16,7 +16,7 @@ modelforge list-templates
 
 ## 2. Build your first workbook
 
-ModelForge ships with 11 canonical example specs. Let's build the Italian CDMO unitranche:
+ModelForge ships with an anonymized example spec for every shipped template (see `examples/`). Let's build the Italian CDMO unitranche:
 
 ```bash
 modelforge build examples/unitranche_cdmo.yaml
@@ -76,5 +76,5 @@ This classifies each document, extracts relevant fields via Claude, and writes a
 ## Next steps
 
 - Read [Architecture](architecture.md) to understand how the pieces fit.
-- Browse the [Template Gallery](templates.md) for all 11 templates.
+- Browse the [Template Gallery](templates.md) for all 19 templates.
 - See [Comparison](comparison.md) for how ModelForge differs from Rogo / Macabacus / FAST Standard.
