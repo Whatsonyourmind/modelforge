@@ -33,7 +33,7 @@
 
   <div class="max-w-6xl mx-auto px-6 pt-16 pb-24">
     <div class="max-w-3xl">
-      <p class="text-blue-200 text-sm font-medium tracking-wide uppercase mb-3">v0.9 · MCP-native</p>
+      <p class="text-blue-200 text-sm font-medium tracking-wide uppercase mb-3">v0.11 · MCP-native</p>
       <h1 class="text-5xl md:text-6xl font-bold leading-tight mb-6">
         Bulge-tier financial models.<br>
         <span class="text-blue-200">Auditable by design.</span>
@@ -52,7 +52,7 @@
         </a>
       </div>
       <p class="text-sm text-blue-200 mt-6">
-        Open-source · 679/679 tests passing · 0 PARTIAL / 0 FAIL audit
+        Open-source · fully test-gated (CI green) · 0 PARTIAL / 0 FAIL audit
       </p>
     </div>
   </div>
@@ -65,8 +65,7 @@
     <p class="text-lg text-slate-700 leading-relaxed mb-6">
       Rogo, Hebbia, and other LLM-first tools generate cells that contain <em>values</em>, not formulas.
       Numbers that drift from the underlying transaction. Cells that can't be traced back to a source.
-      Wall Street Prep's 2026 benchmark ranked these tools below Claude + Excel — because rating-agency review
-      requires every number to defend itself.
+      Because rating-agency review requires every number to defend itself, value-only outputs fail the audit.
     </p>
     <p class="text-lg text-slate-700 leading-relaxed">
       ModelForge takes a different architectural bet: <strong>LLMs produce specs + sources + narrative.
@@ -176,18 +175,18 @@
     <div class="space-y-8">
       <div>
         <h3 class="text-slate-300 text-sm uppercase tracking-wide mb-2">As an MCP server (Claude Code, Cursor, Cline, ChatGPT Enterprise)</h3>
-        <pre class="bg-slate-800 p-4 rounded text-sm overflow-x-auto"><code>pip install "modelforge[mcp,export]"
+        <pre class="bg-slate-800 p-4 rounded text-sm overflow-x-auto"><code>pip install "modelforge-finance[mcp,export]"
 modelforge-mcp  # stdio server — wire to your MCP client config</code></pre>
       </div>
       <div>
         <h3 class="text-slate-300 text-sm uppercase tracking-wide mb-2">As a Python CLI</h3>
-        <pre class="bg-slate-800 p-4 rounded text-sm overflow-x-auto"><code>pip install modelforge
+        <pre class="bg-slate-800 p-4 rounded text-sm overflow-x-auto"><code>pip install modelforge-finance
 modelforge build examples/unitranche_cdmo.yaml
 modelforge qc output/unitranche_cdmo.xlsx</code></pre>
       </div>
       <div>
         <h3 class="text-slate-300 text-sm uppercase tracking-wide mb-2">Auto-ingest a data room (PDFs → YAML)</h3>
-        <pre class="bg-slate-800 p-4 rounded text-sm overflow-x-auto"><code>pip install "modelforge[ingest]"
+        <pre class="bg-slate-800 p-4 rounded text-sm overflow-x-auto"><code>pip install "modelforge-finance[ingest]"
 export ANTHROPIC_API_KEY=sk-ant-...
 modelforge ingest path/to/dataroom/ --template project_finance -o my_deal.yaml
 modelforge build my_deal.yaml
@@ -204,8 +203,7 @@ modelforge qc output/my_deal.xlsx</code></pre>
     Weighted across 9 dimensions reflecting actual IB procurement criteria (formula discipline 12% ·
     source traceability 12% · completeness 15% · data integrations 15% · productization 15% ·
     collaboration 10% · security 8% · regional 8% · speed 5%).
-    See <a href="https://github.com/Whatsonyourmind/modelforge/blob/master/SCORECARD_v2.md" class="text-blue-600 hover:underline">full SCORECARD_v2.md</a>
-    for the full dimension-by-dimension breakdown.
+    The table below gives the dimension-by-dimension breakdown.
   </p>
   <div class="overflow-x-auto">
     <table class="w-full text-sm border border-slate-200">
@@ -225,7 +223,7 @@ modelforge qc output/my_deal.xlsx</code></pre>
       </thead>
       <tbody class="scorecard-cell">
         <tr class="border-b border-slate-100 bg-blue-50">
-          <td class="px-4 py-3 font-semibold">ModelForge v0.9</td>
+          <td class="px-4 py-3 font-semibold">ModelForge v0.11</td>
           <td class="px-4 py-3 text-green-700 font-semibold">9.7</td>
           <td class="px-4 py-3 text-green-700 font-semibold">9.4</td>
           <td class="px-4 py-3">6.0</td>
@@ -273,7 +271,7 @@ modelforge qc output/my_deal.xlsx</code></pre>
           <td class="px-4 py-3 font-bold">6.85</td>
         </tr>
         <tr class="border-b border-slate-100">
-          <td class="px-4 py-3">o11.ai (WSP #1)</td>
+          <td class="px-4 py-3">o11.ai</td>
           <td class="px-4 py-3">9.0</td>
           <td class="px-4 py-3">3.0</td>
           <td class="px-4 py-3">5.5</td>
@@ -396,7 +394,7 @@ modelforge qc output/my_deal.xlsx</code></pre>
         <div class="text-white font-semibold mb-2 text-sm uppercase tracking-wide">Resources</div>
         <ul class="space-y-1 text-sm">
           <li><a href="https://github.com/Whatsonyourmind/modelforge" class="hover:text-white">GitHub</a></li>
-          <li><a href="https://github.com/Whatsonyourmind/modelforge/blob/master/SCORECARD_v2.md" class="hover:text-white">SOTA Scorecard</a></li>
+          <li><a href="#scorecard" class="hover:text-white">SOTA Scorecard</a></li>
           <li><a href="https://github.com/Whatsonyourmind/modelforge/blob/master/docs/comparison.md" class="hover:text-white">Competitor comparison</a></li>
         </ul>
       </div>

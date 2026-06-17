@@ -2,7 +2,7 @@
 
 <!-- mcp-name: io.github.Whatsonyourmind/modelforge -->
 
-[![Version](https://img.shields.io/pypi/v/modelforge-finance?label=version&color=blue)](https://pypi.org/project/modelforge-finance/) [![Tests](https://img.shields.io/badge/tests-679%2F679-brightgreen)](./tests) [![Trust](https://img.shields.io/badge/trust--layer-v1%20(14%2F14%20FAIL--clean)-brightgreen)](./AUDIT_REPORT.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py) [![Templates](https://img.shields.io/badge/templates-16%20(14%20shipped%20%2B%202%20preview)-blue)](./modelforge/templates/) [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.5-purple)](./.github/workflows/ci.yml)
+[![Version](https://img.shields.io/pypi/v/modelforge-finance?label=version&color=blue)](https://pypi.org/project/modelforge-finance/) [![Tests](https://img.shields.io/badge/tests-1486%2F1486-brightgreen)](./tests) [![Trust](https://img.shields.io/badge/trust--layer-v1%20(14%2F14%20FAIL--clean)-brightgreen)](./AUDIT_REPORT.md) [![MCP](https://img.shields.io/badge/MCP-native-orange)](./modelforge/mcp_server.py) [![Templates](https://img.shields.io/badge/templates-16%20(14%20shipped%20%2B%202%20preview)-blue)](./modelforge/templates/) [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.5-purple)](./.github/workflows/ci.yml)
 
 Bulge-tier Excel financial model factory for credit & structured finance. Every cell live-formulated. Every number traceable back to the source document page it came from.
 

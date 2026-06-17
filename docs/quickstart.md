@@ -5,7 +5,7 @@ A 5-minute tour of ModelForge.
 ## 1. Install
 
 ```bash
-pip install 'modelforge[ingest]'
+pip install 'modelforge-finance[ingest]'
 ```
 
 Verify:

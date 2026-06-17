@@ -55,5 +55,3 @@ ModelForge wins by being **the only product where every cell is live, every numb
 | Model-memory agents | 0 (v1.0) | 8 | 0 | 0 |
 | Distribution (seat count) | 2 (2026 Q2) | 10 | 9 | 0 |
 | Weighted SOTA | **9.0** | 7.9 | 7.5 | 9.4 |
-
-See `SCORECARD.md` in the repo for the full 25-criterion scorecard.

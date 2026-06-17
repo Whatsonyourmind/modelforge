@@ -24,7 +24,7 @@ See the [Template Gallery](templates.md) for spec and output details.
 ## Installing
 
 ```bash
-pip install 'modelforge[ingest]'
+pip install 'modelforge-finance[ingest]'
 ```
 
 Optional extras:
