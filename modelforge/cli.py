@@ -613,6 +613,28 @@ def qc_cmd(xlsx_path: Path) -> None:
     sys.exit(0 if report.all_pass else 1)
 
 
+@main.command("audit-schedule")
+@click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--strict", is_flag=True, default=False,
+              help="Exit non-zero when any interior hardcode is found "
+                   "(default is advisory: report but exit 0).")
+def audit_schedule_cmd(xlsx_path: Path, strict: bool) -> None:
+    """Flag hardcoded numbers wedged inside a formula series (certify-blind).
+
+    `certify` proves a workbook has zero formula errors but says nothing about a
+    cell that *should* be a formula but was overwritten with a bare number. This
+    catches exactly that: a non-innocuous hardcode sitting between formula cells
+    in a contiguous period series (e.g. a value typed over year 4 of a 10-year
+    debt schedule). Input/reference/audit sheets and edge-period inputs are
+    excluded. Advisory by default; pass --strict to gate on it.
+    """
+    from modelforge.qc import audit_schedule
+
+    report = audit_schedule(xlsx_path)
+    report.print()
+    sys.exit(0 if (report.passed or not strict) else 1)
+
+
 @main.command("certify")
 @click.argument("target", type=click.Path(exists=True, path_type=Path))
 @click.option("--out", "out_path", type=click.Path(path_type=Path), default=None,

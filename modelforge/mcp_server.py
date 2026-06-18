@@ -625,6 +625,46 @@ def qc_workbook(xlsx_path: str) -> dict[str, Any]:
 
 
 @server.tool()
+def audit_schedule(xlsx_path: str) -> dict[str, Any]:
+    """Flag hardcoded numbers wedged inside a formula series — the certify-blind defect.
+
+    certify proves a workbook has zero formula errors, but it cannot see a cell
+    that SHOULD be a formula and was overwritten with a bare number (e.g. a value
+    typed over year 4 of a 10-year debt schedule). This auditor catches exactly
+    that: a non-innocuous hardcode sitting BETWEEN formula cells in a contiguous
+    period series. Edge-period inputs and input/reference/audit sheets are
+    excluded, so it is high-precision (zero findings on all certified examples).
+    Takes xlsx_path; returns {xlsx, verdict, findings[], finding_count, sheets_scanned}
+    or {error}. Advisory — pair with certify (formula errors) and qc_workbook
+    (structure) for a full pre-share check.
+    """
+    xlsx = _resolve_path(xlsx_path)
+    if not xlsx.exists():
+        return {"error": f"workbook not found: {xlsx}"}
+
+    try:
+        from modelforge.qc import audit_schedule as _audit_schedule
+
+        report = _audit_schedule(xlsx)
+    except Exception as e:
+        log.exception("audit_schedule failed")
+        return {"error": f"audit_schedule failed: {e!r}"}
+
+    return {
+        "xlsx": str(xlsx),
+        "verdict": report.verdict,
+        "passed": report.passed,
+        "findings": [
+            {"ref": f.ref, "sheet": f.sheet, "cell": f.cell, "value": f.value,
+             "detail": f.detail}
+            for f in report.findings
+        ],
+        "finding_count": report.n_findings,
+        "sheets_scanned": report.sheets_scanned,
+    }
+
+
+@server.tool()
 def list_sources(graph_db: str) -> dict[str, Any]:
     """Enumerate the source citations recorded in a model's linkage graph.
 
