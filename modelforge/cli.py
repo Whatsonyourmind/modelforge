@@ -647,8 +647,11 @@ def audit_schedule_cmd(xlsx_path: Path, strict: bool) -> None:
                    "(skip the Trust/Moat injection the `build` command ships).")
 @click.option("--strict", is_flag=True, default=False,
               help="Exit non-zero on WARN too (treat styling gaps as failures).")
+@click.option("--schedule", "schedule_check", is_flag=True, default=False,
+              help="Also run the schedule auditor (interior hardcodes + "
+                   "roll-forward period drift) and exit non-zero on any finding.")
 def certify_cmd(target: Path, out_path: Path | None, max_gaps: int,
-                no_trust: bool, strict: bool) -> None:
+                no_trust: bool, strict: bool, schedule_check: bool) -> None:
     """Certify a workbook has zero formula errors (the "no #REF!" gate).
 
     TARGET may be a built ``.xlsx`` or a ``.yaml``/``.yml`` spec. When a spec
@@ -661,7 +664,10 @@ def certify_cmd(target: Path, out_path: Path | None, max_gaps: int,
 
     Prints CERTIFIED (zero errors, no styling gaps), WARN (zero errors but
     some styling gaps), or FAIL (≥1 formula error). Exits 0 unless a formula
-    error is found (exit 1); with ``--strict``, WARN also exits 1.
+    error is found (exit 1); with ``--strict``, WARN also exits 1. Pass
+    ``--schedule`` to additionally run the schedule auditor (interior hardcodes
+    + roll-forward period drift — defects that are still valid formulas, so the
+    formula-error audit cannot see them) and exit 1 on any finding.
     """
     from modelforge.qc import audit_workbook
 
@@ -723,9 +729,37 @@ def certify_cmd(target: Path, out_path: Path | None, max_gaps: int,
     for n in report.notes:
         console.print(f"[dim]note: {n}[/dim]")
 
+    # Opt-in schedule gate: interior hardcodes + roll-forward period drift —
+    # defects that are valid formulas, so the formula-error audit above is blind
+    # to them. Zero findings on every certified example, so this never fails a
+    # ModelForge-built workbook; it catches a number typed over a formula or a
+    # roll-forward repointed at the wrong period in a hand-edited model.
+    schedule_ok = True
+    if schedule_check:
+        from modelforge.qc import audit_schedule
+
+        srep = audit_schedule(audit_target)
+        sbadge = "[bold green]SCHEDULE CLEAN[/bold green]" if srep.passed \
+            else "[bold yellow]SCHEDULE REVIEW[/bold yellow]"
+        console.print(
+            f"{sbadge}  {srep.n_findings} finding(s), "
+            f"{srep.sheets_scanned} sheet(s) scanned"
+        )
+        if srep.findings:
+            tbl = Table(title="Schedule findings (certify-blind)")
+            tbl.add_column("Cell", style="bold")
+            tbl.add_column("Kind")
+            tbl.add_column("Detail")
+            for f in srep.findings[:20]:
+                tbl.add_row(f.ref, f.kind, f.detail)
+            console.print(tbl)
+            if srep.n_findings > 20:
+                console.print(f"[dim]… and {srep.n_findings - 20} more.[/dim]")
+        schedule_ok = srep.passed
+
     # Default: fail only on formula errors. --strict also fails on WARN
-    # (styling gaps), so the gate can be wired into CI as a hard check.
-    ok = report.passed and (verdict == "CERTIFIED" or not strict)
+    # (styling gaps); --schedule also fails on any schedule finding.
+    ok = report.passed and (verdict == "CERTIFIED" or not strict) and schedule_ok
     sys.exit(0 if ok else 1)
 
 
