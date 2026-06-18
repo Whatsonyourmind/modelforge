@@ -1,6 +1,6 @@
 # Template Gallery
 
-ModelForge ships **19 templates** today — **17 shipped + 2 preview** (`hgb_carveout`, `portfolio_review`). Each shipped template has an example spec at `examples/<name>.yaml` and builds into a QC-passing workbook in `output/<name>.xlsx`. Run `modelforge list-templates` for the authoritative, always-current list (preview templates are flagged); the [README](https://github.com/Whatsonyourmind/modelforge#templates-19-17-shipped--2-preview) carries the full annotated catalog. The table below details a representative subset.
+ModelForge ships **19 templates** today — **17 shipped + 2 preview** (`hgb_carveout`, `portfolio_review`). Each shipped template has an example spec at `examples/<name>.yaml` and builds into a QC-passing workbook in `output/<name>.xlsx`. Run `modelforge list-templates` for the authoritative, always-current list (preview templates are flagged); the [README](https://github.com/Whatsonyourmind/modelforge#templates-19-17-shipped--2-preview) carries the full annotated catalog. The table below details the most-used templates plus the advanced credit / banking / securitization frontier set (`sponsor_lbo`, `bank_fig`, `development_re`, `loan_tape_securitization`).
 
 | Template | model_type | Example spec | Sheets |
 |---|---|---|---|
@@ -15,6 +15,10 @@ ModelForge ships **19 templates** today — **17 shipped + 2 preview** (`hgb_car
 | DCF-WACC | `dcf` | `dcf_enel.yaml` | Cover, Sources, Assumptions, WACCBuild, FCFForecast, Valuation, QC + analytics |
 | M&A Merger | `merger` | `merger_tim_iliad.yaml` | Cover, Sources, Assumptions, DealStructure, ProForma, AccretionDilution, QC + analytics |
 | Fairness Opinion | `fairness` | `fairness_amplifon.yaml` | Cover, Sources, Assumptions, TradingComps, TransactionComps, FootballField, QC |
+| Sponsor LBO | `sponsor_lbo` | `sponsor_lbo_techco.yaml` | Cover, Sources, Assumptions, OperatingModel, DebtSchedule, Covenants, Returns, SourcesUses, QC + analytics |
+| Bank / FIG (Basel III/IV) | `bank_fig` | `bank_fig_meridian.yaml` | Cover, Sources, Assumptions, NII, P&L, BalanceSheet, Capital, CapitalReturn, QC + analytics |
+| Development (real estate) | `development_re` | `development_pbsa_genericcity.yaml` | Cover, Sources, Assumptions, DevSchedule, Returns, QC + Reproducibility |
+| Loan-Tape Securitization (CLO/RMBS) | `loan_tape_securitization` | `clo_midmarket.yaml` | Cover, Sources, Assumptions, LoanTape, Waterfall, Notes, QC + analytics |
 
 ## Primary outputs (what sensitivity / MC / dossier highlight)
 
