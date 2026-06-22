@@ -9,7 +9,7 @@ on top of the 3-statement base.
    localization, and latente Steuern (DTA/DTL) build are placeholders.
 
 Why this template exists:
-    DACH operational-turnaround buyers (a turnaround investor, a turnaround investor, a private equity firm) cannot
+    DACH operational-turnaround buyers cannot
     use IFRS-only templates because the deal docs (Steuerbilanz, HGB-
     Jahresabschluss) are in HGB form. v0.10 ships the structural pattern;
     v0.11 backfills the DTA/DTL math and § 252-256 valuation rules.

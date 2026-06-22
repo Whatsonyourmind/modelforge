@@ -341,7 +341,6 @@ _INDEX_HTML = """<!doctype html>
     <nav class="space-x-5 text-sm">
       <a href="/health" class="hover:text-blue-200">Health</a>
       <a href="https://github.com/Whatsonyourmind/modelforge" class="hover:text-blue-200">GitHub</a>
-      <a href="https://github.com/Whatsonyourmind/modelforge/blob/master/SCORECARD_v3.md" class="hover:text-blue-200">Scorecard</a>
     </nav>
   </div>
 </header>

@@ -1,7 +1,6 @@
 """Run the moat gate against every example workbook and emit MOAT_SWEEP.md.
 
-The four moat gates are the "fully-formulated live Excel" guarantee
-internal review put weight on:
+The four moat gates are the "fully-formulated live Excel" guarantee:
 
 1. Core output sheets ≥90% formula density (no hidden hardcodes)
 2. No magic-number literals in output formulas

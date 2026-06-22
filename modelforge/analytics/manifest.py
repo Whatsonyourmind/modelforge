@@ -23,9 +23,9 @@ verify the entire chain in one command::
 
     modelforge verify-manifest deal.xlsx
 
-The manifest design is the audit-grade extension that internal review
-flagged as the gap between "internal lineage walk" and "third-party
-verifiable provenance" — without requiring spend on Big-4 audit yet.
+The manifest is the audit-grade extension that bridges the gap between
+an "internal lineage walk" and "third-party verifiable provenance" —
+without requiring spend on a Big-4 audit yet.
 """
 from __future__ import annotations
 

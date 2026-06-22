@@ -119,7 +119,7 @@ safety (concurrent builds in different secondary languages no longer bleed).
 - **D9 Speed**: unchanged (no perf delta).
 - Cumulative product-side scorecard estimate: 5.46 (v0.9.7 baseline) →
   ~5.75 (post-v0.11.1). Score lift from product work alone remains
-  bounded by D5/D7/customer-pull dimensions per internal review.
+  bounded by the D5/D7/customer-pull dimensions.
 
 ### Still deferred (v0.12+)
 - 169 other hardcoded EN/IT pairs in specialized sheet builders

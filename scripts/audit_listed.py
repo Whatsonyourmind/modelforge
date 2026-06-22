@@ -1,8 +1,7 @@
 """External plausibility harness — build + Trust-check DCFs for 20 listed cos.
 
-Closes the internal review's priority item: "the Trust Layer needs
-external validation against real listed-co data, not the founder's
-example YAMLs."
+Validates the Trust Layer against real listed-co data, not the bundled
+example YAMLs.
 
 For each ticker below: pulls revenue + EBITDA + market cap from Yahoo
 (free, no auth), constructs a DCFSpec with sector-defensible defaults,
@@ -520,7 +519,7 @@ def audit_one(ts: TickerSpec, out_dir: Path) -> Result:
     return res
 
 
-# Catastrophic-deviation explanations — required by internal acceptance criterion.
+# Catastrophic-deviation explanations — every catastrophic result must carry one.
 # Maintained centrally so one edit covers all reports the harness produces.
 SECTOR_LIMITATION_NOTES = {
     "bank": (
@@ -649,7 +648,7 @@ def render_markdown(results: list[Result]) -> str:
     )
     lines.append("")
     lines.append(
-        "**The acceptance bar (per internal review)**: zero catastrophic misses *with no "
+        "**The acceptance bar**: zero catastrophic misses *with no "
         "documented explanation*. Every CATASTROPHIC line above must either (a) be "
         "explained as an auto-screener limitation (banks have unmeaningful EBITDA in "
         "DCF), or (b) be fixed by improving the screener defaults for that sector."
@@ -684,11 +683,11 @@ def render_markdown(results: list[Result]) -> str:
     )
     lines.append("")
     lines.append(
-        "3. **For the original priority item #1 (Enel +743% with no Trust "
+        "3. **For the original failure case (Enel +743% with no Trust "
         "Layer warning)**: with the live rule + a `target.ticker: ENEL.MI` "
         "in the spec, the workbook now FAILs at audit time with "
         "`DCF implied equity 553B vs live market cap 94.9B for ENEL.MI (+482%)`. "
-        "priority item is closed."
+        "That gap is now caught automatically."
     )
     lines.append("")
     lines.append(

@@ -158,8 +158,8 @@ def _dcf_implied_equity_vs_market_cap(probe, spec, rule) -> Iterable[TrustViolat
         * FAIL at ≥100% absolute deviation
 
     This is the rule that catches "Enel DCF says €553B equity but real
-    market cap is €95B (+7x)" — exactly what internal review
-    flagged as the unresolved priority item.
+    market cap is €95B (+7x)" — a large unflagged DCF-vs-market gap that
+    a model should surface, not hide.
     """
     ticker = getattr(getattr(spec, "target", None), "ticker", None)
     if not ticker:

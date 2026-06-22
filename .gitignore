@@ -40,6 +40,7 @@ stress_test_findings.json
 PRD_*.md
 DEPLOY_NOW.md
 DEPLOY_*.md
+compliance/soc2_vendor_comparison.md
 
 # build artifacts (do not commit wheels/sdists)
 dist/

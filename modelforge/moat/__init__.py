@@ -3,13 +3,13 @@
 Why this package exists
 =======================
 
-The internal review (2026-05-15) flagged that the marketing claim "every cell
-live-formulated" was imprecise (~25% formula ratio at the cell
-level, ~75% hardcoded inputs). The cell-ratio metric was misleading
-because it counted text labels and intentional input cells.
+A whole-workbook cell-ratio metric is misleading: it counts text labels
+and intentional input cells, so the headline "~25% of cells are live
+formulas; the remainder are computed/input values" understates the
+formula coverage of the parts that matter.
 
-This package replaces the loose claim with **four hard, verifiable
-gates** any reviewer can run independently:
+This package replaces any loose "every cell is live" framing with
+**four hard, verifiable gates** any reviewer can run independently:
 
 1. **Formula-density gate** — for every CORE OUTPUT sheet, ≥90% of the
    numeric cells (excluding labels, headers, intentional inputs) are
