@@ -659,6 +659,29 @@ def audit_conservation_cmd(xlsx_path: Path, strict: bool) -> None:
     sys.exit(0 if (report.passed or not strict) else 1)
 
 
+@main.command("audit-perturb")
+@click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--strict", is_flag=True, default=False,
+              help="Exit non-zero on a perturbation FAIL (default is advisory: "
+                   "report but exit 0).")
+def audit_perturb_cmd(xlsx_path: Path, strict: bool) -> None:
+    """Shock each input driver ±5% and require the QC invariants to HOLD.
+
+    The baseline conservation gate (`audit-conservation`) recomputes the QC sheet
+    only at the built numbers, so a "total" hardcoded to its baseline value still
+    passes `Total == Σ parts` and certifies clean. This shocks every resolved
+    input driver up AND down and re-checks the QC sheet: a conservation identity
+    holds two-sided for any inputs, so a check that breaks under BOTH directions
+    is a genuine input-dependent defect (a one-sided break is a legitimate
+    validity threshold and is not flagged). Advisory by default; --strict gates.
+    """
+    from modelforge.qc import audit_perturb_replay
+
+    report = audit_perturb_replay(xlsx_path)
+    report.print()
+    sys.exit(0 if (report.status != "FAIL" or not strict) else 1)
+
+
 @main.command("certify")
 @click.argument("target", type=click.Path(exists=True, path_type=Path))
 @click.option("--out", "out_path", type=click.Path(path_type=Path), default=None,
@@ -678,9 +701,14 @@ def audit_conservation_cmd(xlsx_path: Path, strict: bool) -> None:
               help="Also recompute the QC sheet and require ALL_PASS==1 (no "
                    "per-check at 0); exit non-zero on a conservation FAIL or "
                    "INDETERMINATE result.")
+@click.option("--perturb", "perturb_check", is_flag=True, default=False,
+              help="Also shock each input driver ±5% and require the QC "
+                   "conservation invariants to HOLD (two-sided), catching a "
+                   "latent input-dependent defect a baseline check misses; exit "
+                   "non-zero on a perturbation FAIL.")
 def certify_cmd(target: Path, out_path: Path | None, max_gaps: int,
                 no_trust: bool, strict: bool, schedule_check: bool,
-                conservation_check: bool) -> None:
+                conservation_check: bool, perturb_check: bool) -> None:
     """Certify a workbook has zero formula errors (the "no #REF!" gate).
 
     TARGET may be a built ``.xlsx`` or a ``.yaml``/``.yml`` spec. When a spec
@@ -818,11 +846,45 @@ def certify_cmd(target: Path, out_path: Path | None, max_gaps: int,
             console.print(f"[dim]note: {n}[/dim]")
         conservation_ok = crep.passed
 
+    # Opt-in perturbation-replay gate: shock each input driver ±5% and require
+    # the QC conservation invariants to HOLD two-sided. Catches a latent
+    # input-dependent conservation defect (a "total" hardcoded to its baseline
+    # value) that recomputes clean at the built numbers — invisible to the
+    # baseline conservation gate. Only a two-sided FAIL blocks; INCONCLUSIVE
+    # (no driver exercised the invariants) never false-fails.
+    perturb_ok = True
+    if perturb_check:
+        from modelforge.qc import audit_perturb_replay
+
+        prep = audit_perturb_replay(audit_target)
+        pbadge = {
+            "PASS": "[bold green]PERTURB PASS[/bold green]",
+            "FAIL": "[bold red]PERTURB FAIL[/bold red]",
+        }.get(prep.status, f"[bold yellow]PERTURB {prep.status}[/bold yellow]")
+        console.print(
+            f"{pbadge}  {prep.drivers_active} active driver(s), "
+            f"{prep.n_findings} break(s) under ±{prep.rel_delta:.0%}"
+        )
+        if prep.findings:
+            tbl = Table(title="Input-dependent conservation breaks (certify-blind)")
+            tbl.add_column("Driver", style="bold")
+            tbl.add_column("Broken check")
+            tbl.add_column("Recomputed")
+            for f in prep.findings[:20]:
+                tbl.add_row(f.driver, f.check_label, f"{f.recomputed} ({f.status})")
+            console.print(tbl)
+            if prep.n_findings > 20:
+                console.print(f"[dim]… and {prep.n_findings - 20} more.[/dim]")
+        for n in prep.notes:
+            console.print(f"[dim]note: {n}[/dim]")
+        perturb_ok = prep.status != "FAIL"
+
     # Default: fail only on formula errors. --strict also fails on WARN
     # (styling gaps); --schedule also fails on any schedule finding;
-    # --conservation also fails on a conservation FAIL/INDETERMINATE.
+    # --conservation also fails on a conservation FAIL/INDETERMINATE;
+    # --perturb also fails on a two-sided perturbation break.
     ok = (report.passed and (verdict == "CERTIFIED" or not strict)
-          and schedule_ok and conservation_ok)
+          and schedule_ok and conservation_ok and perturb_ok)
     sys.exit(0 if ok else 1)
 
 

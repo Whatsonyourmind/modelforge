@@ -13,6 +13,11 @@ from modelforge.qc.conservation_audit import (
     ConservationFinding,
     audit_conservation,
 )
+from modelforge.qc.perturb_replay import (
+    PerturbFinding,
+    PerturbReplayReport,
+    audit_perturb_replay,
+)
 
 __all__ = [
     "run_qc",
@@ -25,4 +30,7 @@ __all__ = [
     "audit_conservation",
     "ConservationAuditReport",
     "ConservationFinding",
+    "audit_perturb_replay",
+    "PerturbReplayReport",
+    "PerturbFinding",
 ]

@@ -708,6 +708,51 @@ def audit_conservation(xlsx_path: str) -> dict[str, Any]:
 
 
 @server.tool()
+def perturb_replay(xlsx_path: str) -> dict[str, Any]:
+    """Shock each input driver ±5% and require the QC conservation invariants to HOLD.
+
+    The baseline conservation gate recomputes the QC sheet only at the built
+    numbers, so a "total" hardcoded to its baseline value still passes
+    `Total == Σ parts` and certifies clean — a latent input-dependent defect.
+    This compiles the workbook once, shocks every resolved input driver UP and
+    DOWN, recomputes, and re-reads the QC checks. A conservation identity holds
+    two-sided for any inputs, so a check breaking under BOTH directions is a
+    genuine defect; a one-sided break is a legitimate validity threshold and is
+    NOT flagged. Deterministic, zero-LLM. Takes xlsx_path; returns {xlsx, status
+    (PASS/FAIL/INCONCLUSIVE/INDETERMINATE), passed, qc_sheet, drivers_active,
+    drivers_probed, rel_delta, findings[], finding_count} or {error}. Pair with
+    certify + audit_conservation (baseline) + audit_schedule.
+    """
+    xlsx = _resolve_path(xlsx_path)
+    if not xlsx.exists():
+        return {"error": f"workbook not found: {xlsx}"}
+
+    try:
+        from modelforge.qc import audit_perturb_replay as _audit_perturb_replay
+
+        report = _audit_perturb_replay(xlsx)
+    except Exception as e:
+        log.exception("perturb_replay failed")
+        return {"error": f"perturb_replay failed: {e!r}"}
+
+    return {
+        "xlsx": str(xlsx),
+        "status": report.status,
+        "passed": report.passed,
+        "qc_sheet": report.qc_sheet,
+        "drivers_active": report.drivers_active,
+        "drivers_probed": report.drivers_probed,
+        "rel_delta": report.rel_delta,
+        "findings": [
+            {"driver": f.driver, "check": f.check_label, "status": f.status,
+             "recomputed": f.recomputed}
+            for f in report.findings
+        ],
+        "finding_count": report.n_findings,
+    }
+
+
+@server.tool()
 def list_sources(graph_db: str) -> dict[str, Any]:
     """Enumerate the source citations recorded in a model's linkage graph.
 
