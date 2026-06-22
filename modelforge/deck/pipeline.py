@@ -57,6 +57,10 @@ class DeckBuildResult:
     template: str
     source_refs: dict[str, str] = field(default_factory=dict)
     red_flag_count: int = 0
+    # Numeric-grounding gate (opt-in): None when not run, else the verdict +
+    # count of rendered tokens that reconciled to no fact/whitelisted derivation.
+    grounding_ok: bool | None = None
+    unreconciled_count: int | None = None
 
     def summary(self) -> dict[str, Any]:
         return {
@@ -71,6 +75,8 @@ class DeckBuildResult:
             "template": self.template,
             "red_flags": self.red_flag_count,
             "source_cells": self.source_refs,
+            "grounding_ok": self.grounding_ok,
+            "unreconciled_count": self.unreconciled_count,
         }
 
 
@@ -264,6 +270,7 @@ def build_deck_from_workbook(
     theme: Optional[str] = None,
     out_path: Optional[Path | str] = None,
     manifest_path: Optional[Path | str] = None,
+    ground_numbers: bool = False,
 ) -> DeckBuildResult:
     """Certified workbook → rendered, hash-stamped .pptx deck.
 
@@ -272,6 +279,15 @@ def build_deck_from_workbook(
     compose (+ mandatory Certification & Red Flags appendix) → render →
     deterministic stamp (zip mtimes + core props derived from
     ``workbook_sha256``; both SHAs embedded in core-property keywords).
+
+    ``ground_numbers`` (opt-in, default off) adds a deterministic
+    numeric-grounding gate AFTER compose: every rendered text token on the
+    composed deal slides must reconcile to a recomputed certified-workbook
+    fact OR a whitelisted derivation of them (leverage, LTV, percent-of-total).
+    An unreconciled token — e.g. a millions-vs-thousands scale error the
+    internal-consistency checks are blind to — raises
+    :class:`~modelforge.deck.adapter.DeckAdapterError`. Off by default so the
+    shipped certified path is unchanged.
     """
     if deck_type not in SUPPORTED_DECK_TYPES:
         raise DeckAdapterError(
@@ -286,11 +302,37 @@ def build_deck_from_workbook(
     if deck_type == "ic_memo":
         from modelforge.deck.compose import compose_ic_memo
 
-        presentation = compose_ic_memo(wf.deal_facts())
+        facts_model = wf.deal_facts()
+        presentation = compose_ic_memo(facts_model)
     else:
         from modelforge.deck.compose import compose_teaser
 
-        presentation = compose_teaser(wf.teaser_facts())
+        facts_model = wf.teaser_facts()
+        presentation = compose_teaser(facts_model)
+
+    # Opt-in numeric-grounding gate (runs on the composed deal slides BEFORE
+    # the certification appendix is appended, so the cert slide's SHAs/version
+    # are never treated as financial tokens).
+    grounding_ok: bool | None = None
+    unreconciled_count: int | None = None
+    if ground_numbers:
+        from modelforge.deck.qa.checkers.grounding import NumericGroundingChecker
+
+        grep = NumericGroundingChecker().check(
+            presentation, wf, facts_model, deck_type)
+        grounding_ok = grep.passed
+        unreconciled_count = grep.unreconciled_count
+        if not grep.passed:
+            sample = "; ".join(
+                f"{f.raw!r}@slide{f.slide_index}" for f in grep.findings[:5])
+            raise DeckAdapterError(
+                f"Numeric grounding FAILED for the {deck_type} deck: "
+                f"{grep.unreconciled_count} rendered token(s) reconcile to no "
+                f"certified fact or whitelisted derivation ({sample}). The deck "
+                f"pipeline is fail-closed under ground_numbers: a token that "
+                f"cannot be traced to a recomputed workbook value (e.g. a "
+                f"millions-vs-thousands scale error) blocks the deck."
+            )
 
     _stamp_lineage_notes(presentation, wf, deck_type)
 
@@ -345,4 +387,6 @@ def build_deck_from_workbook(
         template=wf.template,
         source_refs=wf.source_refs,
         red_flag_count=len(wf.red_flags),
+        grounding_ok=grounding_ok,
+        unreconciled_count=unreconciled_count,
     )

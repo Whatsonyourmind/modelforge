@@ -1940,8 +1940,13 @@ def audit_all_cmd(examples_dir: Path, out_dir: Path, report_path: Path) -> None:
 @click.option("--out", "out_path", type=click.Path(path_type=Path), default=None,
               help="Output .pptx path. Defaults to "
                    "<workbook_stem>_<type>.pptx next to the workbook.")
+@click.option("--ground-numbers", "ground_numbers", is_flag=True, default=False,
+              help="Fail-closed numeric-grounding gate: every rendered slide "
+                   "token must reconcile to a recomputed certified-workbook "
+                   "fact or a whitelisted derivation (catches scale/format "
+                   "errors). Off by default.")
 def deck_cmd(target: Path, deck_type: str, theme: str | None,
-             out_path: Path | None) -> None:
+             out_path: Path | None, ground_numbers: bool) -> None:
     """Render a certified board deck (.pptx) from a spec or built workbook.
 
     TARGET may be a ``.yaml``/``.yml`` spec or a built ``.xlsx``. A spec is
@@ -1992,6 +1997,7 @@ def deck_cmd(target: Path, deck_type: str, theme: str | None,
     try:
         result = build_deck_from_workbook(
             workbook, deck_type=deck_type, theme=theme, out_path=out_path,
+            ground_numbers=ground_numbers,
         )
     except DeckAdapterError as e:
         from rich.markup import escape as _rich_escape
@@ -2024,6 +2030,11 @@ def deck_cmd(target: Path, deck_type: str, theme: str | None,
             f"[yellow]Red flags:[/yellow] {result.red_flag_count} Trust-Layer "
             f"entr{'y' if result.red_flag_count == 1 else 'ies'} carried onto "
             f"the certification slide."
+        )
+    if result.grounding_ok is not None:
+        console.print(
+            f"[green]Grounding:[/green] every rendered token reconciled to a "
+            f"certified fact/derivation (0 unreconciled)."
         )
 
 

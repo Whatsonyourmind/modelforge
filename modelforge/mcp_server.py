@@ -873,6 +873,7 @@ def export_deck(
     deck_type: str = "ic_memo",
     theme: str | None = None,
     output_path: str | None = None,
+    ground_numbers: bool = False,
 ) -> dict[str, Any]:
     """Render a certified, hash-stamped board deck (.pptx) from a ModelForge workbook or spec — fail-closed.
 
@@ -888,10 +889,17 @@ def export_deck(
     deterministic stamp. The .pptx embeds spec_sha256 + workbook_sha256 in
     its core-property keywords and is byte-identical for the same workbook.
 
+    ``ground_numbers`` (opt-in) adds a fail-closed numeric-grounding gate:
+    every rendered slide token must reconcile to a recomputed certified-cell
+    fact or a whitelisted derivation (leverage / LTV / percent-of-total),
+    catching a millions-vs-thousands scale error the internal-consistency
+    checks miss; an unreconciled token returns {error}.
+
     Returns {pptx, deck_type, theme, slides, workbook, workbook_sha256,
-    spec_sha256, audit_verdict, template, red_flags, source_cells, ok} or
-    {error} (uncertified/tampered workbooks and unsupported templates are
-    refused with a plain-language reason).
+    spec_sha256, audit_verdict, template, red_flags, source_cells,
+    grounding_ok, unreconciled_count, ok} or {error} (uncertified/tampered
+    workbooks and unsupported templates are refused with a plain-language
+    reason).
 
     Conversational loop: STEP 8 (deliverable) — the certified-deck upgrade
     of export_pptx; use after certify returns CERTIFIED.
@@ -931,6 +939,7 @@ def export_deck(
     try:
         result = build_deck_from_workbook(
             xlsx, deck_type=deck_type, theme=theme, out_path=out,
+            ground_numbers=ground_numbers,
         )
     except DeckAdapterError as e:
         return {"error": str(e)}
