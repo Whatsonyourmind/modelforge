@@ -5,6 +5,15 @@ All notable changes to ModelForge.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/).
 
+## [0.12.0] — 2026-06-22 — Re-checkable certificate & determinism gates
+
+### Added
+
+- **Recompute-and-gate conservation invariants at `certify`** (opt-in `certify --conservation`, `audit-conservation` CLI, MCP tool). Recomputes the QC sheet and requires `ALL_PASS == 1`, so a model whose conservation checks fail can no longer be stamped CERTIFIED. Caught a real certify-blind defect on a stale build.
+- **Deterministic perturbation-replay conservation gate** (opt-in `certify --perturb`, `audit-perturb` CLI, `perturb_replay` MCP tool). Shocks each resolved input driver ±5%, recomputes, and requires the QC conservation invariants to hold **two-sided** — an identity breaks both ways, a one-sided validity threshold breaks one way and is not flagged (zero false-positives validated across 14 templates).
+- **Deterministic deck numeric-grounding gate** (opt-in `build_deck_from_workbook(ground_numbers=…)`, `deck --ground-numbers`, `export_deck`). Reconciles every rendered deck token to a recomputed cell fact or a whitelisted derivation (leverage / LTV / loan-to-cost / capital-stack), with scale-aware tolerance; a ×1000 scale bug is caught end-to-end (zero false-positives on real certified decks).
+- **OraCert LLM-free verifier** (`modelforge.oracert`, `verify-cert` CLI) — a standalone re-checker for the cross-server in-toto `oracert.dev/redrivable-result/v1` predicate, dispatching `oraclaw.solve` (witness-alone, no solver) vs `modelforge.build` (artifact-required, recompute workbook SHA + re-run the schedule audit). Cross-runtime content-hash parity proven byte-identical against a real solver-produced golden statement.
+
 ## [0.11.2] — 2026-05-19 — Common-Sheet Multi-Language Sweep
 
 Continues the v0.11.1 multi-language work. Sweeps 14 more hardcoded EN/IT
