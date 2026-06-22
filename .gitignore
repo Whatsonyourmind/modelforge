@@ -38,10 +38,13 @@ adversarial_findings.json
 gold_standard_findings.json
 stress_test_findings.json
 PRD_*.md
+DEPLOY_NOW.md
+DEPLOY_*.md
 
 # build artifacts (do not commit wheels/sdists)
 dist/
 dist-*/
+build_*.xlsx
 
 # hard-test + benchmark scratch (generated; not source)
 benchmark/_*/

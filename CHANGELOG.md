@@ -115,7 +115,7 @@ safety (concurrent builds in different secondary languages no longer bleed).
   workbook builds no longer require process isolation. Enables a true
   SaaS render layer (D5 unlock).
 - **D8 Regional**: DACH HGB workbook now reads as a clean German Bilanz
-  end-to-end. Cold-email demos materially stronger for a turnaround investor / a turnaround investor.
+  end-to-end, strengthening the German-language output path.
 - **D9 Speed**: unchanged (no perf delta).
 - Cumulative product-side scorecard estimate: 5.46 (v0.9.7 baseline) →
   ~5.75 (post-v0.11.1). Score lift from product work alone remains
