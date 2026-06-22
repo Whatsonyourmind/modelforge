@@ -1,0 +1,84 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [
+    {
+      "name": "constraint-optimization-result",
+      "digest": {
+        "sha256": "f8e54f4bdee85a577b7355bbef816c034cec743b698973644834870ff6efe509"
+      }
+    }
+  ],
+  "predicateType": "oracert.dev/redrivable-result/v1",
+  "predicate": {
+    "method": "oraclaw.solve.certificate/v1",
+    "redrivable": true,
+    "producer": {
+      "name": "oraclaw",
+      "version": "constraintOptimizer/highs-wasm@1"
+    },
+    "witness": {
+      "certificate": {
+        "schema": "oraclaw.solve.certificate/v1",
+        "algoVersion": "constraintOptimizer/highs-wasm@1",
+        "problemClass": "LP",
+        "status": "optimal",
+        "tolerance": 0.000001,
+        "contentHash": "f8e54f4bdee85a577b7355bbef816c034cec743b698973644834870ff6efe509",
+        "certificateValid": true,
+        "objectiveValue": 10,
+        "recomputedObjective": 10,
+        "objectiveConsistent": true,
+        "primalFeasible": true,
+        "maxPrimalResidual": 0,
+        "worstConstraint": null,
+        "duality": {
+          "complementarySlackness": 0,
+          "stationarityResidual": 0,
+          "dualityGapCS": 0,
+          "note": "LP primal-dual gap via complementary slackness; dual checks at tol 0.0001"
+        },
+        "notes": [
+          "LP optimality evidence: complementary slackness 0.00e+0, stationarity 0.00e+0 (dual tol 0.0001)."
+        ]
+      },
+      "problem": {
+        "direction": "maximize",
+        "objective": {
+          "x": 3,
+          "y": 2
+        },
+        "variables": [
+          {
+            "name": "x",
+            "lower": 0
+          },
+          {
+            "name": "y",
+            "lower": 0
+          }
+        ],
+        "constraints": [
+          {
+            "name": "cap",
+            "coefficients": {
+              "x": 1,
+              "y": 1
+            },
+            "upper": 4
+          },
+          {
+            "name": "xcap",
+            "coefficients": {
+              "x": 1
+            },
+            "upper": 2
+          }
+        ]
+      },
+      "solution": {
+        "x": 2,
+        "y": 2
+      }
+    }
+  }
+}

@@ -1002,6 +1002,43 @@ def verify_cmd(xlsx_path: Path, spec_path: Path | None) -> None:
     sys.exit(1)
 
 
+@main.command("verify-cert")
+@click.argument("statement_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--artifact", "artifact_path", type=click.Path(exists=True, path_type=Path),
+              default=None, help="Bound .xlsx (required for modelforge.build "
+                                 "statements; re-derives the workbook).")
+def verify_cert_cmd(statement_path: Path, artifact_path: Path | None) -> None:
+    """Verify an OraCert re-derivable-result statement (LLM-free, solver-free).
+
+    Re-establishes the CORRECTNESS of the result the in-toto statement commits
+    to — not just byte identity. ``oraclaw.solve.certificate/v1`` statements are
+    re-checked witness-alone (feasibility + objective + content hash, no
+    solver); ``modelforge.build/v1`` statements re-run the schedule audit on the
+    bound ``--artifact``. Exits 0 when every check passes, 1 otherwise.
+    """
+    import json as _json
+
+    from modelforge.oracert import verify_statement
+
+    try:
+        stmt = _json.loads(statement_path.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as e:
+        console.print(f"[red]Could not read statement: {e}[/red]")
+        sys.exit(2)
+
+    result = verify_statement(stmt, artifact_path=artifact_path)
+    badge = "[bold green]VERIFIED[/bold green]" if result.ok else "[bold red]FAILED[/bold red]"
+    console.print(f"{badge}  method={result.method}")
+    for name, ok in result.checks.items():
+        mark = "[green]✓[/green]" if ok else "[red]✗[/red]"
+        console.print(f"  {mark} {name}")
+    for reason in result.reasons:
+        console.print(f"  [red]- {reason}[/red]")
+    for note in result.notes:
+        console.print(f"  [dim]{note}[/dim]")
+    sys.exit(0 if result.ok else 1)
+
+
 @main.command("monte-carlo")
 @click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
 @click.option("--spec", "spec_path", type=click.Path(exists=True, path_type=Path),

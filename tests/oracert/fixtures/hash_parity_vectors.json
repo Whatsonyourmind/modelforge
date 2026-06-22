@@ -1,0 +1,51 @@
+[
+  {
+    "payload": {
+      "z": 0,
+      "nz": 0,
+      "neg": -44.3,
+      "big": 1000000000000,
+      "frac": 0.6666666666666666,
+      "tiny": 4e-13
+    },
+    "hash": "664c4dfdb738f8d038fc1e89ca857fa6e2f68324c16cd883a423164e1c2b58a3"
+  },
+  {
+    "payload": {
+      "arr": [
+        1,
+        -2.5,
+        0,
+        100000000
+      ],
+      "nested": {
+        "b": 2,
+        "a": 1
+      },
+      "s": "café",
+      "t": true,
+      "n": null
+    },
+    "hash": "94df75f9374a0e3c70902b189d594813956d3058f7f7e60c19a3685f3436219e"
+  },
+  {
+    "payload": {
+      "direction": "minimize",
+      "objective": {
+        "b": -1,
+        "a": 2
+      },
+      "vars": [
+        {
+          "name": "a",
+          "lower": 0
+        },
+        {
+          "name": "b",
+          "upper": 1e+30
+        }
+      ]
+    },
+    "hash": "a1260727713b93c1f82721041fedc7c10c8e6ceb5721f905ca1ce4f1284e19f5"
+  }
+]
