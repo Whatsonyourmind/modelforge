@@ -665,6 +665,49 @@ def audit_schedule(xlsx_path: str) -> dict[str, Any]:
 
 
 @server.tool()
+def audit_conservation(xlsx_path: str) -> dict[str, Any]:
+    """Recompute the QC sheet and require ALL_PASS==1 — the other certify-blind defect.
+
+    certify proves zero formula errors, but a conservation check that legitimately
+    recomputes to 0 (a balance sheet that doesn't balance, a debt roll-forward that
+    telescopes, NI != EBT + tax) is a VALID formula returning 0 — not an Excel
+    error — so it certifies CERTIFIED today. This recomputes every formula with the
+    `formulas` engine, reads the recomputed ALL CHECKS PASS aggregator plus every
+    per-check on the QC sheet, and requires the aggregator to be 1 with no per-check
+    at 0. Deterministic, zero-LLM. Takes xlsx_path; returns {xlsx, status (PASS/
+    FAIL/INDETERMINATE), passed, qc_sheet, all_pass_ref, all_pass_value, n_checks,
+    findings[], finding_count} or {error}. No recalc engine / no QC sheet ->
+    INDETERMINATE (a failure). Pair with certify (formula errors) + audit_schedule.
+    """
+    xlsx = _resolve_path(xlsx_path)
+    if not xlsx.exists():
+        return {"error": f"workbook not found: {xlsx}"}
+
+    try:
+        from modelforge.qc import audit_conservation as _audit_conservation
+
+        report = _audit_conservation(xlsx)
+    except Exception as e:
+        log.exception("audit_conservation failed")
+        return {"error": f"audit_conservation failed: {e!r}"}
+
+    return {
+        "xlsx": str(xlsx),
+        "status": report.status,
+        "passed": report.passed,
+        "qc_sheet": report.qc_sheet,
+        "all_pass_ref": report.all_pass_ref,
+        "all_pass_value": report.all_pass_value,
+        "n_checks": report.n_checks,
+        "findings": [
+            {"ref": f.ref, "label": f.label, "status": f.status, "recomputed": f.recomputed}
+            for f in report.findings
+        ],
+        "finding_count": report.n_findings,
+    }
+
+
+@server.tool()
 def list_sources(graph_db: str) -> dict[str, Any]:
     """Enumerate the source citations recorded in a model's linkage graph.
 

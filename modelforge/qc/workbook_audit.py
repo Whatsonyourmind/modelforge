@@ -160,6 +160,75 @@ def _resolve_sheet_name(engine_sheet: str, real_names: list[str]) -> str:
     return engine_sheet
 
 
+def _scalarize(raw):
+    """Reduce a ``formulas`` engine value (possibly a numpy array or a nested
+    single-element container) to a Python scalar; multi-element values pass
+    through unchanged so callers can detect them.
+    """
+    v = raw
+    for _ in range(4):
+        if hasattr(v, "tolist"):
+            try:
+                v = v.tolist()
+            except Exception:  # pragma: no cover
+                break
+        if isinstance(v, (list, tuple)):
+            if len(v) == 1:
+                v = v[0]
+            else:
+                break
+        else:
+            break
+    return v
+
+
+def recompute_cell_values(
+    xlsx_path: Path | str,
+) -> tuple[dict[str, object], bool, list[str]]:
+    """Recompute every formula with the ``formulas`` engine and return a mapping
+    ``{"Sheet!CELL" -> recomputed scalar}`` plus ``(recalc_ran, notes)``.
+
+    Shared by :func:`audit_workbook`-style checks that need the *recomputed*
+    value of specific cells (e.g. the conservation gate reading ``QC!C4``), so
+    the gate sees what the formula engine derives — not openpyxl's stale cache.
+    """
+    path = Path(xlsx_path)
+    notes: list[str] = []
+    values: dict[str, object] = {}
+    recalc_ran = False
+
+    try:
+        import formulas  # type: ignore
+    except ImportError:
+        notes.append("`formulas` package not installed — recompute skipped.")
+        return values, recalc_ran, notes
+
+    try:
+        wb = load_workbook(path, data_only=False)
+        real_names = list(wb.sheetnames)
+    except Exception as e:  # pragma: no cover
+        notes.append(f"Could not load workbook for sheet names: {e}")
+        real_names = []
+
+    try:
+        xl = formulas.ExcelModel().loads(str(path)).finish()
+        sol = xl.calculate()
+        recalc_ran = True
+    except Exception as e:  # pragma: no cover
+        notes.append(f"Formula engine could not load workbook: {e}")
+        return values, recalc_ran, notes
+
+    for key, val in sol.items():
+        raw = val.value if hasattr(val, "value") else val
+        engine_sheet, cell = _split_engine_key(key)
+        if engine_sheet is None or cell is None:
+            continue
+        sheet = _resolve_sheet_name(engine_sheet, real_names)
+        values[f"{sheet}!{cell}"] = _scalarize(raw)
+
+    return values, recalc_ran, notes
+
+
 def _scan_cached_errors(wb_cached, report: WorkbookAuditReport,
                         seen: set[str]) -> None:
     """Flag any error literal baked into the file's cached values."""

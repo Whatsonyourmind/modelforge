@@ -8,6 +8,11 @@ from modelforge.qc.schedule_audit import (
     ScheduleFinding,
     audit_schedule,
 )
+from modelforge.qc.conservation_audit import (
+    ConservationAuditReport,
+    ConservationFinding,
+    audit_conservation,
+)
 
 __all__ = [
     "run_qc",
@@ -17,4 +22,7 @@ __all__ = [
     "audit_schedule",
     "ScheduleAuditReport",
     "ScheduleFinding",
+    "audit_conservation",
+    "ConservationAuditReport",
+    "ConservationFinding",
 ]

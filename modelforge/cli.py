@@ -635,6 +635,30 @@ def audit_schedule_cmd(xlsx_path: Path, strict: bool) -> None:
     sys.exit(0 if (report.passed or not strict) else 1)
 
 
+@main.command("audit-conservation")
+@click.argument("xlsx_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--strict", is_flag=True, default=False,
+              help="Exit non-zero unless conservation PASSES (default is "
+                   "advisory: report but exit 0).")
+def audit_conservation_cmd(xlsx_path: Path, strict: bool) -> None:
+    """Recompute the QC sheet and require ALL_PASS==1 (certify-blind).
+
+    `certify` proves zero formula errors but a conservation check that
+    legitimately recomputes to 0 (a balance sheet that doesn't balance, a debt
+    roll-forward that telescopes) is a valid formula returning 0 — not an Excel
+    error — so it certifies CERTIFIED today. This recomputes every formula with
+    the `formulas` engine, reads the recomputed ALL CHECKS PASS aggregator plus
+    every per-check, and requires the aggregator to be 1 with no per-check at 0.
+    Advisory by default; pass --strict to gate on it. No recalc engine / no QC
+    sheet → INDETERMINATE (a failure under --strict).
+    """
+    from modelforge.qc import audit_conservation
+
+    report = audit_conservation(xlsx_path)
+    report.print()
+    sys.exit(0 if (report.passed or not strict) else 1)
+
+
 @main.command("certify")
 @click.argument("target", type=click.Path(exists=True, path_type=Path))
 @click.option("--out", "out_path", type=click.Path(path_type=Path), default=None,
@@ -650,8 +674,13 @@ def audit_schedule_cmd(xlsx_path: Path, strict: bool) -> None:
 @click.option("--schedule", "schedule_check", is_flag=True, default=False,
               help="Also run the schedule auditor (interior hardcodes + "
                    "roll-forward period drift) and exit non-zero on any finding.")
+@click.option("--conservation", "conservation_check", is_flag=True, default=False,
+              help="Also recompute the QC sheet and require ALL_PASS==1 (no "
+                   "per-check at 0); exit non-zero on a conservation FAIL or "
+                   "INDETERMINATE result.")
 def certify_cmd(target: Path, out_path: Path | None, max_gaps: int,
-                no_trust: bool, strict: bool, schedule_check: bool) -> None:
+                no_trust: bool, strict: bool, schedule_check: bool,
+                conservation_check: bool) -> None:
     """Certify a workbook has zero formula errors (the "no #REF!" gate).
 
     TARGET may be a built ``.xlsx`` or a ``.yaml``/``.yml`` spec. When a spec
@@ -757,9 +786,43 @@ def certify_cmd(target: Path, out_path: Path | None, max_gaps: int,
                 console.print(f"[dim]… and {srep.n_findings - 20} more.[/dim]")
         schedule_ok = srep.passed
 
+    # Opt-in conservation gate: recompute the QC sheet and require ALL_PASS==1.
+    # A conservation check that recomputes to 0 (balance sheet that doesn't
+    # balance, debt roll-forward that telescopes) is a valid formula returning 0
+    # — not an Excel error — so the formula-error audit above is blind to it.
+    conservation_ok = True
+    if conservation_check:
+        from modelforge.qc import audit_conservation
+
+        crep = audit_conservation(audit_target)
+        if crep.status == "PASS":
+            cbadge = "[bold green]CONSERVATION PASS[/bold green]"
+        elif crep.status == "FAIL":
+            cbadge = "[bold red]CONSERVATION FAIL[/bold red]"
+        else:
+            cbadge = "[bold yellow]CONSERVATION INDETERMINATE[/bold yellow]"
+        console.print(
+            f"{cbadge}  {crep.n_checks} check(s), {crep.n_findings} failing"
+        )
+        if crep.findings:
+            tbl = Table(title="Conservation findings (certify-blind)")
+            tbl.add_column("Cell", style="bold")
+            tbl.add_column("Check")
+            tbl.add_column("Recomputed")
+            for f in crep.findings[:20]:
+                tbl.add_row(f.ref, f.label, f"{f.recomputed} ({f.status})")
+            console.print(tbl)
+            if crep.n_findings > 20:
+                console.print(f"[dim]… and {crep.n_findings - 20} more.[/dim]")
+        for n in crep.notes:
+            console.print(f"[dim]note: {n}[/dim]")
+        conservation_ok = crep.passed
+
     # Default: fail only on formula errors. --strict also fails on WARN
-    # (styling gaps); --schedule also fails on any schedule finding.
-    ok = report.passed and (verdict == "CERTIFIED" or not strict) and schedule_ok
+    # (styling gaps); --schedule also fails on any schedule finding;
+    # --conservation also fails on a conservation FAIL/INDETERMINATE.
+    ok = (report.passed and (verdict == "CERTIFIED" or not strict)
+          and schedule_ok and conservation_ok)
     sys.exit(0 if ok else 1)
 
 
