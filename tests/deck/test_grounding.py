@@ -83,6 +83,24 @@ class TestNumparse:
         # "mo" / trailing letters must NOT parse as an €M figure.
         assert extract_numeric_tokens("Runway 18.5mo") == []
 
+    def test_sha256_fragment_not_misread_as_currency(self):
+        # A truncated build-manifest digest must not yield financial tokens: the
+        # hex run "…1f3b…" previously parsed as a currency "3b" (3 billion),
+        # tripping the ic_memo grounding gate. The failure was interpreter-
+        # specific only because the manifest sha differs per build, so a "<digit>b"
+        # boundary surfaced on some runs and not others — the real defect is the
+        # suffixed-token path not guarding numbers welded into an alnum run.
+        text = "Mitigant: Bytes verified against build manifest (sha256 5e04a6621f3b…)."
+        assert extract_numeric_tokens(text) == []
+
+    def test_currency_welded_to_letters_is_not_a_figure(self):
+        # Belt-and-suspenders: a bare scaled number glued to a leading letter or
+        # digit (no separator) is part of a larger token, not a standalone figure.
+        assert extract_numeric_tokens("ref9f3b done") == []
+        # …but a properly separated figure still parses.
+        t = _one("ref 9.0M done")
+        assert t.kind == "currency" and t.value_in_millions() == pytest.approx(9.0)
+
     def test_display_ulp_scales_with_decimals(self):
         assert _one("250.0").display_ulp() == pytest.approx(0.05)
         assert _one("2.69x").display_ulp() == pytest.approx(0.005)

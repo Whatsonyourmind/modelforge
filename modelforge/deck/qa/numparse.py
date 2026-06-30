@@ -153,6 +153,15 @@ def extract_numeric_tokens(text: str) -> list[NumericToken]:
             s, e = m.start(), m.end()
             if _overlaps(s, e):
                 continue
+            # A number welded to a preceding alphanumeric char is embedded in a
+            # longer identifier — a hex digest ("sha256 …1f3b…"), a code, an
+            # account number — not a standalone financial figure. (The trailing
+            # scale suffix already requires a word boundary, so only the leading
+            # side is unguarded.) This mirrors the bare-number _is_year_or_id
+            # weld guard, which the suffixed path previously lacked.
+            ns = m.start("num")
+            if ns > 0 and text[ns - 1].isalnum():
+                continue
             num = m.group("num")
             scale = ""
             if kind == "currency":
