@@ -67,6 +67,12 @@ class GroundingFinding:
     kind: str
     candidate: float
     note: str
+    # Diagnostics: the full string the token was extracted from, and the
+    # closest pool value (+ gap). These make a fail-closed miss self-explaining
+    # in CI logs — essential when a miss only reproduces on one interpreter and
+    # cannot be reproduced locally.
+    source_text: str = ""
+    nearest: str = ""
 
     @property
     def ref(self) -> str:
@@ -250,6 +256,17 @@ class NumericGroundingChecker:
                 return True
         return False
 
+    @staticmethod
+    def _nearest(candidate: float, pool: list[_PoolValue]) -> str:
+        """Closest pool value + signed gap — diagnostic only (never gates)."""
+        if not pool:
+            return "pool empty"
+        pv = min(pool, key=lambda p: abs(candidate - p.value))
+        return (
+            f"nearest fact {pv.value:.6g} ({pv.label}), "
+            f"gap {abs(candidate - pv.value):.6g}"
+        )
+
     def check(self, presentation: Any, wf: Any, facts_model: Any,
               deck_type: str) -> GroundingReport:
         template = getattr(wf, "template", "unknown")
@@ -287,6 +304,8 @@ class NumericGroundingChecker:
                                     f"derivation within tolerance of "
                                     f"{candidate:.6g}"
                                 ),
+                                source_text=text[:120],
+                                nearest=self._nearest(candidate, pool),
                             )
                         )
         return report

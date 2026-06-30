@@ -324,7 +324,9 @@ def build_deck_from_workbook(
         unreconciled_count = grep.unreconciled_count
         if not grep.passed:
             sample = "; ".join(
-                f"{f.raw!r}@slide{f.slide_index}" for f in grep.findings[:5])
+                f"{f.raw!r}@slide{f.slide_index} "
+                f"[from {f.source_text!r}; cand {f.candidate:.6g}; {f.nearest}]"
+                for f in grep.findings[:5])
             raise DeckAdapterError(
                 f"Numeric grounding FAILED for the {deck_type} deck: "
                 f"{grep.unreconciled_count} rendered token(s) reconcile to no "
