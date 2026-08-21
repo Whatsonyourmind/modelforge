@@ -44,6 +44,11 @@ include = ["modelforge*"]
 [tool.setuptools.package-data]
 "modelforge.deck.themes" = ["data/*.yaml"]
 
+[tool.pytest.ini_options]
+markers = [
+    "slow: long-running suites (the hardtest_* numerical reconciliations). Skip with -m 'not slow'.",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

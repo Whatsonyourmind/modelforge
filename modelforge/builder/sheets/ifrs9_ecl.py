@@ -219,12 +219,16 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
             value=f'=IF(B{r}=1,C{r},D{r})',
         )
         styles.style_formula(pd_used_cell, number_format=styles.FMT_PCT_2DP)
-        # Stage-adjusted PD = PD_used × weighted macro multiplier.
+        # Stage-adjusted PD = PD_used × weighted macro multiplier, capped at 1.
         # POCI: always gross-carrying lifetime (no 12m/lifetime switch).
         # Macro multiplier via named range ecl_weighted_pd_multiplier.
+        # The MIN(...,1) is load-bearing: a PD is a probability and is bounded
+        # above by 1. Without it, a downside multiplier (1.80) applied to a PD
+        # already at 1.00 — the normal POCI/Stage-3 case for an NPL portfolio —
+        # reports a >100% probability of default and propagates into ECL.
         stage_adj_cell = ws.cell(
             row=r, column=11,
-            value=f'=IF(B{r}="POCI",D{r},J{r})*ecl_weighted_pd_multiplier',
+            value=f'=MIN(IF(B{r}="POCI",D{r},J{r})*ecl_weighted_pd_multiplier,1)',
         )
         styles.style_formula(stage_adj_cell, number_format=styles.FMT_PCT_2DP)
         # ECL = stage_adj_pd × LGD × EAD × DF

@@ -28,7 +28,9 @@ def build(spec, out_path: Path | str, graph_db_path=None):
         qc_ws.cell(row=1, column=1, value="QC Checks").font = styles.font_title
         qc_ws.cell(row=2, column=1, value="Controlli").font = styles.font_label_it
         qc_ws.cell(row=4, column=1, value="ALL CHECKS PASS")
-        qc_ws.cell(row=4, column=3, value=1)
+        # Must derive from the checks below, never a literal: a hardcoded 1
+        # here reports PASS even when C5/C6 fail. Same pattern as dcf.py.
+        qc_ws.cell(row=4, column=3, value="=IF(AND(C5=1,C6=1),1,0)")
         qc_ws.cell(row=5, column=1, value="EV positive")
         qc_ws.cell(row=5, column=3,
                    value=f"=IF('DealStructure'!D{deal_refs['ev']}>0,1,0)")
