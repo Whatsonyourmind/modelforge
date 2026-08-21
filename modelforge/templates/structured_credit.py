@@ -42,7 +42,9 @@ def build(spec, out_path: Path | str, graph_db_path=None):
                 f"=IF(({size_terms})<='Tranches'!$D${face_row}+{tol},1,0)"
             )
         else:
-            cons_size_formula = "=1"
+            # No tranches: nothing to conserve and nothing verified. Fail
+            # closed — a check that passes vacuously is worse than no check.
+            cons_size_formula = "=0"
 
         # Conservation law 2 — loss allocation: at the terminal period the sum
         # of per-tranche losses in EUR (size × tranche-loss%) must equal the
@@ -59,22 +61,51 @@ def build(spec, out_path: Path | str, graph_db_path=None):
                 f"-'Tranches'!$D${face_row}*'Tranches'!{last_col}{cum_loss_row})<{tol},1,0)"
             )
         else:
-            cons_loss_formula = "=1"
+            cons_loss_formula = "=0"
+
+        # A tranche size must be strictly positive: MIN over the size cells.
+        if tranche_rows:
+            size_min = ",".join(
+                f"'Tranches'!$D${int(tr['size'])}" for tr in tranche_rows
+            )
+            size_positive_formula = f"=IF(MIN({size_min})>0,1,0)"
+        else:
+            size_positive_formula = "=0"
+
+        # Senior-tranche IRR identity. A par-priced tranche cannot out-earn its
+        # coupon, and earns exactly the coupon when it absorbs no principal
+        # loss. Both halves are structural, so a broken waterfall or IRR
+        # formula breaks one of them. Tolerance 50bps absorbs IRR solver noise.
+        if tranche_rows:
+            snr = tranche_rows[0]
+            snr_irr = f"'Tranches'!$D${int(snr['irr'])}"
+            snr_loss = f"'Tranches'!{last_col}{int(snr['loss'])}"
+            snr_cpn = snr["coupon_name"]
+            senior_irr_formula = (
+                f"=IF(AND({snr_irr}<={snr_cpn}+0.005,"
+                f"OR({snr_loss}>0.0001,{snr_irr}>={snr_cpn}-0.005)),1,0)"
+            )
+        else:
+            senior_irr_formula = "=0"
 
         checks = [
             ("Cumulative loss monotone non-decreasing", "Perdita cum. non-decrescente",
              f"=IF('Tranches'!{last_col}{cum_loss_row}>='Tranches'!E{cum_loss_row},1,0)"),
+            # Was "=1" with the comment "enforced at spec level". The spec does
+            # constrain this, but the QC sheet travels with the workbook after
+            # anyone can edit a size cell in Excel, so it must re-derive the
+            # property from the cells rather than trust the builder.
             ("All tranches sized positively", "Tutte le tranche positive",
-             "=1"),  # Enforced at spec level
+             size_positive_formula),
             ("Conservation: Σ tranche sizes ≤ pool face",
              "Conservazione: Σ tranche ≤ nominale pool",
              cons_size_formula),
             ("Conservation: Σ tranche losses (€) = pool net loss (€)",
              "Conservazione: Σ perdite tranche (€) = perdita netta pool (€)",
              cons_loss_formula),
-            ("Senior tranche IRR ≈ coupon (low loss)",
-             "Senior tranche IRR ≈ cedola",
-             "=1"),  # Placeholder — could check more rigorously
+            ("Senior tranche IRR <= coupon, and = coupon when it takes no loss",
+             "IRR senior <= cedola, = cedola se nessuna perdita",
+             senior_irr_formula),
         ]
         qc_ws = wb.create_sheet("QC")
         generic_qc.build(qc_ws, checks)

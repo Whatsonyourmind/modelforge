@@ -134,7 +134,11 @@ def compute_absolute_priority_waterfall(spec: RestructuringSpec) -> list[dict]:
         distributable -= spec.dip_facility.drawn
 
     results = []
-    remaining = distributable
+    # An estate can be worth less than nothing to the claim classes once a
+    # super-priority DIP is repaid. Clamping here keeps that case at a 0%
+    # recovery instead of reporting a *negative* one, which min(remaining,
+    # allowed) would otherwise produce for the most senior class.
+    remaining = max(distributable, Decimal("0"))
     for cls in classes_sorted:
         allowed = cls.allowed_amount
         recovered = min(remaining, allowed)

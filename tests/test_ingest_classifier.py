@@ -90,6 +90,10 @@ def test_classify_tool_schema_has_doc_types():
 def test_classify_rejects_missing_api_key(monkeypatch):
     """Only relevant for API backend — CLI backend doesn't need a key."""
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    # Without the SDK this raises ModuleNotFoundError before it ever
+    # looks at the environment, so the assertion below would test the
+    # wrong failure. The SDK ships in the [ingest] extra.
+    pytest.importorskip("anthropic", reason="requires the [ingest] extra")
     from modelforge.ingest.llm import AnthropicAPIBackend
     with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
         AnthropicAPIBackend()

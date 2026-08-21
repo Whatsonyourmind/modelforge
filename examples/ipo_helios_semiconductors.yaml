@@ -1,0 +1,69 @@
+# IPO valuation packet — illustrative issuer, fictional.
+# Added so the ipo template is covered by the example corpus: it was one of
+# only two registered model types with no example spec, which is why nothing
+# ever built it in CI and its Valuation sheet shipped with zero formulas.
+model_type: ipo
+
+company_name: Helios Semiconductors
+ticker_proposed: HLSM
+exchange: NASDAQ
+sector: Semiconductors
+issuance_date_target: "2026-11-12"
+
+# Deal structure
+primary_shares_offered: 12000000
+secondary_shares_offered: 4000000
+shares_outstanding_pre_ipo: 68000000
+price_range_low: 21.00
+price_range_high: 25.00
+greenshoe_pct: 0.15
+underwriter_discount_pct: 0.065
+
+# IPO economics
+ipo_discount_to_iv_pct: 0.18
+lockup_days: 180
+
+comps_trading:
+  - company_name: Northgate Micro
+    ticker: NGM
+    ev_revenue_ltm: 6.40
+    ev_ebitda_ltm: 19.20
+    pe_ltm: 28.50
+    market_cap_usd: 4100000000
+  - company_name: Ardent Silicon
+    ticker: ARDS
+    ev_revenue_ltm: 5.10
+    ev_ebitda_ltm: 16.80
+    pe_ltm: 24.10
+    market_cap_usd: 2750000000
+  - company_name: Vector Analog
+    ticker: VCTA
+    ev_revenue_ltm: 7.90
+    ev_ebitda_ltm: 22.40
+    pe_ltm: 33.00
+    market_cap_usd: 6300000000
+
+precedents:
+  - target_name: Calder Devices
+    acquirer_name: Northgate Micro
+    deal_date: "2025-06-18"
+    ev_revenue_at_announce: 6.80
+    ev_ebitda_at_announce: 20.10
+    deal_type: ma_strategic
+  - target_name: Pallas Wafer
+    acquirer_name: Meridian Capital Partners
+    deal_date: "2024-11-04"
+    ev_revenue_at_announce: 5.60
+    ev_ebitda_at_announce: 17.30
+    deal_type: ma_sponsor
+
+dcf:
+  revenue_y1: 690.0
+  revenue_growth_yrs: [0.18, 0.15, 0.12, 0.10, 0.08]
+  ebitda_margin_yrs: [0.27, 0.28, 0.29, 0.30, 0.30]
+  capex_pct_of_revenue: 0.09
+  nwc_pct_of_revenue: 0.12
+  tax_rate: 0.24
+  wacc: 0.098
+  perpetual_growth: 0.025
+  net_debt: 180.0

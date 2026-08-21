@@ -15,6 +15,12 @@ from modelforge.ingest.readers.csv_reader import read_csv
 FIXTURES = Path(__file__).parent / "fixtures" / "dataroom_enfinity_synth"
 
 
+def _has(mod: str) -> bool:
+    """True when an optional dependency is importable."""
+    import importlib.util
+    return importlib.util.find_spec(mod) is not None
+
+
 def test_discover_finds_supported_files():
     files = discover(FIXTURES)
     assert len(files) >= 7  # 7 PDFs + 1 XLSX + 1 CSV
@@ -35,6 +41,11 @@ def test_discover_rejects_non_directory():
 
 
 def test_read_pdf_extracts_text():
+    # Both PDF backends live in the [ingest] extra. Without either, read_pdf
+    # warns and returns an empty index, so this asserts on text that was never
+    # extracted — a missing optional dependency reported as a content failure.
+    if not (_has("pdfplumber") or _has("pypdf")):
+        pytest.skip("requires the [ingest] extra (pdfplumber or pypdf)")
     idx = read_pdf(FIXTURES / "01_enfinity_press_release.pdf")
     assert idx.total_pages >= 1
     assert len(idx.chunks) >= 1

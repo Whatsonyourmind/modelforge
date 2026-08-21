@@ -60,7 +60,10 @@ try:
 except ImportError as e:
     raise ImportError(
         "MCP server requires `pip install modelforge[mcp]` "
-        "(adds `mcp>=1.12.0` to your environment)."
+        "(adds `mcp>=1.12.0,<2` to your environment). If `mcp` is already "
+        "installed, check its version: 2.0 moved FastMCP out of "
+        "`mcp.server.fastmcp` into the separate `fastmcp` distribution, so "
+        "modelforge's MCP server cannot import on mcp 2.x."
     ) from e
 
 # NOTE: the template builder is imported under an alias so the global name

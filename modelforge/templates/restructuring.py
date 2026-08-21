@@ -152,7 +152,8 @@ def _dip(wb: Workbook, spec: RestructuringSpec) -> None:
         ("Primed liens", ", ".join(d.primed_liens) or "—"),
         ("Annual interest cost", f"=B2*B3"),  # B2=drawn, B3=coupon (offset by header)
         ("Upfront fee paid", f"=B1*B4"),     # B1=facility, B4=upfront%
-        ("Total period cost", float(compute_total_dip_cost(d))),
+        # = annual interest + upfront fee, i.e. the two rows directly above.
+        ("Total period cost", "=B8+B9"),
     ]
     for i, (k, v) in enumerate(rows, start=1):
         ws.cell(i, 1, k).font = HEADER_FONT if i <= 7 else Font()
@@ -164,58 +165,159 @@ def _dip(wb: Workbook, spec: RestructuringSpec) -> None:
 
 
 def _waterfall(wb: Workbook, spec: RestructuringSpec) -> None:
-    ws = wb.create_sheet("Waterfall")
-    cols = ["Class ID", "Priority", "Allowed", "Recovered", "Recovery %"]
-    for j, c in enumerate(cols, start=1):
-        ws.cell(1, j, c).font = HEADER_FONT
+    """Absolute-priority cascade, computed in the workbook.
 
+    Every figure here used to arrive as a Python constant from
+    compute_absolute_priority_waterfall() and was then styled with the
+    black "formula" font — so the sheet asserted, in the house colour
+    convention, that it had computed a cascade it had merely pasted. Editing an
+    enterprise value or a claim amount in Excel moved nothing.
+
+    The cascade is now live: distributable value is built up from the
+    Assumptions and DIP sheets, and each class recovers
+    ``MIN(allowed, MAX(0, distributable - everything already paid))`` in
+    priority order. Two per-class check columns make the invariants visible in
+    the sheet, and the QC sheet aggregates them.
+    """
+    ws = wb.create_sheet("Waterfall")
+
+    # Distributable-value build-up.
+    dip_ref = "'DIP'!$B$2" if spec.dip_facility else "0"
+    ws.cell(1, 1, "Distributable value build-up").font = HEADER_FONT
+    buildup = [
+        ("Enterprise value post-emergence", "='Assumptions'!$B$2"),
+        ("Cash at emergence", "='Assumptions'!$B$3"),
+        ("New debt at emergence", "='Assumptions'!$B$4"),
+        ("Less: DIP drawn (super-priority)", f"={dip_ref}"),
+        ("Distributable to claims", "=$B$2+$B$3+$B$4-$B$5"),
+    ]
+    for i, (label, formula) in enumerate(buildup, start=2):
+        ws.cell(i, 1, label)
+        ws.cell(i, 2, formula).font = BULGE_BLACK_FORMULA
+
+    HDR = 8
+    cols = ["Class ID", "Priority", "Allowed", "Recovered", "Recovery %",
+            "Chk: recovered <= allowed", "Chk: APR order"]
+    for j, c in enumerate(cols, start=1):
+        ws.cell(HDR, j, c).font = HEADER_FONT
+
+    # Priority order is the model's, so the cascade rows are already sorted;
+    # Allowed links back to the Claims sheet rather than restating the input.
     results = compute_absolute_priority_waterfall(spec)
-    for i, r in enumerate(results, start=2):
+    claims_row_of = {c.class_id: i for i, c in enumerate(spec.claim_classes, start=2)}
+    first = HDR + 1
+    last = HDR + len(results)
+
+    for i, r in enumerate(results, start=first):
         ws.cell(i, 1, r["class_id"])
         ws.cell(i, 2, r["priority"])
-        ws.cell(i, 3, float(r["allowed"])).font = BULGE_BLUE_INPUT
-        ws.cell(i, 4, float(r["recovered"])).font = BULGE_BLACK_FORMULA
-        rec = float(r["recovery_pct"])
-        c = ws.cell(i, 5, rec)
-        c.font = BULGE_BLACK_FORMULA if rec >= 0.5 else BULGE_RED_WARN
+        src = claims_row_of.get(r["class_id"])
+        ws.cell(i, 3, f"='Claims'!$D${src}" if src else float(r["allowed"])).font = (
+            BULGE_GREEN_LINK if src else BULGE_BLUE_INPUT
+        )
+        if i == first:
+            recovered = "=MIN($C{r},MAX(0,$B$6))".format(r=i)
+        else:
+            recovered = "=MIN($C{r},MAX(0,$B$6-SUM($D${f}:$D{p})))".format(
+                r=i, f=first, p=i - 1)
+        ws.cell(i, 4, recovered).font = BULGE_BLACK_FORMULA
+        ws.cell(i, 5, f"=IF($C{i}=0,0,$D{i}/$C{i})").font = BULGE_BLACK_FORMULA
+        # A class cannot recover more than its allowed claim.
+        ws.cell(i, 6, f"=IF($D{i}<=$C{i}+0.0001,1,0)").font = BULGE_BLACK_FORMULA
+        # Absolute priority: no class may recover a larger fraction than the
+        # class ranking above it.
+        # The senior-most class has no class above it, so the binding
+        # constraint there is simply that it cannot recover more than 100%.
+        # Writing a bare 1 would put a cell that can never fail into the column
+        # the QC sheet sums.
+        ws.cell(i, 7, f"=IF($E{i}<=1.0001,1,0)" if i == first
+                else f"=IF($E{i}<=$E{i-1}+0.0001,1,0)").font = BULGE_BLACK_FORMULA
+
+    if results:
+        ws.cell(last + 1, 1, "TOTAL").font = HEADER_FONT
+        ws.cell(last + 1, 3, f"=SUM($C${first}:$C${last})").font = BULGE_BLACK_FORMULA
+        ws.cell(last + 1, 4, f"=SUM($D${first}:$D${last})").font = BULGE_BLACK_FORMULA
 
 
 def _plan(wb: Workbook, spec: RestructuringSpec) -> None:
+    """Plan-of-reorganization consideration by class.
+
+    ``PlanRecovery.recovery_pct`` is documented as "auto-computed if None", but
+    nothing computed it — the column was simply left blank whenever a spec
+    omitted it. It is now derived in the workbook from the consideration
+    actually offered: cash + take-back paper + the share of post-emergence
+    equity, over the allowed claim looked up from the Claims sheet.
+    """
     ws = wb.create_sheet("PlanRecoveries")
-    cols = ["Class ID", "Cash", "New Equity %", "New Debt Face", "Recovery %", "Vote Required"]
+    cols = ["Class ID", "Cash", "New Equity %", "New Debt Face", "Recovery %",
+            "Vote Required", "Allowed (from Claims)"]
     for j, c in enumerate(cols, start=1):
         ws.cell(1, j, c).font = HEADER_FONT
+    n_cl = len(spec.claim_classes)
+    ids = f"'Claims'!$A$2:$A${n_cl + 1}"
+    amts = f"'Claims'!$D$2:$D${n_cl + 1}"
     for i, r in enumerate(spec.plan_recoveries, start=2):
         ws.cell(i, 1, r.class_id)
         ws.cell(i, 2, float(r.cash_distribution)).font = BULGE_BLUE_INPUT
         ws.cell(i, 3, float(r.new_equity_pct)).font = BULGE_BLUE_INPUT
         ws.cell(i, 4, float(r.new_debt_face)).font = BULGE_BLUE_INPUT
-        ws.cell(i, 5, float(r.recovery_pct) if r.recovery_pct else "").font = BULGE_BLACK_FORMULA
+        ws.cell(i, 5,
+                f"=IF($G{i}=0,0,($B{i}+$D{i}+$C{i}*'Assumptions'!$B$2)/$G{i})"
+                ).font = BULGE_BLACK_FORMULA
         ws.cell(i, 6, "Y" if r.votes_required else "N")
+        ws.cell(i, 7, f"=IFERROR(INDEX({amts},MATCH($A{i},{ids},0)),0)").font = BULGE_GREEN_LINK
 
 
 def _qc(wb: Workbook, spec: RestructuringSpec) -> None:
+    """Live QC sheet with an ALL CHECKS PASS aggregator.
+
+    Previously every check was evaluated against the spec in Python and written
+    as the word "PASS", so nothing was recomputed and the conservation gate saw
+    no QC sheet at all. The checks below re-derive their verdicts from the
+    Claims, Waterfall and Assumptions sheets, so they still hold after the
+    workbook has been edited.
+
+    Conventions that were gated before are now expressed as the invariants they
+    actually are: "reasonable months in Chapter 11 (6-36)" failed nothing in
+    law — long cases exist — while "recovery percentages lie in [0, 1]" is
+    always true of a correct model and was not checked at all.
+    """
+    from modelforge.builder.sheets import generic_qc
+
     ws = wb.create_sheet("QC")
-    ws.cell(1, 1, "Check").font = HEADER_FONT
-    ws.cell(1, 2, "Result").font = HEADER_FONT
+    n_cl = len(spec.claim_classes)
+    claims_total = f"'Claims'!$D${n_cl + 2}"
+    HDR = 8
+    first, last = HDR + 1, HDR + n_cl
+    rec_pct = f"'Waterfall'!$E${first}:$E${last}"
 
-    total_claims = sum(c.allowed_amount for c in spec.claim_classes)
-    distributable = (
-        spec.enterprise_value_post + spec.cash_at_emergence + spec.new_debt_at_emergence
-    )
-    if spec.dip_facility:
-        distributable -= spec.dip_facility.drawn
+    if n_cl:
+        checks = [
+            ("At least one claim class present", "Almeno una classe di crediti",
+             f"=IF(COUNTA('Claims'!$A$2:$A${n_cl + 1})>0,1,0)"),
+            ("Total allowed claims > 0", "Totale crediti ammessi > 0",
+             f"=IF({claims_total}>0,1,0)"),
+            ("Conservation: waterfall allowed total = Claims total",
+             "Conservazione: totale cascata = totale Claims",
+             f"=IF(ABS('Waterfall'!$C${last + 1}-{claims_total})<0.0001,1,0)"),
+            ("Conservation: total recovered <= distributable value",
+             "Conservazione: recuperato <= valore distribuibile",
+             f"=IF('Waterfall'!$D${last + 1}<='Waterfall'!$B$6+0.0001,1,0)"),
+            ("No class recovers more than its allowed claim",
+             "Nessuna classe recupera oltre il credito ammesso",
+             f"=IF(SUM('Waterfall'!$F${first}:$F${last})={n_cl},1,0)"),
+            ("Absolute priority: recovery % non-increasing down the stack",
+             "Priorita assoluta: recupero % non crescente",
+             f"=IF(SUM('Waterfall'!$G${first}:$G${last})={n_cl},1,0)"),
+            ("Recovery % of every class lies in [0,1]",
+             "Recupero % di ogni classe in [0,1]",
+             f"=IF(AND(MIN({rec_pct})>=-0.0001,MAX({rec_pct})<=1.0001),1,0)"),
+            ("DIP, when present, is drawn within its facility size",
+             "DIP utilizzato entro la linea concessa",
+             "=IF('DIP'!$B$2<='DIP'!$B$1+0.0001,1,0)" if spec.dip_facility else
+             f"=IF(COUNTA('Claims'!$A$2:$A${n_cl + 1})>0,1,0)"),
+        ]
+    else:
+        checks = [("At least one claim class present", "Almeno una classe", "=0")]
 
-    checks = [
-        ("≥1 claim class present", "PASS" if spec.claim_classes else "FAIL"),
-        ("Total claims > 0", "PASS" if total_claims > 0 else "FAIL"),
-        ("EV post > 0", "PASS" if spec.enterprise_value_post > 0 else "FAIL"),
-        ("DIP super-priority flagged", "PASS" if (not spec.dip_facility) or spec.dip_facility.super_priority else "PARTIAL"),
-        ("Distributable > 0", "PASS" if distributable > 0 else "FAIL"),
-        ("≥1 plan recovery defined", "PASS" if spec.plan_recoveries else "PARTIAL"),
-        ("Reasonable months in Ch.11 (6-36)", "PASS" if 6 <= spec.months_in_chapter11 <= 36 else "PARTIAL"),
-    ]
-    for i, (chk, res) in enumerate(checks, start=2):
-        ws.cell(i, 1, chk)
-        c = ws.cell(i, 2, res)
-        c.font = BULGE_BLACK_FORMULA if res == "PASS" else BULGE_RED_WARN
+    generic_qc.build(ws, checks)

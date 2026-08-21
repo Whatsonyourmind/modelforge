@@ -179,6 +179,8 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
             "name": tr.name.en, "size": size_row, "attachment": att_row,
             "detachment": det_row, "loss": loss_row, "outstanding": out_row,
             "coupon": coupon_row, "principal": princ_row, "cf": inv_cf_row, "irr": irr_row,
+            # named range of the contractual coupon, so QC can gate IRR against it
+            "coupon_name": tr.coupon_pct.name,
         })
 
     # v0.8 US-260/261: Principal Deficiency Ledger (PDL) + strict priority

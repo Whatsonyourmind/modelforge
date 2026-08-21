@@ -63,6 +63,10 @@ def test_to_markdown_format(built_unitranche):
 
 def test_api_backend_without_key_raises(monkeypatch, built_unitranche):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    # Without the SDK this raises ModuleNotFoundError before it ever
+    # looks at the environment, so the assertion below would test the
+    # wrong failure. The SDK ships in the [ingest] extra.
+    pytest.importorskip("anthropic", reason="requires the [ingest] extra")
     s = ChatSession(xlsx_path=built_unitranche, backend="api")
     with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
         s.ask("hello")

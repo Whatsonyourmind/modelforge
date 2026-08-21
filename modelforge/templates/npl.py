@@ -60,8 +60,10 @@ def build(spec, out_path: Path | str, graph_db_path=None):
              "Conservazione: recuperi netti = lordi − fee servicing/legali − una tantum",
              cons_formula),
         ]
+        # The QC tab is created here to hold its position in the tab order, but
+        # populated last: its final checks gate the IFRS 9 sheet, which does not
+        # exist yet.
         qc_ws = wb.create_sheet("QC")
-        generic_qc.build(qc_ws, checks)
         compliance_ws = wb.create_sheet("ComplianceCheck")
         compliance_sheet.build(compliance_ws, spec)
 
@@ -69,7 +71,31 @@ def build(spec, out_path: Path | str, graph_db_path=None):
         # treatment per IFRS 9 §5.5.13 for purchased-at-discount loans.
         ecl_ws = wb.create_sheet("IFRS9ECL")
         poci_facilities = _poci_facilities_for_npl(spec)
-        ifrs9_ecl.build(ecl_ws, spec, context={"facilities": poci_facilities})
+        ecl_refs = ifrs9_ecl.build(ecl_ws, spec, context={"facilities": poci_facilities})
+
+        # Bounded-quantity checks on the IFRS 9 outputs. A probability of
+        # default and a loss-given-default are fractions; an expected credit
+        # loss cannot exceed the exposure it is computed on. None of this was
+        # checked anywhere, which is how a 113.75% PD passed every gate — the
+        # formula was fixed, but a fix with no check regresses silently.
+        if ecl_refs:
+            fs, fe = ecl_refs["fac_start"], ecl_refs["fac_end"]
+            pd_rng = f"'IFRS9ECL'!$K${fs}:$K${fe}"
+            lgd_rng = f"'IFRS9ECL'!$E${fs}:$E${fe}"
+            checks += [
+                ("Stage-adjusted PD of every facility lies in [0,1]",
+                 "PD corretta per stage compresa in [0,1]",
+                 f"=IF(AND(MIN({pd_rng})>=0,MAX({pd_rng})<=1),1,0)"),
+                ("LGD of every facility lies in [0,1]",
+                 "LGD di ogni linea compresa in [0,1]",
+                 f"=IF(AND(MIN({lgd_rng})>=0,MAX({lgd_rng})<=1),1,0)"),
+                ("Portfolio ECL does not exceed total exposure at default",
+                 "ECL di portafoglio non eccede l'esposizione totale",
+                 f"=IF('IFRS9ECL'!$L${ecl_refs['portfolio_ecl_row']}"
+                 f"<=SUM('IFRS9ECL'!$F${fs}:$F${fe})+0.0001,1,0)"),
+            ]
+
+        generic_qc.build(qc_ws, checks)
 
         return {}
 

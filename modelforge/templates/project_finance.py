@@ -63,8 +63,8 @@ def build(spec, out_path: Path | str, graph_db_path=None):
         )
 
         ret_ws = wb.create_sheet("EquityReturns")
-        pf_returns.build(ret_ws, spec, cashflow_refs, debt_refs,
-                         cashflow_sheet="ProjectCashFlow", debt_sheet="DebtDSCR")
+        returns_refs = pf_returns.build(ret_ws, spec, cashflow_refs, debt_refs,
+                                        cashflow_sheet="ProjectCashFlow", debt_sheet="DebtDSCR")
 
         # QC
         c = spec.horizon.construction_years
@@ -75,6 +75,9 @@ def build(spec, out_path: Path | str, graph_db_path=None):
         dsra_target_row = int(debt_refs["dsra_target_row"])
         dsra_balance_row = int(debt_refs["dsra_balance_row"])
         first_op_col = layout.year_col(c)
+        equity_irr_row = int(returns_refs["irr_row"])
+        target_row = int(returns_refs["target_irr_row"])
+        irr_npv_row = int(returns_refs["npv_row"])
 
         # Unit_scale-aware tolerances. Historically hardcoded as if the
         # workbook were always in EUR millions: €10k (0.01) for DSRA funding
@@ -96,8 +99,19 @@ def build(spec, out_path: Path | str, graph_db_path=None):
              f"DSRA finanziata al target entro O1 (±€10k)",
              f"=IF(ABS('DebtDSCR'!{first_op_col}{dsra_balance_row}"
              f"-'DebtDSCR'!{first_op_col}{dsra_target_row})<{tol_10k},1,0)"),
-            ("Equity IRR >= target IRR - 200bps", "IRR equity >= target - 200bps",
-             "=1"),  # placeholder; could reference EquityReturns
+            # IRR/NPV consistency. This replaces a literal "=1" that could never
+            # fail. Note what it deliberately does NOT assert: that the project
+            # clears its hurdle. Whether equity IRR beats the sponsor's target is
+            # deal merit, not model integrity — a correct model of a bad project
+            # must still pass QC. What must always hold is the relationship
+            # between the two outputs: NPV discounted at the target rate is
+            # positive exactly when IRR exceeds that target. Break either
+            # formula and the identity snaps, which is what a QC sheet is for.
+            ("Equity NPV @ target sign-consistent with IRR vs target",
+             "VAN equity @ target coerente con IRR vs target",
+             f"=IF(ABS('EquityReturns'!$D${irr_npv_row})<{tol_10k},1,"
+             f"IF(SIGN('EquityReturns'!$D${irr_npv_row})"
+             f"=SIGN('EquityReturns'!$D${equity_irr_row}-'EquityReturns'!$D${target_row}),1,0))"),
         ]
         qc_ws = wb.create_sheet("QC")
         generic_qc.build(qc_ws, checks)

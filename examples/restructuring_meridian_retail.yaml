@@ -1,0 +1,84 @@
+# Chapter 11 plan-of-reorganization model — illustrative debtor, fictional.
+# Added alongside the ipo example: restructuring was the other registered model
+# type with no example spec, so its absolute-priority waterfall was never built
+# in CI and shipped as pasted constants rather than a live cascade.
+model_type: restructuring
+
+debtor_name: Meridian Retail Group
+case_number: 26-10488
+jurisdiction: US_DE
+filing_date: "2026-02-09"
+
+claim_classes:
+  - class_id: C-DIP
+    priority: dip
+    description: DIP term loan (super-priority)
+    allowed_amount: 60.0
+    contractual_rate: 0.1100
+    impaired: false
+  - class_id: C-ADMIN
+    priority: admin
+    description: Administrative and professional fees
+    allowed_amount: 28.0
+    impaired: false
+  - class_id: C-1L
+    priority: secured_1l
+    description: First-lien term loan B
+    allowed_amount: 450.0
+    collateral_value: 410.0
+    contractual_rate: 0.0825
+    impaired: true
+  - class_id: C-2L
+    priority: secured_2l
+    description: Second-lien notes
+    allowed_amount: 175.0
+    collateral_value: 0.0
+    contractual_rate: 0.1050
+    impaired: true
+  - class_id: C-SU
+    priority: unsecured_senior
+    description: Senior unsecured notes
+    allowed_amount: 300.0
+    contractual_rate: 0.0700
+    impaired: true
+  - class_id: C-TRADE
+    priority: trade
+    description: General trade claims
+    allowed_amount: 64.0
+    impaired: true
+  - class_id: C-EQ
+    priority: equity_common
+    description: Existing common equity
+    allowed_amount: 0.0
+    impaired: true
+
+dip_facility:
+  facility_size: 90.0
+  drawn: 60.0
+  coupon: 0.1100
+  upfront_fee_pct: 0.025
+  maturity_months: 12
+  super_priority: true
+  primed_liens:
+    - First-lien term loan B
+
+plan_recoveries:
+  - class_id: C-1L
+    cash_distribution: 120.0
+    new_equity_pct: 0.85
+    new_debt_face: 150.0
+  - class_id: C-2L
+    cash_distribution: 0.0
+    new_equity_pct: 0.12
+    new_debt_face: 0.0
+  - class_id: C-SU
+    cash_distribution: 0.0
+    new_equity_pct: 0.03
+    new_debt_face: 0.0
+
+enterprise_value_post: 560.0
+cash_at_emergence: 45.0
+new_debt_at_emergence: 150.0
+
+months_in_chapter11: 16
+confirmation_date_target: "2026-12-15"

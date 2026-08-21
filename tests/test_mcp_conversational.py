@@ -19,6 +19,12 @@ import pytest
 import yaml
 
 from modelforge.templates import REGISTRY
+
+# The MCP extra is optional, and mcp 2.x cannot provide FastMCP at all. Skip
+# the module rather than erroring collection for the whole suite.
+pytest.importorskip("mcp.server.fastmcp",
+                    reason="requires the [mcp] extra with mcp>=1.12,<2")
+
 from modelforge.mcp_server import (
     certify,
     get_spec_schema,

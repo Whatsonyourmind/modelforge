@@ -215,25 +215,36 @@ def _add_dcf(wb: Workbook, spec: IPOSpec) -> None:
 
 def _add_valuation(wb: Workbook, spec: IPOSpec) -> None:
     ws = wb.create_sheet("Valuation")
-    low, mid, high = compute_implied_market_cap(spec)
-    dilution = compute_dilution(spec)
-    proceeds_mid = compute_proceeds_to_company(spec, (spec.price_range_low + spec.price_range_high) / 2)
-
+    # Every row below is a formula over the Assumptions inputs. It used to be a
+    # block of Python-computed constants: the arithmetic ran in
+    # compute_implied_market_cap()/compute_dilution() and only the *answers*
+    # were written, so the sheet was 0% formulas. Changing an offer price in
+    # Excel moved nothing, and none of these outputs could be audited or
+    # traced. The helpers stay in modelforge.spec.ipo for callers that want the
+    # scalars in Python; the workbook now derives them itself.
+    #
+    # Assumptions row map (see _add_assumptions): B2 primary, B3 secondary,
+    # B4 pre-IPO shares, B5 price low, B6 price high, B7 greenshoe %,
+    # B8 underwriter discount %, B10 lockup days.
+    A = "Assumptions"
+    mid_price = f"(({A}!$B$5+{A}!$B$6)/2)"
     rows = [
-        ("Pre-IPO shares", spec.shares_outstanding_pre_ipo),
-        ("Primary shares", spec.primary_shares_offered),
-        ("Secondary shares", spec.secondary_shares_offered),
-        ("Post-money shares", spec.shares_outstanding_pre_ipo + spec.primary_shares_offered),
+        ("Pre-IPO shares", f"={A}!$B$4"),
+        ("Primary shares", f"={A}!$B$2"),
+        ("Secondary shares", f"={A}!$B$3"),
+        ("Post-money shares", "=$B$2+$B$3"),
         ("", ""),
-        ("Implied market cap LOW", float(low)),
-        ("Implied market cap MID", float(mid)),
-        ("Implied market cap HIGH", float(high)),
+        ("Implied market cap LOW", f"={A}!$B$5*$B$5"),
+        ("Implied market cap MID", f"={mid_price}*$B$5"),
+        ("Implied market cap HIGH", f"={A}!$B$6*$B$5"),
         ("", ""),
-        ("Existing-holder dilution", float(dilution)),
-        ("Net proceeds to company (mid)", float(proceeds_mid)),
+        # Dilution is a share of the post-money count, so it is bounded [0,1];
+        # the guard keeps a zero-share spec from emitting #DIV/0!.
+        ("Existing-holder dilution", "=IF($B$5=0,0,$B$3/$B$5)"),
+        ("Net proceeds to company (mid)", f"=$B$3*{mid_price}*(1-{A}!$B$8)"),
         ("", ""),
-        ("Greenshoe shares", float(spec.primary_shares_offered * spec.greenshoe_pct)),
-        ("Lockup days", spec.lockup_days),
+        ("Greenshoe shares", f"=$B$3*{A}!$B$7"),
+        ("Lockup days", f"={A}!$B$10"),
     ]
     ws.cell(1, 1, "Item").font = HEADER_FONT
     ws.cell(1, 2, "Value").font = HEADER_FONT
@@ -245,20 +256,73 @@ def _add_valuation(wb: Workbook, spec: IPOSpec) -> None:
 
 
 def _add_qc(wb: Workbook, spec: IPOSpec) -> None:
+    """Live QC sheet with an ALL CHECKS PASS aggregator.
+
+    This sheet used to evaluate each condition in Python and write the *word*
+    "PASS" into the workbook. Nothing was recomputed, so the verdicts froze at
+    build time and the conservation gate — which looks for an aggregator and
+    live per-check formulas — found neither and reported INDETERMINATE.
+
+    Two deliberate changes of meaning:
+
+    * only **integrity invariants** are gated. Whether a comp set, precedent
+      set or DCF cross-check was supplied is coverage, not correctness: a
+      narrower packet is still a valid model, so failing the workbook for it
+      would be wrong. Those move to the informational block below, as live
+      counts.
+    * conventions become bounds. "Greenshoe <= 15%" and "UW discount in 5-8%"
+      are market norms, not laws, and a legal 18% greenshoe must not fail QC.
+      What is always true is that both are fractions in [0, 1] — the same class
+      of bounded-quantity check whose absence let a 113.75% PD through the
+      IFRS 9 sheet.
+    """
+    from modelforge.builder.sheets import generic_qc
+
     ws = wb.create_sheet("QC")
-    cols = ["Check", "Result"]
-    for j, c in enumerate(cols, start=1):
-        ws.cell(1, j, c).font = HEADER_FONT
+    A, V = "Assumptions", "Valuation"
+    mid_price = f"(({A}!$B$5+{A}!$B$6)/2)"
+    n_comps = len(spec.comps_trading)
+    n_prec = len(spec.precedents)
+
     checks = [
-        ("Price range low ≤ high", "PASS" if spec.price_range_low <= spec.price_range_high else "FAIL"),
-        ("At least 1 comp present", "PASS" if spec.comps_trading else "PARTIAL"),
-        ("At least 1 precedent present", "PASS" if spec.precedents else "PARTIAL"),
-        ("DCF provided", "PASS" if spec.dcf else "PARTIAL"),
-        ("Primary > 0", "PASS" if spec.primary_shares_offered > 0 else "FAIL"),
-        ("Greenshoe ≤ 15%", "PASS" if spec.greenshoe_pct <= Decimal("0.15") else "PARTIAL"),
-        ("UW discount in 5-8%", "PASS" if Decimal("0.05") <= spec.underwriter_discount_pct <= Decimal("0.08") else "PARTIAL"),
+        ("Price range low <= high", "Prezzo minimo <= massimo",
+         f"=IF({A}!$B$5<={A}!$B$6,1,0)"),
+        ("Primary shares offered > 0", "Azioni primarie > 0",
+         f"=IF({A}!$B$2>0,1,0)"),
+        ("Conservation: post-money shares = pre-IPO + primary",
+         "Conservazione: azioni post-money = pre-IPO + primarie",
+         f"=IF(ABS({V}!$B$5-({V}!$B$2+{V}!$B$3))<0.5,1,0)"),
+        ("Implied market cap ordered LOW <= MID <= HIGH",
+         "Capitalizzazione implicita ordinata",
+         f"=IF(AND({V}!$B$7<={V}!$B$8,{V}!$B$8<={V}!$B$9),1,0)",),
+        ("Existing-holder dilution is a fraction in [0,1]",
+         "Diluizione compresa in [0,1]",
+         f"=IF(AND({V}!$B$11>=0,{V}!$B$11<=1),1,0)"),
+        ("Greenshoe % is a fraction in [0,1]", "Greenshoe % in [0,1]",
+         f"=IF(AND({A}!$B$7>=0,{A}!$B$7<=1),1,0)"),
+        ("Underwriter discount % is a fraction in [0,1]",
+         "Sconto collocamento % in [0,1]",
+         f"=IF(AND({A}!$B$8>=0,{A}!$B$8<=1),1,0)"),
+        ("Net proceeds <= gross primary proceeds at mid price",
+         "Proventi netti <= proventi lordi al prezzo medio",
+         f"=IF({V}!$B$12<={V}!$B$3*{mid_price}+0.5,1,0)"),
     ]
-    for i, (chk, res) in enumerate(checks, start=2):
-        ws.cell(i, 1, chk)
-        c = ws.cell(i, 2, res)
-        c.font = BULGE_BLACK_FORMULA if res == "PASS" else BULGE_RED_WARN
+    generic_qc.build(ws, checks)
+
+    # Informational coverage. These are counts, not verdicts, and they sit in
+    # column D so the conservation gate reads them as notes rather than as
+    # checks whose result was hardcoded.
+    r = 7 + len(checks) + 1
+    ws.cell(row=r, column=1, value="Coverage (informational — not gated)")
+    r += 1
+    coverage = [
+        ("Comparable companies supplied",
+         f"=COUNTA('Comps'!$A$2:$A${n_comps + 1})" if n_comps else 0),
+        ("Precedent transactions supplied",
+         f"=COUNTA('Precedents'!$A$2:$A${n_prec + 1})" if n_prec else 0),
+        ("DCF cross-check supplied", 1 if spec.dcf else 0),
+    ]
+    for label, value in coverage:
+        ws.cell(row=r, column=1, value=label)
+        ws.cell(row=r, column=4, value=value)
+        r += 1

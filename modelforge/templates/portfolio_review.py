@@ -19,6 +19,7 @@ from openpyxl.comments import Comment
 from openpyxl.styles import Font
 
 from modelforge.builder import layout, styles
+from modelforge.builder.sheets import generic_qc
 from modelforge.builder.i18n import L
 
 # Bold key-metric font that ALSO carries an explicit colour, so a bold summary
@@ -570,45 +571,47 @@ def _build_aggregate_summary_sheet(wb, spec) -> None:
 def _build_qc_sheet(wb, spec) -> None:
     """Minimal QC — every portco has portco_id + name; covenant cushion in plausible range."""
     ws = wb.create_sheet("QC")
-    layout.write_title_block(
-        ws,
-        title_en="QC checks",
-        title_it="Controlli QC",
-        subtitle="Portfolio review v0.10 PREVIEW — minimal check set.",
-    )
-    layout.set_column_widths(ws, label_width=50, it_width=40, year_width=12)
+    # Every check below is a live formula over the Portfolio sheet, not a
+    # Python boolean rendered as the word "PASS". The previous version
+    # evaluated each condition against the *spec* at build time and wrote the
+    # verdict as static text, so the QC sheet kept reporting PASS after anyone
+    # edited the workbook, and the conservation gate saw no checks at all.
+    n_pc = len(spec.portfolio)
+    first_r, last_r = 5, 4 + n_pc
+    ids = f"'Portfolio'!$A${first_r}:$A${last_r}"
+    names = f"'Portfolio'!$B${first_r}:$B${last_r}"
+    lev = f"'Portfolio'!$F${first_r}:$F${last_r}"
+    cushion = f"'Portfolio'!$J${first_r}:$J${last_r}"
 
-    checks = [
-        (
-            f"All {len(spec.portfolio)} portcos have portco_id + name",
-            f"Tutte le {len(spec.portfolio)} portco hanno ID + nome",
-            all(p.portco_id and p.name for p in spec.portfolio),
-        ),
-        (
-            "No duplicate portco_ids",
-            "Nessun ID duplicato",
-            len({p.portco_id for p in spec.portfolio}) == len(spec.portfolio),
-        ),
-        (
-            "Covenant cushion %, when present, is in [-100, 500] range",
-            "Cushion in range plausibile",
-            all(
-                (p.covenant_cushion_pct is None or -100.0 <= p.covenant_cushion_pct <= 500.0)
-                for p in spec.portfolio
+    if n_pc:
+        checks = [
+            (
+                f"All {n_pc} portcos have portco_id + name",
+                f"Tutte le {n_pc} portco hanno ID + nome",
+                f"=IF(AND(COUNTA({ids})={n_pc},COUNTA({names})={n_pc}),1,0)",
             ),
-        ),
-        (
-            "Current leverage, when present, is positive",
-            "Leva corrente positiva",
-            all(
-                (p.current_leverage is None or p.current_leverage > 0)
-                for p in spec.portfolio
+            (
+                "No duplicate portco_ids",
+                "Nessun ID duplicato",
+                # Each id occurring exactly once makes every COUNTIF term 1,
+                # so the sum equals the row count; any duplicate pushes it up.
+                f"=IF(SUMPRODUCT(COUNTIF({ids},{ids}))={n_pc},1,0)",
             ),
-        ),
-    ]
-    r = 4
-    for en, it, ok in checks:
-        layout.write_row_label(ws, r, en, it)
-        c = ws.cell(row=r, column=3, value="PASS" if ok else "FAIL")
-        styles.style_label_en(c)
-        r += 1
+            (
+                "Covenant cushion %, when present, is in [-100, 500] range",
+                "Cushion in range plausibile",
+                # COUNT ignores blanks, so absent cushions are exempt rather
+                # than treated as failures.
+                f'=IF(COUNTIFS({cushion},">=-100",{cushion},"<=500")=COUNT({cushion}),1,0)',
+            ),
+            (
+                "Current leverage, when present, is positive",
+                "Leva corrente positiva",
+                f'=IF(COUNTIF({lev},">0")=COUNT({lev}),1,0)',
+            ),
+        ]
+    else:
+        # No portfolio rows: nothing was verified. Fail closed.
+        checks = [("Portfolio is non-empty", "Portafoglio non vuoto", "=0")]
+
+    generic_qc.build(ws, checks)

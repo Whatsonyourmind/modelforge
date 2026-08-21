@@ -62,7 +62,7 @@ _DEFAULT_SCENARIOS = [
 ]
 
 
-def build(ws: Worksheet, spec, context: dict | None = None) -> None:
+def build(ws: Worksheet, spec, context: dict | None = None) -> dict[str, str]:
     """Emit dedicated IFRS 9 ECL sheet.
 
     `context` may carry a list of facilities each with:
@@ -248,6 +248,7 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
     styles.style_formula(portfolio_ecl_cell, number_format=styles.FMT_EUR_M)
     portfolio_ecl_cell.font = styles.font_subheader
     portfolio_ecl_cell.border = styles.BORDER_TOP_THIN
+    portfolio_ecl_row = r
     r += 2
 
     # ─── Section 3: SICR triggers (Stage 1 → Stage 2 migration) ──────
@@ -323,6 +324,22 @@ def build(ws: Worksheet, spec, context: dict | None = None) -> None:
 
     ws.freeze_panes = "D6"
     ws.print_title_rows = "1:4"
+
+    # Row extent of the facility table, so a QC sheet can gate the bounded
+    # quantities on it. The stage-adjusted PD (column K) shipped unbounded and
+    # recomputed to 113.75% on the NPL example while all six gates certified
+    # the workbook clean: they check conservation, formula density, formula
+    # errors and perturbation stability, but never whether a probability is a
+    # probability.
+    return {
+        "fac_start": str(fac_start),
+        "fac_end": str(fac_end),
+        "portfolio_ecl_row": str(portfolio_ecl_row),
+        "pd_col": "K",
+        "lgd_col": "E",
+        "ead_col": "F",
+        "ecl_col": "L",
+    }
 
 
 def _example_facilities(spec) -> list[dict]:

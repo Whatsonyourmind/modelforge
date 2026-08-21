@@ -66,17 +66,20 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str], debt_refs: dict[st
     cc = ws.cell(row=r, column=4, value=f"=IRR(${first_col}${cf_row}:${last_col}${cf_row},0.08)")
     styles.style_formula(cc, number_format=styles.FMT_PCT_2DP)
     cc.font = styles.font_subheader
+    irr_row = r
     r += 1
 
     layout.write_row_label(ws, r, "Target IRR (sponsor)", "IRR target (sponsor)", indent=True)
     cc = ws.cell(row=r, column=4, value="=target_irr")
     styles.style_xref(cc, number_format=styles.FMT_PCT_2DP)
+    target_irr_row = r
     r += 1
 
     layout.write_row_label(ws, r, "Equity NPV @ target IRR", "VAN equity @ IRR target", indent=True)
     cc = ws.cell(row=r, column=4,
                  value=f"=NPV(target_irr,${layout.year_col(1)}${cf_row}:${last_col}${cf_row})+${first_col}${cf_row}")
     styles.style_formula(cc, number_format=styles.FMT_EUR_M)
+    npv_row = r
     r += 1
 
     layout.write_row_label(ws, r, "Equity MoIC", "MoIC equity", indent=True)
@@ -89,3 +92,12 @@ def build(ws: Worksheet, spec, cashflow_refs: dict[str, str], debt_refs: dict[st
     ws.freeze_panes = "D7"
     ws.print_title_rows = "5:5"
     ws.print_title_cols = "A:C"
+
+    # Row refs so the QC sheet can gate these outputs with live formulas
+    # instead of the "=1" placeholder it carried before.
+    return {
+        "equity_cf_row": str(cf_row),
+        "irr_row": str(irr_row),
+        "target_irr_row": str(target_irr_row),
+        "npv_row": str(npv_row),
+    }

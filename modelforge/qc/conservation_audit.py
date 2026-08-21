@@ -24,6 +24,7 @@ or no QC sheet → INDETERMINATE, which the gate treats as a failure.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -39,6 +40,47 @@ _ALL_PASS_LABELS = {
     "ALLE PRUFUNGEN BESTANDEN",
 }
 
+# Column-header rows inside the QC table ("Check | Check (IT) | Pass"). They sit
+# below the aggregator and carry a label, so they must not be mistaken for a
+# check whose result was hardcoded.
+_HEADER_LABELS = {
+    "check", "checks", "controllo", "controlli", "check (it)",
+    "prufung", "prufungen", "prüfung", "prüfungen",
+}
+
+# A1-style reference, optionally $-anchored and optionally sheet-qualified
+# (the sheet prefix is stripped by the time we look for this).
+_CELL_REF = re.compile(r"\$?[A-Za-z]{1,3}\$?\d{1,7}(?![A-Za-z0-9_])")
+_IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_.]*")
+# Identifiers that are values, not references.
+_LITERAL_IDENTS = {"TRUE", "FALSE"}
+
+
+def _is_derived_formula(value: object) -> bool:
+    """True when a QC cell *derives* its verdict instead of asserting it.
+
+    The cell must store a formula that refers to something outside itself — a
+    cell, a range, or a named range. Both ``1`` and ``=1`` fail this test: the
+    first is plainly a hardcoded verdict, and the second is a formula that
+    computes a constant, which is the same claim wearing a formula's clothes.
+
+    This distinction cannot be made after recalculation. A literal ``1`` and a
+    formula returning ``1`` are identical in the recomputed value map, which is
+    why reading only recomputed values let a forged QC sheet certify clean.
+    """
+    if not (isinstance(value, str) and value.startswith("=")):
+        return False
+    body = value[1:]
+    if _CELL_REF.search(body):
+        return True
+    for m in _IDENT.finditer(body):
+        if m.group(0).upper() in _LITERAL_IDENTS:
+            continue
+        # A function name is followed by "(" — a named range is not.
+        if not body[m.end():].lstrip().startswith("("):
+            return True
+    return False
+
 
 @dataclass
 class ConservationFinding:
@@ -46,7 +88,9 @@ class ConservationFinding:
 
     ref: str
     label: str
-    status: str  # "fail" (recomputed 0) or "error" (check formula errored)
+    # "fail" (recomputed 0), "error" (check formula errored), or
+    # "hardcoded" (the cell asserts a verdict instead of deriving one)
+    status: str
     recomputed: object
 
 
@@ -184,12 +228,25 @@ def audit_conservation(xlsx_path: Path | str) -> ConservationAuditReport:
     ws = wb[qc_sheet]
     result_col = anchor_col + 2  # label in col A → 1/0 result in col C
 
-    # (1) The ALL_PASS aggregator.
-    all_pass_ref = f"{qc_sheet}!{ws.cell(row=anchor_row, column=result_col).coordinate}"
+    # (1) The ALL_PASS aggregator. It must be a *derived* formula, checked
+    # against the stored cell rather than the recomputed value: after
+    # recalculation a hardcoded 1 and a genuine aggregation are the same
+    # number, so a workbook whose QC formulas had been overwritten with 1s
+    # used to certify clean.
+    all_pass_cell = ws.cell(row=anchor_row, column=result_col)
+    all_pass_ref = f"{qc_sheet}!{all_pass_cell.coordinate}"
     report.all_pass_ref = all_pass_ref
     all_pass_val = values.get(all_pass_ref)
     report.all_pass_value = all_pass_val
     ap_status, _ = _classify(all_pass_val)
+    ap_derived = _is_derived_formula(all_pass_cell.value)
+    if not ap_derived:
+        report.findings.append(
+            ConservationFinding(
+                ref=all_pass_ref, label="ALL CHECKS PASS (aggregator)",
+                status="hardcoded", recomputed=all_pass_cell.value,
+            )
+        )
 
     # (2) Every per-check: a labelled row whose result cell holds a formula.
     for r in range(anchor_row + 1, ws.max_row + 1):
@@ -199,7 +256,22 @@ def audit_conservation(xlsx_path: Path | str) -> ConservationAuditReport:
         formula = result_cell.value
         if not (isinstance(label, str) and label.strip()):
             continue
-        if not (isinstance(formula, str) and formula.startswith("=")):
+        if label.strip().lower() in _HEADER_LABELS:
+            continue  # the "Check | Check (IT) | Pass" column header
+        if not _is_derived_formula(formula):
+            # A labelled row that carries a *result* which is not a derived
+            # formula is a dead check: it states a verdict fixed when the file
+            # was written, which no longer tracks the model it claims to
+            # check. Silently skipping these (the previous behaviour) is what
+            # let a QC sheet of hardcoded 1s report n_checks=0 and PASS.
+            if formula is None or (isinstance(formula, str) and not formula.strip()):
+                continue  # spacer/note row, not a check
+            report.findings.append(
+                ConservationFinding(
+                    ref=f"{qc_sheet}!{result_cell.coordinate}",
+                    label=label.strip(), status="hardcoded", recomputed=formula,
+                )
+            )
             continue
         report.n_checks += 1
         ref = f"{qc_sheet}!{result_cell.coordinate}"
@@ -210,7 +282,20 @@ def audit_conservation(xlsx_path: Path | str) -> ConservationAuditReport:
             )
 
     # (3) Verdict.
-    if ap_status in ("error", "unknown") or all_pass_val is None:
+    if not ap_derived:
+        report.notes.append(
+            f"ALL_PASS aggregator {all_pass_ref} is not a derived formula "
+            f"(stored {all_pass_cell.value!r}) — the workbook asserts its own pass "
+            f"instead of computing it. FAIL."
+        )
+        report.status = "FAIL"
+    elif report.n_checks == 0:
+        report.notes.append(
+            "QC sheet declares no live checks — the aggregator has nothing to "
+            "aggregate, so any PASS would be vacuous. FAIL."
+        )
+        report.status = "FAIL"
+    elif ap_status in ("error", "unknown") or all_pass_val is None:
         report.notes.append(
             f"ALL_PASS aggregator {all_pass_ref} did not recompute to a 0/1 value "
             f"(got {all_pass_val!r}) — INDETERMINATE."
@@ -220,7 +305,7 @@ def audit_conservation(xlsx_path: Path | str) -> ConservationAuditReport:
         report.status = "PASS"
     else:
         report.status = "FAIL"
-        if ap_status == "fail":
+        if ap_status == "fail" and ap_derived:
             report.findings.insert(
                 0,
                 ConservationFinding(
