@@ -79,8 +79,10 @@ def build(ws: Worksheet, spec, bond_refs: dict[str, str], bond_sheet_name: str) 
     r += 1
     rows["wht"] = r
     layout.write_row_label(ws, r, "Withholding tax on coupon", "Ritenuta d'acconto su cedola", indent=True)
-    c0 = ws.cell(row=r, column=4, value=0)
-    styles.style_formula(c0, number_format=styles.FMT_EUR_M)
+    # No coupon is paid on the issuance date, so no withholding arises. The
+    # cell is left empty rather than written as a literal 0 under the black
+    # formula font: "Net cash flow" adds it either way, and a hardcoded value
+    # dressed as a computed one is exactly what the moat gate exists to catch.
     for i in range(1, p + 1):
         debt_col = layout.year_col(h + (i - 1))
         interest_ref = f"'{bond_sheet_name}'!{debt_col}{interest_row}"
@@ -183,13 +185,12 @@ def build(ws: Worksheet, spec, bond_refs: dict[str, str], bond_sheet_name: str) 
         for i in range(p + 1):
             col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
             if i == 0:
-                cc = ws.cell(row=r, column=col_idx, value=0)
-            else:
-                cc = ws.cell(
-                    row=r, column=col_idx,
-                    value=(f"=${col}${rows['gross_cf']}"
-                           f"/(1+{coupon_rate_ref})^${col}${period_row}"),
-                )
+                continue  # the -notional outlay is not an inflow to discount
+            cc = ws.cell(
+                row=r, column=col_idx,
+                value=(f"=${col}${rows['gross_cf']}"
+                       f"/(1+{coupon_rate_ref})^${col}${period_row}"),
+            )
             styles.style_formula(cc, number_format=styles.FMT_EUR_M)
         r += 1
 

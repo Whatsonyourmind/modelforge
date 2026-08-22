@@ -229,8 +229,11 @@ class DevelopmentRESpec(BaseModel):
         if self.revenue.kind == "pbsa":
             out.append(self.revenue.beds)
             out.append(self.revenue.rent_per_bed_year)
-            if self.revenue.operator_floor_occ is not None:
-                out.append(self.revenue.operator_floor_occ)
+            # operator_floor_occ shapes the lease-up S-curve, which is
+            # aggregated to annual occupancy fractions in Python and baked into
+            # the realised-NOI formulas. Like the promote tiers it is build-time
+            # configuration, not a cell the workbook reads, so it is not
+            # emitted as a named range that would appear live but is not.
         else:
             out.append(self.revenue.lettable_sqm)
             out.append(self.revenue.rent_sqm_year)
@@ -246,14 +249,25 @@ class DevelopmentRESpec(BaseModel):
         # Exit
         out.append(self.exit.exit_cap_rate)
         out.append(self.exit.selling_costs_pct)
-        # Waterfall headline knobs (pref + GP promote, resolved) + tiers
+        # Waterfall headline knobs (pref + GP promote), resolved from the tier
+        # ladder at build time.
+        #
+        # The raw tiers are deliberately NOT emitted. They are build-time
+        # configuration: resolved_lp_preferred_return() and resolved_gp_promote()
+        # collapse the ladder into the two knobs the sheet actually reads, and
+        # the European whole-fund waterfall in dev_returns.py has no per-tier
+        # hurdle to consume. Emitting them anyway put five named ranges on the
+        # Assumptions sheet — under a banner reading "change numbers here,
+        # nowhere else" — that no formula referenced, so an analyst could retune
+        # the whole promote ladder in Excel and move nothing.
+        #
+        # The ladder still lives in the spec and still drives the resolution; it
+        # is simply not advertised as a live workbook driver. Modelling a true
+        # American per-tier waterfall would be the alternative fix, and is a
+        # larger change than surfacing the inputs.
         out.append(self.waterfall.lp_capital_commitment_pct)
         out.append(self.waterfall.resolved_lp_preferred_return())
         out.append(self.waterfall.resolved_gp_promote())
-        for tier in self.waterfall.tiers:
-            if tier.hurdle_irr_pct:
-                out.append(tier.hurdle_irr_pct)
-            out.append(tier.lp_share_pct)
         # Discount rate
         out.append(self.discount_rate)
         return out

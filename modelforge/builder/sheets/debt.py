@@ -347,10 +347,21 @@ def build(
                 ("sweep_tier3_pct", 0.50, styles.FMT_PCT,
                  "Cash sweep tier 3 — fraction of sweep_pct applied"),
             ]
+            # The lowest tier IS the declared trigger: `trigger_leverage` means
+            # "no sweep below this level", which is exactly what tier 3 gates.
+            # It used to be a hardcoded 3.0x while the spec asked for something
+            # else (3.5x in the shipped techco example), so the model swept in a
+            # band the spec said it should not, and `cash_sweep_trigger` sat on
+            # the Assumptions sheet as a driver nothing read.
+            trigger_ref = spec.debt.cash_sweep.trigger_leverage.name
             for name, default, fmt, label in tier_defaults:
                 layout.write_row_label(ws, r, label, label, indent=True)
-                c = ws.cell(row=r, column=4, value=default)
-                styles.style_input(c, number_format=fmt)
+                if name == "sweep_tier3_lev":
+                    c = ws.cell(row=r, column=4, value=f"={trigger_ref}")
+                    styles.style_formula(c, number_format=fmt)
+                else:
+                    c = ws.cell(row=r, column=4, value=default)
+                    styles.style_input(c, number_format=fmt)
                 if name in wb.defined_names:
                     del wb.defined_names[name]
                 wb.defined_names[name] = DefinedName(

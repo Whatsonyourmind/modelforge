@@ -16,13 +16,32 @@ class SheetMetrics:
     numeric_cells: int = 0
     formula_cells: int = 0
     hardcoded_numeric_cells: int = 0
+    # Hardcoded cells the workbook *declares* as inputs by painting them the
+    # blue input colour. Tracked separately because they are not failed
+    # outputs — see ``formula_ratio``.
+    declared_input_cells: int = 0
     formulas_with_magic_numbers: list[str] = field(default_factory=list)  # cell coords
 
     @property
     def formula_ratio(self) -> float:
-        if self.numeric_cells == 0:
-            return 1.0  # vacuous pass
-        return self.formula_cells / self.numeric_cells
+        """Share of *computed* cells that really are formulas.
+
+        Declared inputs are excluded from the base. The property being gated is
+        "the outputs on this sheet are computed, not pasted", and an input is by
+        definition not an output: the house colour convention marks it blue, and
+        a sheet that legitimately carries its own input block (an opening
+        balance sheet, a period-index axis, a historical FY0 column) could
+        otherwise never reach the threshold no matter how live its outputs were.
+
+        This does not soften the check that matters. A pasted output keeps the
+        black formula colour — that is exactly how the IPO Valuation sheet and
+        the restructuring waterfall shipped as constants — so it still counts
+        against the ratio.
+        """
+        base = self.numeric_cells - self.declared_input_cells
+        if base <= 0:
+            return 1.0  # vacuous pass: nothing on this sheet claims to compute
+        return self.formula_cells / base
 
 
 @dataclass

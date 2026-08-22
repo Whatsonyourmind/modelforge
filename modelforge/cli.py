@@ -697,10 +697,13 @@ def audit_perturb_cmd(xlsx_path: Path, strict: bool) -> None:
 @click.option("--schedule", "schedule_check", is_flag=True, default=False,
               help="Also run the schedule auditor (interior hardcodes + "
                    "roll-forward period drift) and exit non-zero on any finding.")
-@click.option("--conservation", "conservation_check", is_flag=True, default=False,
-              help="Also recompute the QC sheet and require ALL_PASS==1 (no "
-                   "per-check at 0); exit non-zero on a conservation FAIL or "
-                   "INDETERMINATE result.")
+@click.option("--conservation/--no-conservation", "conservation_check", default=True,
+              help="Recompute the QC sheet and require ALL_PASS==1 with no "
+                   "per-check at 0, and reject a QC sheet that asserts its "
+                   "verdict instead of deriving it. ON by default: a "
+                   "certification that ignores the model's own checks is not "
+                   "worth much. --no-conservation restores the formula-errors-"
+                   "only verdict.")
 @click.option("--perturb", "perturb_check", is_flag=True, default=False,
               help="Also shock each input driver ±5% and require the QC "
                    "conservation invariants to HOLD (two-sided), catching a "
@@ -814,7 +817,8 @@ def certify_cmd(target: Path, out_path: Path | None, max_gaps: int,
                 console.print(f"[dim]… and {srep.n_findings - 20} more.[/dim]")
         schedule_ok = srep.passed
 
-    # Opt-in conservation gate: recompute the QC sheet and require ALL_PASS==1.
+    # Conservation gate (default ON): recompute the QC sheet and require
+    # ALL_PASS==1.
     # A conservation check that recomputes to 0 (balance sheet that doesn't
     # balance, debt roll-forward that telescopes) is a valid formula returning 0
     # — not an Excel error — so the formula-error audit above is blind to it.

@@ -16,10 +16,16 @@ machine-checkable, not LM-judged. Promoting recomputed economic conservation to
 a PASS/FAIL gate is the contribution; the underlying invariants are the model's
 own QC checks.
 
+It also rejects a QC sheet that *asserts* its verdict rather than deriving it.
+Reading only recomputed values cannot tell a hardcoded ``1`` from a real
+aggregation — they are the same number — so the aggregator and every per-check
+cell are inspected in their stored form. A workbook whose QC formulas had been
+overwritten with ``1`` previously certified clean.
+
 Scope: strength is bounded by each template's QC coverage (it gates exactly the
-checks the model declares). Wired opt-in (``certify --conservation``) so it never
-changes the default ``certify`` verdict for existing users. Missing recalc engine
-or no QC sheet → INDETERMINATE, which the gate treats as a failure.
+checks the model declares). Runs by default in ``certify``; ``--no-conservation``
+restores the formula-errors-only verdict. Missing recalc engine or no QC sheet →
+INDETERMINATE, which the gate treats as a failure.
 """
 
 from __future__ import annotations
@@ -256,9 +262,13 @@ def audit_conservation(xlsx_path: Path | str) -> ConservationAuditReport:
         formula = result_cell.value
         if not (isinstance(label, str) and label.strip()):
             continue
-        if label.strip().lower() in _HEADER_LABELS:
-            continue  # the "Check | Check (IT) | Pass" column header
         if not _is_derived_formula(formula):
+            # Only a row that is NOT a live formula can be a column header.
+            # Testing the formula first matters: a check legitimately labelled
+            # "Check" must still count, and the header row is distinguished by
+            # carrying the word "Pass" rather than a formula.
+            if label.strip().lower() in _HEADER_LABELS:
+                continue  # the "Check | Check (IT) | Pass" column header
             # A labelled row that carries a *result* which is not a derived
             # formula is a dead check: it states a verdict fixed when the file
             # was written, which no longer tracks the model it claims to

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Union
 
+from modelforge.builder import styles
 from modelforge.moat.classifier import classify_sheet
 from modelforge.moat.report import GateResult, MoatReport, SheetMetrics
 
@@ -28,6 +29,21 @@ class MoatThresholds:
 _INNOCUOUS = {0, 1, -1, 2, 12, 4, 100, 1000, 10000, 100000, 1000000,
               360, 365, 366, 30, 31, 7, 24, 60, 0.5, 0.25, 0.75}
 _NUM_RE = re.compile(r"(?<![A-Z_:])-?\d+(\.\d+)?(?![A-Z_])")
+
+
+def _is_declared_input(cell) -> bool:
+    """True when the cell is painted the blue input colour.
+
+    ``auto_style_gaps`` paints *unstyled* numeric cells the black formula
+    colour, so black means "not explicitly declared" rather than "claimed as a
+    formula". Blue is the opposite: it is only ever set deliberately, by
+    ``styles.style_input``. That makes it the one reliable signal that a
+    hardcoded number is meant to be an input.
+    """
+    font = getattr(cell, "font", None)
+    color = getattr(font, "color", None) if font else None
+    rgb = getattr(color, "rgb", None) if color else None
+    return isinstance(rgb, str) and rgb[-6:].upper() == styles.COLOR_INPUT
 
 
 def _has_magic_number(formula: str) -> bool:
@@ -101,6 +117,8 @@ class MoatGate:
                 elif isinstance(v, (int, float, bool)):
                     m.hardcoded_numeric_cells += 1
                     m.numeric_cells += 1
+                    if _is_declared_input(c):
+                        m.declared_input_cells += 1
                 # text / labels are intentionally skipped
         return m
 
@@ -286,9 +304,16 @@ class MoatGate:
         names (``mf_*``, ``audit_*``, ``_meta_*``) are intentionally
         orphan and excluded.
         """
+        from modelforge.deck.named_facts import DECK_NAMED_FACTS
+
         names = set()
         for nm in wb.defined_names:
             if any(nm.startswith(p) for p in self._METADATA_PREFIXES):
+                continue
+            # Read by the deck exporter rather than by a formula. The gate asks
+            # "does anything consume this name?", and for these the answer is
+            # yes — just not from inside the workbook.
+            if nm in DECK_NAMED_FACTS:
                 continue
             names.add(nm)
 

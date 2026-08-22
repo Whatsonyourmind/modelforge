@@ -117,6 +117,31 @@ def test_example_qc_is_live_and_passes(spec_path, tmp_path):
     )
 
 
+@pytest.mark.slow
+@pytest.mark.parametrize("spec_path", EXAMPLES, ids=lambda p: p.stem)
+def test_example_passes_the_moat_gates(spec_path, tmp_path):
+    """Every example must clear the moat gates, not just the QC sheet.
+
+    ``audit-all`` reported 15/25 when this was first measured. The failures
+    were real: core-output sheets carrying pasted constants (the CLO liability
+    waterfall wrote 56 period-0 zeros under the formula style, the PBSA
+    development schedule 27), and named ranges no formula read — a cash-sweep
+    trigger the sponsor-LBO model ignored in favour of hardcoded tier
+    thresholds, and a promote ladder surfaced as live drivers when it was
+    build-time configuration.
+
+    Nothing enforced this, because ``audit-all`` is a CLI report a human runs
+    and reads. Running it per example in the suite is what keeps it at 25/25.
+    """
+    from modelforge.moat import MoatGate
+
+    report = MoatGate().evaluate(_build(spec_path, tmp_path))
+    failed = [g for g in report.gate_results if not g.passed]
+    assert not failed, f"{spec_path.stem}: " + "; ".join(
+        f"[{g.name}] {g.detail}" for g in failed
+    )
+
+
 # ── the gate must still be able to fail ─────────────────────────────────────
 
 @pytest.mark.slow

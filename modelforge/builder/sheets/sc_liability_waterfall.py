@@ -137,6 +137,13 @@ def build(ws, spec, lt_refs: dict[str, str], lt_sheet: str) -> dict[str, str]:
         ws.cell(row=row, column=3, value=txt).font = styles.font_label_it
 
     def put(key, i, formula, fmt=styles.FMT_EUR_M, kind="formula", bold=False, top=False):
+        # ``None`` writes nothing. Used for cells with no economic content in a
+        # period — nothing has been collected or paid on the closing date, and
+        # the reserve is not released before maturity. Those used to be written
+        # as a literal 0 carrying the black formula style, which claimed a
+        # computed value the cell did not have; an empty cell sums the same.
+        if formula is None:
+            return None
         ci = _ci(i)
         c = ws.cell(row=R[key], column=ci, value=formula)
         getattr(styles, f"style_{kind}")(c, number_format=fmt)
@@ -162,18 +169,18 @@ def build(ws, spec, lt_refs: dict[str, str], lt_sheet: str) -> dict[str, str]:
         _unit(R[k], cur)
     for i in range(n):
         col = layout.year_col(i)
-        put("gross_int", i, 0 if i == 0 else f"={lt(col, 'pool_interest_row')}", kind="xref")
-        put("servicing", i, 0 if i == 0 else f"=-{lt(col, 'pool_bop_row')}*servicing_fee_pct")
+        put("gross_int", i, None if i == 0 else f"={lt(col, 'pool_interest_row')}", kind="xref")
+        put("servicing", i, None if i == 0 else f"=-{lt(col, 'pool_bop_row')}*servicing_fee_pct")
         # Trustee / admin fees only accrue while the pool is performing — once the
         # collateral has fully amortized the deal is wound down, so no fixed fee
         # accrues (and none can be funded); avoids a phantom tail fee drag.
         put("trustee", i,
-            0 if i == 0 else f"=-senior_fees_eur_m*IF({lt(col, 'pool_bop_row')}>0.0001,1,0)")
+            None if i == 0 else f"=-senior_fees_eur_m*IF({lt(col, 'pool_bop_row')}>0.0001,1,0)")
         put("avail_int_after_fees", i,
-            0 if i == 0 else f"=${col}${R['gross_int']}+${col}${R['servicing']}+${col}${R['trustee']}",
+            None if i == 0 else f"=${col}${R['gross_int']}+${col}${R['servicing']}+${col}${R['trustee']}",
             bold=True)
         put("principal_collected", i,
-            0 if i == 0 else f"={lt(col, 'principal_collected_row')}", kind="xref", bold=True)
+            None if i == 0 else f"={lt(col, 'principal_collected_row')}", kind="xref", bold=True)
 
     # ── Note balances — outstanding (EOP) ──────────────────────────────────
     for j in range(len(notes)):
@@ -217,29 +224,29 @@ def build(ws, spec, lt_refs: dict[str, str], lt_sheet: str) -> dict[str, str]:
         col = layout.year_col(i); prior = layout.year_col(i - 1)
         for j in debt:
             if i == 0:
-                put(f"int_due_{j}", i, 0)
+                put(f"int_due_{j}", i, None)
             else:
                 put(f"int_due_{j}", i,
                     f"=${prior}${R[f'eop_{j}']}*{notes[j].coupon_pct.name}")
         if i == 0:
-            put("reserve_draw", i, 0)
+            put("reserve_draw", i, None)
         else:
             put("reserve_draw", i,
                 f"=MIN(MAX(${col}${R[f'int_due_{senior}']}-${col}${R['avail_int_after_fees']},0),"
                 f"${prior}${R['reserve_eop']})")
         put("avail_int_total", i,
-            0 if i == 0 else f"=${col}${R['avail_int_after_fees']}+${col}${R['reserve_draw']}",
+            None if i == 0 else f"=${col}${R['avail_int_after_fees']}+${col}${R['reserve_draw']}",
             bold=True)
         # sequential interest payment — floored at zero (no negative coupon)
         for idx, j in enumerate(debt):
             if i == 0:
-                put(f"int_paid_{j}", i, 0)
+                put(f"int_paid_{j}", i, None)
                 continue
             higher = "".join(f"-${col}${R[f'int_paid_{debt[k]}']}" for k in range(idx))
             put(f"int_paid_{j}", i,
                 f"=MIN(MAX(${col}${R['avail_int_total']}{higher},0),${col}${R[f'int_due_{j}']})")
         if i == 0:
-            put("residual_int", i, 0, bold=True)
+            put("residual_int", i, None, bold=True)
         else:
             paid = "".join(f"-${col}${R[f'int_paid_{j}']}" for j in debt)
             put("residual_int", i, f"=MAX(${col}${R['avail_int_total']}{paid},0)",
@@ -257,13 +264,13 @@ def build(ws, spec, lt_refs: dict[str, str], lt_sheet: str) -> dict[str, str]:
         col = layout.year_col(i); prior = layout.year_col(i - 1)
         for idx, j in enumerate(debt):
             if i == 0:
-                put(f"prin_paid_{j}", i, 0)
+                put(f"prin_paid_{j}", i, None)
                 continue
             higher = "".join(f"-${col}${R[f'prin_paid_{debt[k]}']}" for k in range(idx))
             put(f"prin_paid_{j}", i,
                 f"=MIN(MAX(${col}${R['principal_collected']}{higher},0),${prior}${R[f'eop_{j}']})")
         if i == 0:
-            put("prin_to_residual", i, 0, bold=True)
+            put("prin_to_residual", i, None, bold=True)
         else:
             paid = "".join(f"-${col}${R[f'prin_paid_{j}']}" for j in debt)
             put("prin_to_residual", i,
@@ -290,11 +297,11 @@ def build(ws, spec, lt_refs: dict[str, str], lt_sheet: str) -> dict[str, str]:
         col = layout.year_col(i); prior = layout.year_col(i - 1)
         if i == 0:
             for k in ("oc_ratio", "ic_ratio"):
-                put(k, i, 0, fmt=styles.FMT_MULTIPLE)
+                put(k, i, None, fmt=styles.FMT_MULTIPLE)
             for k in ("oc_pass", "ic_pass"):
                 put(k, i, 1, fmt=styles.FMT_INTEGER)
             for j in debt:
-                put(f"turbo_{j}", i, 0)
+                put(f"turbo_{j}", i, None)
             continue
         debt_bop = "+".join(f"${prior}${R[f'eop_{j}']}" for j in debt)
         debt_due = "+".join(f"${col}${R[f'int_due_{j}']}" for j in debt)
@@ -330,19 +337,19 @@ def build(ws, spec, lt_refs: dict[str, str], lt_sheet: str) -> dict[str, str]:
         col = layout.year_col(i); prior = layout.year_col(i - 1)
         if i == 0:
             put("reserve_eop", i, f"=reserve_pct_initial*{initial_pool}")
-            put("reserve_release", i, 0)
+            put("reserve_release", i, None)
             for j in debt:
-                put(f"reserve_cure_{j}", i, 0)
-            put("reserve_to_equity", i, 0)
+                put(f"reserve_cure_{j}", i, None)
+            put("reserve_to_equity", i, None)
             continue
         if i < periods:
             put("reserve_eop", i, f"=${prior}${R['reserve_eop']}-${col}${R['reserve_draw']}")
-            put("reserve_release", i, 0)
+            put("reserve_release", i, None)
             for j in debt:
-                put(f"reserve_cure_{j}", i, 0)
-            put("reserve_to_equity", i, 0)
+                put(f"reserve_cure_{j}", i, None)
+            put("reserve_to_equity", i, None)
         else:  # final period: release the reserve, cure debt sequentially, return the rest
-            put("reserve_eop", i, 0)
+            put("reserve_eop", i, None)
             put("reserve_release", i, f"=${prior}${R['reserve_eop']}-${col}${R['reserve_draw']}")
             for idx, j in enumerate(debt):
                 higher_cure = "".join(f"-${col}${R[f'reserve_cure_{debt[k]}']}" for k in range(idx))
@@ -363,9 +370,9 @@ def build(ws, spec, lt_refs: dict[str, str], lt_sheet: str) -> dict[str, str]:
     for i in range(n):
         col = layout.year_col(i)
         if i == 0:
-            put("residual_int_to_equity", i, 0)
-            put("spv_tax", i, 0)
-            put("cash_to_equity", i, 0, bold=True)
+            put("residual_int_to_equity", i, None)
+            put("spv_tax", i, None)
+            put("cash_to_equity", i, None, bold=True)
             continue
         turbo_terms = "".join(f"-${col}${R[f'turbo_{j}']}" for j in debt)
         put("residual_int_to_equity", i, f"=${col}${R['residual_int']}{turbo_terms}")

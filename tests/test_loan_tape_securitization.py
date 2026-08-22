@@ -58,6 +58,21 @@ def _get(sol, fname, sheet, addr):
     return None
 
 
+def _num(sol, fname, sheet, addr) -> float:
+    """Read a waterfall cell as a number, treating an empty cell as zero.
+
+    Periods with no economic content (nothing collected or paid on the closing
+    date) are left empty rather than written as a literal 0, so the recalc
+    engine returns an empty token there. Excel sums a blank as zero and so does
+    this helper; without it a test that aggregates a whole row trips over the
+    closing-date column.
+    """
+    v = _get(sol, fname, sheet, addr)
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return 0.0
+    return float(v)
+
+
 # ── registration ─────────────────────────────────────────────────────────
 
 
@@ -236,7 +251,7 @@ def test_turbo_breach_diverts_to_debt_not_equity(tmp_path):
     debt_eop_rows = eop_rows[:-1]  # last is the residual note
 
     def total_turbo(c):
-        return sum(_get(sol, fname, "Waterfall", f"{c}{r}") for r in turbo_rows)
+        return sum(_num(sol, fname, "Waterfall", f"{c}{r}") for r in turbo_rows)
 
     assert any(total_turbo(c) > 0.01 for c in cols), "turbo never fired under stress"
 
@@ -278,5 +293,5 @@ def test_no_negative_coupon_when_fees_exceed_yield(tmp_path):
                if isinstance(r[0].value, str) and r[0].value.strip().startswith("Interest paid —")]
     for r in ip_rows:
         for c in cols:
-            v = _get(sol, fname, "Waterfall", f"{c}{r}")
+            v = _num(sol, fname, "Waterfall", f"{c}{r}")
             assert v >= -0.01, f"negative coupon paid at {c}{r}: {v}"

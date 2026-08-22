@@ -362,6 +362,21 @@ def cell(sheet: str, a1: str):
     return _SOL.get((sheet.upper(), a1.upper()))
 
 
+def num(sheet: str, a1: str) -> float:
+    """Read a cell as a number, treating an empty cell as zero.
+
+    Periods with no economic content — no senior drawdown after the facility is
+    fully drawn, no principal repayment outside the bullet year — are left
+    empty rather than written as a literal 0 wearing the formula style. Excel
+    aggregates a blank as zero; so does this, which is what the row-level
+    conservation identities below assume.
+    """
+    v = cell(sheet, a1)
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return 0.0
+    return float(v)
+
+
 # --- pull live headline cells (cell coords confirmed against the rendered book) ---
 # DevSchedule
 live_tdc = cell("DevSchedule", "D9")             # Total development cost (TDC)
@@ -477,9 +492,9 @@ check_true("INV6 IDC compounds (opening debt grows through construction)",
 # INV7: debt-conservation identity holds on the LIVE workbook — cumulative
 # draws + cumulative IDC == cumulative principal repaid (this is the closed-
 # system check that auto-catches a broken roll-forward).
-live_draw = [float(cell("DevSchedule", f"{c}33")) for c in "DEFGHI"]
-live_idc = [float(cell("DevSchedule", f"{c}36")) for c in "DEFGHI"]
-live_repay = [float(cell("DevSchedule", f"{c}37")) for c in "DEFGHI"]
+live_draw = [num("DevSchedule", f"{c}33") for c in "DEFGHI"]
+live_idc = [num("DevSchedule", f"{c}36") for c in "DEFGHI"]
+live_repay = [num("DevSchedule", f"{c}37") for c in "DEFGHI"]
 live_cons_resid = (sum(live_draw) + sum(live_idc)) + sum(live_repay)
 check_true("INV7 senior debt conserved (Σdraws+ΣIDC == Σprincipal repaid)",
            abs(live_cons_resid) <= 1e-4,

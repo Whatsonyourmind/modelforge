@@ -88,10 +88,14 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     for i in range(n):
         col = layout.year_col(i); ci = ord(col) - ord("A") + 1
         if i < h:
-            c = ws.cell(row=r, column=ci, value=0)
-        else:
-            prior = layout.year_col(i - 1)
-            c = ws.cell(row=r, column=ci, value=f"=${prior}${allowance_close_row}")
+            # No antecedent period to roll forward from, so there is no opening
+            # balance to state. Left empty rather than written as a literal 0
+            # under the black formula font, which claimed a computed value the
+            # cell did not have. The historical *closing* balance is a separate
+            # blue input a few rows down; that is the real historical figure.
+            continue
+        prior = layout.year_col(i - 1)
+        c = ws.cell(row=r, column=ci, value=f"=${prior}${allowance_close_row}")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
     r += 1
 
@@ -100,6 +104,8 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     layout.write_row_label(ws, r, "(+) Impairment charge", "(+) Accantonamenti", indent=True)
     _unit(r, cur)
     for i in range(n):
+        if i < h:
+            continue  # historical periods carry no projected flow to patch
         ci = ord(layout.year_col(i)) - ord("A") + 1
         c = ws.cell(row=r, column=ci, value=0)  # PLACEHOLDER (patched ← P&L provisions)
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
@@ -116,12 +122,11 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     for i in range(n):
         col = layout.year_col(i); ci = ord(col) - ord("A") + 1
         if i < h:
-            c = ws.cell(row=r, column=ci, value=0)
-        else:
-            # writeoff reduces the (negative) stock toward zero:
-            #   = -opening_allowance * writeoff_pct   (opening ≤ 0 → result ≥ 0)
-            c = ws.cell(row=r, column=ci,
-                        value=f"=-${col}${rows['allowance_opening']}*writeoff_pct_opening_allowance")
+            continue  # nothing was written off in a period the model only observes
+        # writeoff reduces the (negative) stock toward zero:
+        #   = -opening_allowance * writeoff_pct   (opening ≤ 0 → result ≥ 0)
+        c = ws.cell(row=r, column=ci,
+                    value=f"=-${col}${rows['allowance_opening']}*writeoff_pct_opening_allowance")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
     r += 1
 
@@ -307,10 +312,9 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     for i in range(n):
         col = layout.year_col(i); ci = ord(col) - ord("A") + 1
         if i < h:
-            c = ws.cell(row=r, column=ci, value=0)
-        else:
-            prior = layout.year_col(i - 1)
-            c = ws.cell(row=r, column=ci, value=f"=${prior}${equity_close_row}")
+            continue  # no antecedent period - see the allowance roll-forward above
+        prior = layout.year_col(i - 1)
+        c = ws.cell(row=r, column=ci, value=f"=${prior}${equity_close_row}")
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
     r += 1
 
@@ -319,6 +323,8 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     layout.write_row_label(ws, r, "(+) Retained earnings", "(+) Utili a riserva", indent=True)
     _unit(r, cur)
     for i in range(n):
+        if i < h:
+            continue  # historical periods carry no projected flow to patch
         ci = ord(layout.year_col(i)) - ord("A") + 1
         c = ws.cell(row=r, column=ci, value=0)  # PLACEHOLDER (patched ← P&L NI to CET1)
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
@@ -329,6 +335,8 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     layout.write_row_label(ws, r, "(−) Dividends", "(−) Dividendi", indent=True)
     _unit(r, cur)
     for i in range(n):
+        if i < h:
+            continue  # historical periods carry no projected flow to patch
         ci = ord(layout.year_col(i)) - ord("A") + 1
         c = ws.cell(row=r, column=ci, value=0)  # PLACEHOLDER (patched ← CapitalReturn)
         styles.style_formula(c, number_format=styles.FMT_EUR_M)
@@ -339,6 +347,8 @@ def build(ws: Worksheet, spec, driver_refs: dict[str, str]) -> dict[str, str]:
     layout.write_row_label(ws, r, "(−) Share buybacks", "(−) Riacquisti azioni", indent=True)
     _unit(r, cur)
     for i in range(n):
+        if i < h:
+            continue  # historical periods carry no projected flow to patch
         ci = ord(layout.year_col(i)) - ord("A") + 1
         c = ws.cell(row=r, column=ci, value=0)  # PLACEHOLDER (patched ← CapitalReturn)
         styles.style_formula(c, number_format=styles.FMT_EUR_M)

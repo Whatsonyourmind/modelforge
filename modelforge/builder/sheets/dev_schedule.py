@@ -239,11 +239,12 @@ def build(ws: Worksheet, spec) -> dict[str, str]:
     for i in range(n):
         col_idx = ord(layout.year_col(i)) - ord("A") + 1
         frac = annual_phasing[i]
-        if frac > 1e-12:
-            cc = ws.cell(row=r, column=col_idx,
-                         value=f"=-{tdc_ref}*{frac:.8f}")
-        else:
-            cc = ws.cell(row=r, column=col_idx, value=0)
+        # Emitted even when the phasing fraction is zero: spend *is*
+        # TDC x phasing, and a year with no spend is that identity with a zero
+        # fraction, not a hardcoded blank. Keeps the row live against the TDC
+        # named range (numerically identical to the literal 0 it replaces).
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"=-{tdc_ref}*{frac:.8f}")
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     ws.cell(row=r, column=4).comment = Comment(
         "Per-year development spend = -TDC × (annual phasing fraction). The "
@@ -270,12 +271,11 @@ def build(ws: Worksheet, spec) -> dict[str, str]:
                 share += 0.5
             if i == grant_year_delivery:
                 share += 0.5
-            if share > 1e-12:
-                cc = ws.cell(row=r, column=col_idx, value=f"={gn}*{share:.4f}")
-            else:
-                cc = ws.cell(row=r, column=col_idx, value=0)
+            cc = ws.cell(row=r, column=col_idx, value=f"={gn}*{share:.4f}")
         else:
-            cc = ws.cell(row=r, column=col_idx, value=0)
+            # No grant in this spec: nothing to reference, so nothing is
+            # written. An empty cell reads as "not applicable" and sums as 0.
+            continue
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
@@ -363,12 +363,11 @@ def build(ws: Worksheet, spec) -> dict[str, str]:
         if i == exit_year:
             # No operating NOI booked in the exit column (exit proceeds only);
             # the engine sells at start of exit year on a forward NOI.
-            cc = ws.cell(row=r, column=col_idx, value=0)
-        elif frac > 1e-12:
-            cc = ws.cell(row=r, column=col_idx,
-                         value=f"=$D${rows['stab_noi']}*{frac:.6f}")
-        else:
-            cc = ws.cell(row=r, column=col_idx, value=0)
+            frac = 0.0
+        # Realised NOI is stabilised NOI x occupancy; a zero-occupancy year is
+        # that identity at zero, so the formula is emitted either way.
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"=$D${rows['stab_noi']}*{frac:.6f}")
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     ws.cell(row=r, column=4).comment = Comment(
         "Realised NOI per year = stabilised NOI × annual occupancy fraction. "
@@ -456,7 +455,7 @@ def build(ws: Worksheet, spec) -> dict[str, str]:
                 cc = ws.cell(row=r, column=col_idx,
                              value=f"=(1-{eq_pct})*${col}${rows['net_need']}")
             else:
-                cc = ws.cell(row=r, column=col_idx, value=0)
+                continue  # facility is fully drawn at delivery; nothing after
         else:
             cc = ws.cell(row=r, column=col_idx,
                          value=f"=(1-{eq_pct})*${col}${rows['net_need']}")
@@ -479,12 +478,11 @@ def build(ws: Worksheet, spec) -> dict[str, str]:
     for i in range(n):
         col = layout.year_col(i); col_idx = ord(col) - ord("A") + 1
         if i == 0:
-            cc = ws.cell(row=r, column=col_idx, value=0)
-        else:
-            prior = layout.year_col(i - 1)
-            # Opening(i) = prior-year CLOSING balance (debt_close row).
-            cc = ws.cell(row=r, column=col_idx,
-                         value=f"=${prior}${rows['debt_close']}")
+            continue  # no prior year to carry a closing balance from
+        prior = layout.year_col(i - 1)
+        # Opening(i) = prior-year CLOSING balance (debt_close row).
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"=${prior}${rows['debt_close']}")
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
@@ -530,7 +528,7 @@ def build(ws: Worksheet, spec) -> dict[str, str]:
                                 f"+${col}${rows['debt_draw']}"
                                 f"+${col}${rows['interest_cap']})"))
         else:
-            cc = ws.cell(row=r, column=col_idx, value=0)
+            continue  # bullet facility: no repayment outside the exit year
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 
@@ -561,10 +559,9 @@ def build(ws: Worksheet, spec) -> dict[str, str]:
         int_ref = f"${col}${rows['debt_interest']}"
         noi_ref = f"${col}${rows['noi']}"
         if i < delivery_year:
-            cc = ws.cell(row=r, column=col_idx, value=0)
-        else:
-            cc = ws.cell(row=r, column=col_idx,
-                         value=f"=-MIN({int_ref},MAX({noi_ref},0))")
+            continue  # interest is capitalised, not paid, before delivery
+        cc = ws.cell(row=r, column=col_idx,
+                     value=f"=-MIN({int_ref},MAX({noi_ref},0))")
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 2
 
@@ -586,7 +583,7 @@ def build(ws: Worksheet, spec) -> dict[str, str]:
                          value=(f"=-{arr}*SUM(${first_col}${rows['debt_draw']}"
                                 f":${last_col}${rows['debt_draw']})"))
         else:
-            cc = ws.cell(row=r, column=col_idx, value=0)
+            continue  # one-off fee, charged at t0 only
         styles.style_formula(cc, number_format=styles.FMT_EUR_M)
     r += 1
 

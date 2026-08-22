@@ -2,8 +2,8 @@
 
 Proves the gate promotes recomputed in-workbook conservation to a PASS/FAIL
 certificate: a clean model passes, and a QC check repointed to recompute 0 (a
-valid formula, NOT an Excel error) PASSES plain certify (the defect is
-certify-blind) but FAILS `certify --conservation`. A workbook with no QC sheet is
+valid formula, NOT an Excel error) is invisible to the formula-error audit
+but FAILS the conservation gate, which now runs by default. A workbook with no QC sheet is
 INDETERMINATE (a gate failure under --strict).
 """
 
@@ -85,13 +85,18 @@ def test_conservation_gate_catches_certify_blind_failing_check(tmp_path):
     assert any(f.ref == injected_ref for f in rep.findings)
 
     runner = CliRunner()
-    # Plain certify is blind to it (still zero formula errors) -> exit 0.
-    plain = runner.invoke(main, ["certify", str(xlsx)])
-    assert plain.exit_code == 0, plain.output
-    # The opt-in conservation gate catches it -> exit 1.
-    gated = runner.invoke(main, ["certify", str(xlsx), "--conservation"])
+    # The conservation gate runs by default, so plain certify catches it.
+    gated = runner.invoke(main, ["certify", str(xlsx)])
     assert gated.exit_code == 1, gated.output
     assert "CONSERVATION FAIL" in gated.output
+
+    # --no-conservation restores the formula-errors-only verdict, which is
+    # blind to this defect: the failing check is a valid formula returning 0,
+    # not an Excel error. That blindness is the whole reason the gate exists,
+    # so it is asserted rather than left implicit.
+    plain = runner.invoke(main, ["certify", str(xlsx), "--no-conservation"])
+    assert plain.exit_code == 0, plain.output
+    assert "CONSERVATION" not in plain.output
 
 
 def test_conservation_indeterminate_without_qc(tmp_path):

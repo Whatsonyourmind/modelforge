@@ -37,7 +37,12 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from modelforge.qc.conservation_audit import _classify, _find_qc_sheet
+from modelforge.qc.conservation_audit import (
+    _HEADER_LABELS,
+    _classify,
+    _find_qc_sheet,
+    _is_derived_formula,
+)
 from modelforge.qc.workbook_audit import _scalarize
 
 # Bounds (opt-in gate; keep runtime predictable).
@@ -193,21 +198,39 @@ def _resolve_drivers(wb, stem: str) -> list[tuple[str, float, str]]:
 
 
 def _qc_check_keys(wb, stem: str):
-    """Return (qc_sheet, all_pass_key, [(check_key, label), ...]) or (None, ...)."""
+    """Return (qc_sheet, all_pass_key, live_checks, dead_checks).
+
+    ``dead_checks`` are labelled rows whose result cell is not a derived
+    formula — checks that cannot respond to a shock because they were decided
+    when the workbook was written.
+    """
     qc_sheet, arow, acol = _find_qc_sheet(wb)
     if qc_sheet is None:
-        return None, None, []
+        return None, None, [], []
     ws = wb[qc_sheet]
     rcol = acol + 2
     ap_key = _engine_key(stem, qc_sheet, ws.cell(row=arow, column=rcol).coordinate)
     checks: list[tuple[str, str]] = []
+    dead: list[tuple[str, str]] = []
     for r in range(arow + 1, ws.max_row + 1):
         lab = ws.cell(row=r, column=acol).value
         fml = ws.cell(row=r, column=rcol).value
-        if isinstance(lab, str) and lab.strip() and isinstance(fml, str) and fml.startswith("="):
+        if not (isinstance(lab, str) and lab.strip()):
+            continue
+        if _is_derived_formula(fml):
+            # Checked before the header-label test: a live formula is a check
+            # however its row happens to be labelled.
             key = _engine_key(stem, qc_sheet, ws.cell(row=r, column=rcol).coordinate)
             checks.append((key, lab.strip()))
-    return qc_sheet, ap_key, checks
+        elif lab.strip().lower() in _HEADER_LABELS:
+            continue  # the "Check | Check (IT) | Pass" column header
+        elif fml is not None and not (isinstance(fml, str) and not fml.strip()):
+            # A labelled row whose result is not a derived formula states a
+            # verdict fixed at build time. Shocking an input cannot move it, so
+            # it would silently inflate this gate's apparent coverage the same
+            # way it inflated the conservation gate's.
+            dead.append((f"{qc_sheet}!{ws.cell(row=r, column=rcol).coordinate}", lab.strip()))
+    return qc_sheet, ap_key, checks, dead
 
 
 # ── public entry point ─────────────────────────────────────────────────────────
@@ -234,11 +257,31 @@ def audit_perturb_replay(
         return report
 
     stem = path.name
-    qc_sheet, ap_key, checks = _qc_check_keys(wb, stem)
+    qc_sheet, ap_key, checks, dead_checks = _qc_check_keys(wb, stem)
     if qc_sheet is None:
         report.notes.append("No QC sheet (no 'ALL CHECKS PASS' aggregator) — INDETERMINATE.")
         return report
     report.qc_sheet = qc_sheet
+
+    # A hardcoded check cannot break under a shock, so a workbook full of them
+    # would report a clean sweep having tested nothing. Refuse rather than
+    # quietly shrink the check set.
+    if dead_checks:
+        report.notes.append(
+            f"{len(dead_checks)} QC row(s) assert a verdict instead of deriving one "
+            f"({', '.join(ref for ref, _ in dead_checks[:3])}"
+            f"{'…' if len(dead_checks) > 3 else ''}) — run `certify --conservation` "
+            f"for detail. INDETERMINATE."
+        )
+        report.status = "INDETERMINATE"
+        return report
+    if not checks:
+        report.notes.append(
+            "QC sheet declares no live checks — nothing for a shock to break. "
+            "INDETERMINATE."
+        )
+        report.status = "INDETERMINATE"
+        return report
 
     try:
         xl = formulas.ExcelModel().loads(str(path)).finish()
