@@ -46,7 +46,11 @@ sources:
 
 construction:
   total_capex_eur_m:
-    { id: A-001, name: total_capex, label: { en: "Total project capex", it: "Capex progetto totale" }, unit: eur_m, base: 316.0, rationale: "Total Enfinity financing package €316M (incl. VAT + PPA + decommissioning facilities).", confidence: H, source_id: S-001 }
+    # Capex is NOT disclosed. The only public figure is the €316M financing package
+    # (€214M senior + €101M VAT/PPA/decommissioning facilities), so 316 is an analyst
+    # proxy that likely OVERSTATES capex. Filed as an owned assumption, not a sourced
+    # fact — the evidence gate blocked the earlier `confidence: H, source_id: S-001`.
+    { id: A-001, name: total_capex, label: { en: "Total project capex", it: "Capex progetto totale" }, unit: eur_m, base: 316.0, rationale: "Proxy: capex not disclosed; the €316M financing package (incl. VAT + PPA + decommissioning facilities) is used as an upper-bound stand-in.", confidence: L, evidence: { kind: assumption, owner: Analyst, note: "Replace with disclosed project capex when available; the €101M non-senior facilities are not capex." } }
   capex_phasing_pct:
     - { id: A-002, name: capex_phasing_y1, label: { en: "Capex phasing Y1", it: "Capex Y1" }, unit: pct, base: 0.35, rationale: "Y1 35% — land + BOP procurement + early modules.", confidence: H }
     - { id: A-003, name: capex_phasing_y2, label: { en: "Capex phasing Y2", it: "Capex Y2" }, unit: pct, base: 0.65, rationale: "Y2 65% — installation + commissioning + COD (operational late 2026).", confidence: H, source_id: S-001 }
@@ -56,7 +60,9 @@ construction:
 
 operating:
   availability_payment_eur_m_yr1:
-    { id: A-010, name: revenue_yr1, label: { en: "Revenue Y1 (FER X + PPA blended)", it: "Ricavi Y1 (FER X + PPA)" }, unit: eur_m, base: 32.1, rationale: "276 MW × 1,550 kWh/kWp/yr × €75/MWh = €32.1M/yr (Terna irradiation, FER X + merchant PPA blend).", confidence: H, source_id: S-003 }
+    { id: A-010, name: revenue_yr1, label: { en: "Revenue Y1 (FER X + PPA blended)", it: "Ricavi Y1 (FER X + PPA)" }, unit: eur_m, base: 32.1, rationale: "276 MW × 1,550 kWh/kWp/yr × €75/MWh = €32.1M/yr (Terna irradiation, FER X + merchant PPA blend).", confidence: M, source_id: S-003,
+      evidence: { kind: derived, expr: "capacity_mw * yield_kwh_per_kwp * price_eur_per_mwh / 1e6",
+        terms: { capacity_mw: { value: 276, source_id: S-001 }, yield_kwh_per_kwp: { value: 1550, source_id: S-003 }, price_eur_per_mwh: { value: 75, source_id: S-004 } } } }
   revenue_indexation_pct:
     { id: A-011, name: revenue_indexation, label: { en: "Revenue CPI escalation", it: "Indicizzazione ricavi" }, unit: pct, base: 0.015, rationale: "Italian CPI 1.5% (ECB 2% target path); FER X partially indexed.", confidence: M }
   opex_pct_revenue:

@@ -183,7 +183,9 @@ def _warn_unknown_top_keys(raw: dict, SpecClass, source_name: str) -> None:
     # the deal-screener (`modelforge screen`); it is intentionally not a spec
     # field, so tolerate it here rather than flag it as a typo on every spec that
     # opts into screening.
-    tolerated = {"screening"}
+    # `evidence_overrides` is read by the evidence-binding gate from the raw
+    # YAML (signed human decisions), not a field of any template spec.
+    tolerated = {"screening", "evidence_overrides"}
     extras = sorted(set(raw) - set(SpecClass.model_fields) - tolerated)
     if extras:
         console.print(
@@ -383,6 +385,67 @@ def _inject_trust_moat_and_finish(xlsx, spec, spec_bytes, spec_path, *,
     _finish_after_injection(xlsx, spec, spec_bytes, spec_path)
 
 
+def _run_evidence_gate(spec, spec_bytes: bytes, spec_name: str, *,
+                       dataroom: Path | None, strict: bool, show_all: bool = False):
+    """Run the evidence-binding gate; print its report; return the result.
+
+    Invalid `evidence_overrides` entries are a hard error — an override that
+    cannot be validated must never be honoured silently.
+    """
+    from modelforge.evidence import parse_overrides, run_gate
+    from modelforge.evidence.report import render
+
+    raw = yaml.safe_load(spec_bytes) or {}
+    overrides, errors = parse_overrides(raw.get("evidence_overrides"))
+    if errors:
+        for e in errors:
+            console.print(f"[red]{spec_name}: invalid {e}[/red]")
+        sys.exit(1)
+    if dataroom is not None and not dataroom.is_dir():
+        console.print(f"[red]--dataroom {dataroom} is not a directory[/red]")
+        sys.exit(2)
+    result = run_gate(spec, dataroom=dataroom, overrides=overrides, strict=strict)
+    render(result, console, show_all=show_all)
+    return result
+
+
+@main.group("evidence")
+def evidence_grp() -> None:
+    """Evidence-binding gate: does each number's cited support state THAT quantity?"""
+
+
+@evidence_grp.command("check")
+@click.argument("spec_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--dataroom", type=click.Path(path_type=Path), default=None,
+              help="Directory of source documents; quotes are located in them and "
+                   "cross-checked against every other document.")
+@click.option("--strict", is_flag=True, default=False,
+              help="Also block UNVERIFIED leaves (a cited source with no checkable quote).")
+@click.option("--json", "json_path", type=click.Path(path_type=Path), default=None,
+              help="Write the full per-leaf report as JSON.")
+@click.option("--all", "show_all", is_flag=True, default=False,
+              help="List every leaf, not only the blocking ones.")
+def evidence_check_cmd(spec_path: Path, dataroom: Path | None, strict: bool,
+                       json_path: Path | None, show_all: bool) -> None:
+    """Check every numeric leaf's evidence binding. Exit 1 if anything blocks.
+
+    Deterministic (no LLM). Blocks on BROKEN (quote not in the document, value
+    or unit not in the quote, the words next to the value name a different
+    quantity, wrong arithmetic) and CONTESTED (another document states a
+    conflicting figure). With --strict, UNVERIFIED blocks too.
+    """
+    import json
+    spec, _, spec_bytes = _load_and_validate_spec(spec_path)
+    result = _run_evidence_gate(spec, spec_bytes, spec_path.name,
+                                dataroom=dataroom, strict=strict, show_all=show_all)
+    if json_path is not None:
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        json_path.write_text(json.dumps(result.to_dict(), indent=2, ensure_ascii=False),
+                             encoding="utf-8")
+        console.print(f"[green]Report:[/green] {json_path}")
+    sys.exit(0 if result.passed else 1)
+
+
 @main.command("build")
 @click.argument("spec_path", type=click.Path(exists=True, path_type=Path))
 @click.option("--out", "out_path", type=click.Path(path_type=Path), default=None,
@@ -391,15 +454,31 @@ def _inject_trust_moat_and_finish(xlsx, spec, spec_bytes, spec_path, *,
               help="Skip the Trust Layer plausibility pass (faster, less safe).")
 @click.option("--trust-strict", is_flag=True, default=False,
               help="Exit non-zero if any FAIL-severity violation is found.")
+@click.option("--dataroom", type=click.Path(path_type=Path), default=None,
+              help="Source documents for the evidence-binding gate (see `evidence check`).")
+@click.option("--evidence-strict", is_flag=True, default=False,
+              help="Refuse to build while any cited figure is UNVERIFIED.")
 def build_cmd(spec_path: Path, out_path: Path | None,
-              no_trust: bool, trust_strict: bool) -> None:
+              no_trust: bool, trust_strict: bool,
+              dataroom: Path | None, evidence_strict: bool) -> None:
     """Build an Excel workbook from a YAML spec.
+
+    The evidence-binding gate runs first and refuses to build a spec with a
+    BROKEN or CONTESTED binding (unless a signed override is recorded); its
+    report is written next to the workbook as <stem>.evidence.json.
 
     By default the Trust Layer runs after the build, injecting a `RedFlags`
     sheet with any plausibility violations. Use --no-trust to skip it
     or --trust-strict to fail the build on FAIL-severity issues.
     """
+    import json
     spec, model_type, spec_bytes = _load_and_validate_spec(spec_path)
+
+    evidence = _run_evidence_gate(spec, spec_bytes, spec_path.name,
+                                  dataroom=dataroom, strict=evidence_strict)
+    if not evidence.passed:
+        console.print("[red]Build refused by the evidence-binding gate.[/red]")
+        sys.exit(1)
 
     if out_path is None:
         out_path = Path("output") / f"{spec_path.stem}.xlsx"
@@ -411,6 +490,10 @@ def build_cmd(spec_path: Path, out_path: Path | None,
     )
     console.print(f"[green]Built:[/green] {xlsx}  [dim]({model_type})[/dim]")
     console.print(f"[green]Graph:[/green] {graph}")
+    evidence_path = Path(xlsx).with_suffix(".evidence.json")
+    evidence_path.write_text(json.dumps(evidence.to_dict(), indent=2, ensure_ascii=False),
+                             encoding="utf-8")
+    console.print(f"[green]Evidence:[/green] {evidence_path}")
 
     if no_trust:
         return

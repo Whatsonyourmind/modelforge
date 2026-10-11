@@ -6,6 +6,14 @@ releases and benchmarks — nothing confidential.
 
 Run once:
     python tests/fixtures/dataroom_enfinity_synth/_generate.py
+
+Known contradiction, kept on purpose: the IM extract (02) calls EUR 316M
+"total project capex", while the press release (01) says the 316M is a
+financing package of 214M senior debt plus 101M VAT/PPA/decommissioning
+facilities. This fixture was originally written to make the spec's capex
+figure look sourced. It now serves as the cross-source test case for the
+evidence-binding gate (tests/test_evidence.py), which must report it as
+CONTESTED.
 """
 
 from __future__ import annotations

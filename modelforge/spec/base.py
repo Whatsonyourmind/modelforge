@@ -17,6 +17,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
+from modelforge.spec.evidence import Evidence
+
 
 class Scenario(str, Enum):
     WORST = "worst"
@@ -129,6 +131,9 @@ class Assumption(BaseModel):
     rationale: str  # WHY this value — required.
     confidence: Confidence = Confidence.M
     source_id: Optional[str] = Field(default=None, pattern=r"^S-\d{3,}$")
+    # Optional span-level binding, checked by the evidence-binding gate
+    # (`modelforge evidence check`, and `build` before it builds).
+    evidence: Optional[Evidence] = None
 
     @field_validator("rationale")
     @classmethod

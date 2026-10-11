@@ -5,6 +5,16 @@ All notable changes to ModelForge.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Evidence-binding gate** (`modelforge evidence check`, and `build` runs it first). Deterministic, no LLM. For every numeric leaf it checks that the cited support states *that* quantity: quote present in the document (and on the cited page), value and unit in the quote, the words next to the value name the field's role (versioned role lexicon), declared derivations recompute, and no other document contradicts it. `build` refuses `broken`/`contested` leaves unless a signed `evidence_overrides` entry accepts them, and writes `<stem>.evidence.json`. Optional `evidence:` block on any `Assumption` (`fact` / `derived` / `benchmark` / `assumption` / `unverified`). See `docs/evidence.md`.
+
+### Fixed
+
+- **`real_enfinity_solar_pf` filed the €316M financing package as project capex** with `confidence: H, source_id: S-001`. Every existing gate passed it; the evidence gate blocks it. Capex is not disclosed, so A-001 is now an owned assumption (proxy, `confidence: L`), and A-010 revenue is declared as the derivation it is (276 MW × 1,550 kWh/kWp × €75/MWh).
+
 ## [0.12.0] — 2026-06-22 — Re-checkable certificate & determinism gates
 
 ### Added

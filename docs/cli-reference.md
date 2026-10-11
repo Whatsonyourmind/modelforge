@@ -7,10 +7,22 @@ All commands are exposed under `modelforge`. Run `modelforge --help` for the top
 Emit an Excel workbook from a YAML spec.
 
 ```bash
-modelforge build <spec.yaml> [--out <path>]
+modelforge build <spec.yaml> [--out <path>] [--dataroom <dir>] [--evidence-strict]
 ```
 
 Writes `output/<stem>.xlsx` and `output/<stem>.graph.db` by default. Runs sensitivity tornado, Monte Carlo, and reproducibility post-processors automatically.
+
+Runs the evidence-binding gate first and refuses to build if any leaf is `broken` or `contested` (unless a signed `evidence_overrides` entry accepts it). Writes the gate report to `<stem>.evidence.json`.
+
+## `modelforge evidence check`
+
+Check that each number's cited support states *that* quantity. Deterministic, no LLM. See [evidence.md](evidence.md).
+
+```bash
+modelforge evidence check <spec.yaml> [--dataroom <dir>] [--strict] [--all] [--json <path>]
+```
+
+Exits 0 when nothing blocks, 1 otherwise. `--dataroom` locates every quote in its document and cross-checks all other documents. `--strict` also blocks `unverified` leaves.
 
 ## `modelforge list-templates`
 
