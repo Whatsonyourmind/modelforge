@@ -1,15 +1,24 @@
 name: Deploy
 
-# Auto-deploy SaaS shell on push to master.
+# Deploy the SaaS shell only after CI passes on master.
 #
 # Two parallel deploy targets:
 #   1. Render web service (FastAPI app at modelforge.web.app:app)
 #   2. Cloudflare Worker (Yjs realtime collab)
 #
+# GATING: this workflow is triggered by the CI workflow finishing, not by the
+# push itself, and only proceeds when CI concluded `success` for a push to
+# master. It deploys exactly the commit CI tested (workflow_run.head_sha), and
+# skips if master has moved on since (a newer commit has its own CI run and
+# will deploy itself — an older run finishing late must not roll prod back).
+# Render's own git auto-deploy must stay OFF (deploy/render.yaml), otherwise
+# Render ships every push before CI has run and this gate is bypassed.
+#
+# Manual `workflow_dispatch` is the break-glass path: it deploys the selected
+# ref without waiting for CI.
+#
 # Both jobs FAIL-CLOSED when their secrets are missing — they print a
-# friendly skip message and exit 0. This lets the workflow run cleanly
-# pre-launch, and starts deploying automatically the moment the user
-# adds the secrets.
+# friendly skip message and exit 0.
 #
 # Required GitHub secrets (all optional — each unblocks one target):
 #   RENDER_DEPLOY_HOOK_URL      Render: Settings → Deploy Hook → URL
@@ -20,12 +29,14 @@ name: Deploy
 # See DEPLOY_NOW.md for the 30-min user-side playbook.
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [master, main]
   workflow_dispatch:
     inputs:
       target:
-        description: "Which target to deploy"
+        description: "Which target to deploy (break-glass: does NOT wait for CI)"
         required: false
         default: "all"
         type: choice
@@ -35,14 +46,57 @@ permissions:
   contents: read
 
 jobs:
+  gate:
+    name: CI gate
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.decide.outputs.deploy }}
+      sha: ${{ steps.decide.outputs.sha }}
+    steps:
+      - name: Decide whether to deploy
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          CI_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          CI_EVENT: ${{ github.event.workflow_run.event }}
+          CI_SHA: ${{ github.event.workflow_run.head_sha }}
+          CI_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          CI_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "::warning::Manual deploy of ${GITHUB_SHA} — CI gate bypassed."
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$CI_EVENT" != "push" ]; then
+            echo "::notice::CI ran for a ${CI_EVENT} event, not a push — nothing to deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$CI_CONCLUSION" != "success" ]; then
+            echo "::error::CI concluded '${CI_CONCLUSION}' for ${CI_SHA} — deploy BLOCKED. ${CI_URL}"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"; exit 1
+          fi
+          tip=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CI_BRANCH}" --jq .sha)
+          if [ "$tip" != "$CI_SHA" ]; then
+            echo "::notice::${CI_BRANCH} moved to ${tip} since CI tested ${CI_SHA} — the newer commit deploys after its own CI."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "::notice::CI passed for ${CI_SHA} — deploying."
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
+          echo "sha=${CI_SHA}" >> "$GITHUB_OUTPUT"
+
   deploy-render:
     name: Deploy Render web service
-    if: ${{ github.event_name == 'push' || github.event.inputs.target == 'all' || github.event.inputs.target == 'render' }}
+    needs: gate
+    if: ${{ needs.gate.outputs.deploy == 'true' && (github.event_name == 'workflow_run' || github.event.inputs.target == 'all' || github.event.inputs.target == 'render') }}
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Render deploy
         env:
           DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          SHA: ${{ needs.gate.outputs.sha }}
         run: |
           if [ -z "$DEPLOY_HOOK_URL" ]; then
             echo "::notice::RENDER_DEPLOY_HOOK_URL not set — skipping Render deploy."
@@ -50,14 +104,17 @@ jobs:
             echo "then add the deploy-hook URL as a GitHub secret."
             exit 0
           fi
-          echo "Triggering Render deploy hook..."
-          response=$(curl -fsS -X POST "$DEPLOY_HOOK_URL")
+          echo "Triggering Render deploy hook for ${SHA}..."
+          # ref= pins the deploy to the commit CI tested, not whatever is at the tip.
+          case "$DEPLOY_HOOK_URL" in *\?*) sep='&' ;; *) sep='?' ;; esac
+          response=$(curl -fsS -X POST "${DEPLOY_HOOK_URL}${sep}ref=${SHA}")
           echo "Render response: $response"
           echo "::notice::Render deploy triggered. Track at https://dashboard.render.com/"
 
   deploy-cf-worker:
     name: Deploy Cloudflare Worker (Yjs collab)
-    if: ${{ github.event_name == 'push' || github.event.inputs.target == 'all' || github.event.inputs.target == 'cf-worker' }}
+    needs: gate
+    if: ${{ needs.gate.outputs.deploy == 'true' && (github.event_name == 'workflow_run' || github.event.inputs.target == 'all' || github.event.inputs.target == 'cf-worker') }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -65,6 +122,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
 
       - name: Skip when CF secret missing
         if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}

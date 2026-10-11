@@ -22,7 +22,10 @@ services:
     runtime: python
     plan: free
     branch: master
-    autoDeploy: true
+    # OFF on purpose: deploys are gated on CI. .github/workflows/deploy.yml calls
+    # the deploy hook only after the CI workflow passes, pinned to the tested
+    # commit. Render's own git auto-deploy would ship every push before CI runs.
+    autoDeploy: false
     buildCommand: |
       pip install --upgrade pip
       pip install -e ".[web,data,export,mcp]"
