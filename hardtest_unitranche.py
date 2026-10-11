@@ -183,8 +183,8 @@ check("no PIK accrual (closing never exceeds drawn — pure cash-pay)",
 #     entry leverage == drawn / entry EBITDA (FY25)
 entry_lev_truth = DRAWN / ENTRY_EBITDA
 entry_lev_live = closing_x[2026] / ebitda_x[2026] if ebitda_x[2026] else None
-# Engine's "entry" at close (2026) uses 2026 projected EBITDA, not FY25.
-# We reconcile BOTH: drawn/FY25 (textbook) and the engine's at-close figure.
+# Engine's "entry" at close (2026) uses trailing FY25 EBITDA (the textbook
+# definition); the per-period leverage loop below reconciles the live cell to it.
 check("drawn == 38.0 at close (G9)",
       abs(draw_x[2026] - DRAWN) < TOL,
       f"live={draw_x[2026]}")
@@ -263,7 +263,10 @@ lev_live = col_series("Covenants", 8)
 icr_live = col_series("Covenants", 14)
 for i in range(H, N):  # projection years only
     y = YEARS[i]
-    lev_truth = total_debt_x[y] / ebitda_x[y] if ebitda_x[y] else 0.0
+    # Close column (first projection year) = entry leverage on TRAILING (FY25)
+    # EBITDA, i.e. the 2.8148x external anchor above; later years same-period.
+    lev_ebitda = ebitda_x[YEARS[i - 1]] if i == H else ebitda_x[y]
+    lev_truth = total_debt_x[y] / lev_ebitda if lev_ebitda else 0.0
     check(f"leverage {y} == total_debt/EBITDA (clean-room)",
           abs(lev_live[y] - lev_truth) < 1e-6,
           f"live={lev_live[y]:.4f} truth={lev_truth:.4f}")

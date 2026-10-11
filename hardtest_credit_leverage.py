@@ -163,7 +163,14 @@ for i in range(N):
 
 # Gross leverage (what the model actually computes) and TRUE net leverage
 # (gross - cash). The model carries no cash balance, so net == gross here.
-gross_lev = [(closing[i] / ebitda[i]) if ebitda[i] else 0.0 for i in range(N)]
+# Entry leverage at the close column (i == H) is close debt / TRAILING (LTM,
+# last historical) EBITDA — how the facility is sized and tested at close
+# (4.13x here, not 3.81x on forward EBITDA). Later periods use same-period EBITDA.
+def _lev_ebitda(i: int) -> float:
+    return ebitda[i - 1] if (i == H and H > 0) else ebitda[i]
+
+
+gross_lev = [(closing[i] / _lev_ebitda(i)) if _lev_ebitda(i) else 0.0 for i in range(N)]
 # ICR = EBITDA / |interest|  (model definition)
 icr = [(ebitda[i] / abs(interest[i])) if abs(interest[i]) > 0 else 0.0 for i in range(N)]
 # (EBITDA - capex)/Interest  -- coverage variant (capex is negative -> add)

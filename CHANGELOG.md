@@ -13,6 +13,8 @@ Versioning: [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **Five hardtests had failed on every CI run since at least August** (`comps_fairness`, `credit_leverage`, `minibond`, `mna_accretion`, `unitranche`): they grade a workbook in the gitignored `output/` folder that nothing built. Locally they passed by grading June-dated workbooks, which hid that two of them still expected entry leverage on forward EBITDA (3.81x) after `4faf7d4` moved the covenant to trailing EBITDA (4.13x). The harness now rebuilds each workbook fresh from its spec before running, and the two clean-room expectations use the trailing-EBITDA convention.
+
 - **`real_enfinity_solar_pf` filed the €316M financing package as project capex** with `confidence: H, source_id: S-001`. Every existing gate passed it; the evidence gate blocks it. Capex is not disclosed, so A-001 is now an owned assumption (proxy, `confidence: L`), and A-010 revenue is declared as the derivation it is (276 MW × 1,550 kWh/kWp × €75/MWh).
 
 ## [0.12.0] — 2026-06-22 — Re-checkable certificate & determinism gates
