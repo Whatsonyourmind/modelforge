@@ -539,3 +539,31 @@ def run_gate(spec: BaseModel, *, dataroom: Path | None = None,
                  "why_unused": ("no such leaf" if leaf is None else
                                 f"leaf verdict is '{leaf.verdict.value}', not a blocking '{o.verdict}'")})
     return result
+
+
+class EvidenceOverrideError(ValueError):
+    """The spec's `evidence_overrides` contains entries that do not validate."""
+
+    def __init__(self, errors: list[str]):
+        super().__init__("; ".join(errors))
+        self.errors = errors
+
+
+def check_spec(spec: BaseModel, spec_bytes: bytes, *, dataroom: Path | None = None,
+               strict: bool = False) -> GateResult:
+    """Run the gate the way every build path must: overrides come from the spec's
+    own YAML. Raises EvidenceOverrideError on an invalid override, so an override
+    that cannot be validated is never honoured silently."""
+    import yaml
+
+    raw = yaml.safe_load(spec_bytes) or {}
+    overrides, errors = parse_overrides(raw.get("evidence_overrides") if isinstance(raw, dict) else None)
+    if errors:
+        raise EvidenceOverrideError(errors)
+    return run_gate(spec, dataroom=dataroom, overrides=overrides, strict=strict)
+
+
+def blocking_summary(result: GateResult) -> list[dict[str, Any]]:
+    """The blocking leaves in a compact, serialisable form (for MCP / reports)."""
+    return [{"id": lf.id, "name": lf.name, "verdict": lf.verdict.value, "reasons": list(lf.reasons)}
+            for lf in result.blocking]

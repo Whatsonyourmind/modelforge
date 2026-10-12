@@ -14,6 +14,8 @@ Writes `output/<stem>.xlsx` and `output/<stem>.graph.db` by default. Runs sensit
 
 Runs the evidence-binding gate first and refuses to build if any leaf is `broken` or `contested` (unless a signed `evidence_overrides` entry accepts it). Writes the gate report to `<stem>.evidence.json`.
 
+`modelforge certify <spec.yaml>` and `modelforge deck <spec.yaml>` run the same gate before building and accept the same `--dataroom` / `--evidence-strict` options. `modelforge audit-all` gates every spec and reports a refused one instead of building it.
+
 ## `modelforge evidence check`
 
 Check that each number's cited support states *that* quantity. Deterministic, no LLM. See [evidence.md](evidence.md).

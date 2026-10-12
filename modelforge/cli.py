@@ -392,21 +392,42 @@ def _run_evidence_gate(spec, spec_bytes: bytes, spec_name: str, *,
     Invalid `evidence_overrides` entries are a hard error — an override that
     cannot be validated must never be honoured silently.
     """
-    from modelforge.evidence import parse_overrides, run_gate
+    from modelforge.evidence import EvidenceOverrideError, check_spec
     from modelforge.evidence.report import render
 
-    raw = yaml.safe_load(spec_bytes) or {}
-    overrides, errors = parse_overrides(raw.get("evidence_overrides"))
-    if errors:
-        for e in errors:
-            console.print(f"[red]{spec_name}: invalid {e}[/red]")
-        sys.exit(1)
     if dataroom is not None and not dataroom.is_dir():
         console.print(f"[red]--dataroom {dataroom} is not a directory[/red]")
         sys.exit(2)
-    result = run_gate(spec, dataroom=dataroom, overrides=overrides, strict=strict)
+    try:
+        result = check_spec(spec, spec_bytes, dataroom=dataroom, strict=strict)
+    except EvidenceOverrideError as e:
+        for err in e.errors:
+            console.print(f"[red]{spec_name}: invalid {err}[/red]")
+        sys.exit(1)
     render(result, console, show_all=show_all)
     return result
+
+
+def _evidence_gate_or_exit(spec, spec_bytes: bytes, spec_name: str, *,
+                           dataroom: Path | None, strict: bool, action: str = "Build"):
+    """Every command that builds from a spec runs the gate first and refuses on failure."""
+    result = _run_evidence_gate(spec, spec_bytes, spec_name, dataroom=dataroom, strict=strict)
+    if not result.passed:
+        console.print(f"[red]{action} refused by the evidence-binding gate.[/red]")
+        sys.exit(1)
+    return result
+
+
+def _write_evidence_sidecar(xlsx, result) -> Path:
+    """Write the gate report next to the workbook as <stem>.evidence.json."""
+    import json
+    path = Path(xlsx).with_suffix(".evidence.json")
+    path.write_text(json.dumps(result.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+_DATAROOM_HELP = "Source documents for the evidence-binding gate (see `evidence check`)."
+_EVIDENCE_STRICT_HELP = "Refuse to build while any cited figure is UNVERIFIED."
 
 
 @main.group("evidence")
@@ -455,9 +476,9 @@ def evidence_check_cmd(spec_path: Path, dataroom: Path | None, strict: bool,
 @click.option("--trust-strict", is_flag=True, default=False,
               help="Exit non-zero if any FAIL-severity violation is found.")
 @click.option("--dataroom", type=click.Path(path_type=Path), default=None,
-              help="Source documents for the evidence-binding gate (see `evidence check`).")
+              help=_DATAROOM_HELP)
 @click.option("--evidence-strict", is_flag=True, default=False,
-              help="Refuse to build while any cited figure is UNVERIFIED.")
+              help=_EVIDENCE_STRICT_HELP)
 def build_cmd(spec_path: Path, out_path: Path | None,
               no_trust: bool, trust_strict: bool,
               dataroom: Path | None, evidence_strict: bool) -> None:
@@ -471,14 +492,10 @@ def build_cmd(spec_path: Path, out_path: Path | None,
     sheet with any plausibility violations. Use --no-trust to skip it
     or --trust-strict to fail the build on FAIL-severity issues.
     """
-    import json
     spec, model_type, spec_bytes = _load_and_validate_spec(spec_path)
 
-    evidence = _run_evidence_gate(spec, spec_bytes, spec_path.name,
-                                  dataroom=dataroom, strict=evidence_strict)
-    if not evidence.passed:
-        console.print("[red]Build refused by the evidence-binding gate.[/red]")
-        sys.exit(1)
+    evidence = _evidence_gate_or_exit(spec, spec_bytes, spec_path.name,
+                                      dataroom=dataroom, strict=evidence_strict)
 
     if out_path is None:
         out_path = Path("output") / f"{spec_path.stem}.xlsx"
@@ -490,9 +507,7 @@ def build_cmd(spec_path: Path, out_path: Path | None,
     )
     console.print(f"[green]Built:[/green] {xlsx}  [dim]({model_type})[/dim]")
     console.print(f"[green]Graph:[/green] {graph}")
-    evidence_path = Path(xlsx).with_suffix(".evidence.json")
-    evidence_path.write_text(json.dumps(evidence.to_dict(), indent=2, ensure_ascii=False),
-                             encoding="utf-8")
+    evidence_path = _write_evidence_sidecar(xlsx, evidence)
     console.print(f"[green]Evidence:[/green] {evidence_path}")
 
     if no_trust:
@@ -792,15 +807,21 @@ def audit_perturb_cmd(xlsx_path: Path, strict: bool) -> None:
                    "conservation invariants to HOLD (two-sided), catching a "
                    "latent input-dependent defect a baseline check misses; exit "
                    "non-zero on a perturbation FAIL.")
+@click.option("--dataroom", type=click.Path(path_type=Path), default=None,
+              help=_DATAROOM_HELP + " Spec targets only.")
+@click.option("--evidence-strict", is_flag=True, default=False,
+              help=_EVIDENCE_STRICT_HELP + " Spec targets only.")
 def certify_cmd(target: Path, out_path: Path | None, max_gaps: int,
                 no_trust: bool, strict: bool, schedule_check: bool,
-                conservation_check: bool, perturb_check: bool) -> None:
+                conservation_check: bool, perturb_check: bool,
+                dataroom: Path | None, evidence_strict: bool) -> None:
     """Certify a workbook has zero formula errors (the "no #REF!" gate).
 
     TARGET may be a built ``.xlsx`` or a ``.yaml``/``.yml`` spec. When a spec
-    is given it is built exactly as the ``build`` command ships it — including
-    the Trust/Moat sheets — so the badge is earned on the delivered artifact
-    (pass ``--no-trust`` to audit only the core build). The auditor recomputes
+    is given it is built exactly as the ``build`` command ships it — the
+    evidence-binding gate first (a BROKEN/CONTESTED binding refuses the build),
+    then the Trust/Moat sheets — so the badge is earned on the delivered
+    artifact (pass ``--no-trust`` to audit only the core build). The auditor recomputes
     every formula with the third-party ``formulas`` engine and reports any Excel
     error cell (#REF!/#DIV0!/#VALUE!/#NAME?/#NUM!/#N/A) plus numeric cells
     lacking a font colour or number_format.
@@ -816,6 +837,9 @@ def certify_cmd(target: Path, out_path: Path | None, max_gaps: int,
 
     if target.suffix.lower() in (".yaml", ".yml"):
         spec, model_type, spec_bytes = _load_and_validate_spec(target)
+        evidence = _evidence_gate_or_exit(spec, spec_bytes, target.name,
+                                          dataroom=dataroom, strict=evidence_strict,
+                                          action="Certification")
         if out_path is None:
             out_path = Path("output") / f"{target.stem}.xlsx"
         xlsx, _ = build_model(
@@ -823,6 +847,7 @@ def certify_cmd(target: Path, out_path: Path | None, max_gaps: int,
             spec_source_bytes=spec_bytes,
             spec_source_path=target,
         )
+        _write_evidence_sidecar(xlsx, evidence)
         if not no_trust:
             # Build the same artifact `build` delivers, so the badge matches.
             _inject_trust_moat_and_finish(
@@ -2025,12 +2050,15 @@ def moat_cmd(xlsx_path: Path, strict: bool, no_inject: bool) -> None:
               default=Path("AUDIT_REPORT.md"),
               help="Markdown report path (default: AUDIT_REPORT.md).")
 def audit_all_cmd(examples_dir: Path, out_dir: Path, report_path: Path) -> None:
-    """Build every example, run Trust + Moat gates, write a markdown report.
+    """Build every example, run Evidence + Trust + Moat gates, write a markdown report.
+
+    A spec the evidence-binding gate refuses is reported and not built.
 
     The audit report is the evidence pack for design partners — proves
     that every demo template builds, recalculates, and meets the moat
     + plausibility gates.
     """
+    from modelforge.evidence import check_spec
     from modelforge.moat import MoatGate
     from modelforge.trust import DEFAULT_RULES, TrustEngine
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -2052,10 +2080,24 @@ def audit_all_cmd(examples_dir: Path, out_dir: Path, report_path: Path) -> None:
             mt = raw.get("model_type", "unitranche")
             SpecClass = _load_spec_class(mt)
             spec = SpecClass.model_validate(raw)
+            evidence = check_spec(spec, spec_bytes)
+            if not evidence.passed:
+                ids = ", ".join(lf.id for lf in evidence.blocking)
+                rows.append({
+                    "spec": spec_path.name, "template": mt,
+                    "trust_fail": 0, "trust_warn": 0,
+                    "moat_passes": False,
+                    "core_output_density": 0.0,
+                    "moat_failed_gates": ["evidence_gate"],
+                    "evidence": "✗",
+                    "error": f"refused by evidence gate: {ids}"[:120],
+                })
+                continue
             xlsx_out = out_dir / f"{spec_path.stem}.xlsx"
             xlsx, _ = build_model(spec, xlsx_out,
                                   spec_source_bytes=spec_bytes,
                                   spec_source_path=spec_path)
+            _write_evidence_sidecar(xlsx, evidence)
             tr = trust_engine.evaluate(xlsx, spec)
             mr = moat_engine.evaluate(xlsx)
             rows.append({
@@ -2066,6 +2108,7 @@ def audit_all_cmd(examples_dir: Path, out_dir: Path, report_path: Path) -> None:
                 "moat_passes": mr.passes(),
                 "core_output_density": mr.core_output_density(),
                 "moat_failed_gates": [g.name for g in mr.gate_results if not g.passed],
+                "evidence": "✓",
                 "error": None,
             })
         except Exception as e:
@@ -2075,6 +2118,7 @@ def audit_all_cmd(examples_dir: Path, out_dir: Path, report_path: Path) -> None:
                 "moat_passes": False,
                 "core_output_density": 0.0,
                 "moat_failed_gates": ["build_failed"],
+                "evidence": "—",
                 "error": str(e)[:120],
             })
 
@@ -2086,7 +2130,9 @@ def audit_all_cmd(examples_dir: Path, out_dir: Path, report_path: Path) -> None:
     n_pass_trust = sum(1 for r in rows if r["trust_fail"] == 0 and r["error"] is None)
     n_pass_moat = sum(1 for r in rows if r["moat_passes"] and r["error"] is None)
     n_built = sum(1 for r in rows if r["error"] is None)
+    n_pass_evidence = sum(1 for r in rows if r["evidence"] == "✓")
     lines.append(
+        f"- Evidence-binding gate PASS: **{n_pass_evidence}/{len(rows)}**\n"
         f"- Built: **{n_built}/{len(rows)}** templates compile end-to-end\n"
         f"- Trust Layer FAIL-clean: **{n_pass_trust}/{len(rows)}**\n"
         f"- Moat gates PASS: **{n_pass_moat}/{len(rows)}**\n"
@@ -2094,9 +2140,9 @@ def audit_all_cmd(examples_dir: Path, out_dir: Path, report_path: Path) -> None:
         f"**{(sum(r['core_output_density'] for r in rows)/len(rows))*100:.1f}%**\n"
     )
     lines.append("\n## Per-spec\n")
-    lines.append("| Spec | Template | Built | Trust FAIL | Trust WARN | "
+    lines.append("| Spec | Template | Evidence | Built | Trust FAIL | Trust WARN | "
                  "Moat | Core density | Failed gates / error |")
-    lines.append("|---|---|:-:|:-:|:-:|:-:|:-:|---|")
+    lines.append("|---|---|:-:|:-:|:-:|:-:|:-:|:-:|---|")
     for r in rows:
         built = "✓" if r["error"] is None else "✗"
         moat = "✓" if r["moat_passes"] else "✗"
@@ -2105,13 +2151,14 @@ def audit_all_cmd(examples_dir: Path, out_dir: Path, report_path: Path) -> None:
         gates = (r["error"] if r["error"]
                  else (", ".join(r["moat_failed_gates"]) or "—"))
         lines.append(
-            f"| {r['spec']} | {r['template']} | {built} | "
+            f"| {r['spec']} | {r['template']} | {r['evidence']} | {built} | "
             f"{r['trust_fail']} | {r['trust_warn']} | {moat} | "
             f"{density} | {gates} |"
         )
     report_path.write_text("\n".join(lines), encoding="utf-8")
     console.print(f"[green]Wrote[/green] {report_path}")
-    console.print(f"  Built: {n_built}/{len(rows)}  Trust-clean: {n_pass_trust}  "
+    console.print(f"  Evidence-PASS: {n_pass_evidence}/{len(rows)}  "
+                  f"Built: {n_built}/{len(rows)}  Trust-clean: {n_pass_trust}  "
                   f"Moat-PASS: {n_pass_moat}")
 
 
@@ -2131,12 +2178,18 @@ def audit_all_cmd(examples_dir: Path, out_dir: Path, report_path: Path) -> None:
                    "token must reconcile to a recomputed certified-workbook "
                    "fact or a whitelisted derivation (catches scale/format "
                    "errors). Off by default.")
+@click.option("--dataroom", type=click.Path(path_type=Path), default=None,
+              help=_DATAROOM_HELP + " Spec targets only.")
+@click.option("--evidence-strict", is_flag=True, default=False,
+              help=_EVIDENCE_STRICT_HELP + " Spec targets only.")
 def deck_cmd(target: Path, deck_type: str, theme: str | None,
-             out_path: Path | None, ground_numbers: bool) -> None:
+             out_path: Path | None, ground_numbers: bool,
+             dataroom: Path | None, evidence_strict: bool) -> None:
     """Render a certified board deck (.pptx) from a spec or built workbook.
 
     TARGET may be a ``.yaml``/``.yml`` spec or a built ``.xlsx``. A spec is
-    built exactly as the ``build`` command ships it (Trust/Moat sheets +
+    built exactly as the ``build`` command ships it (evidence gate first,
+    Trust/Moat sheets +
     deterministic finishing + manifest) before the deck chain runs. A
     workbook requires its ``<stem>.manifest.json`` sidecar next to it.
 
@@ -2160,12 +2213,16 @@ def deck_cmd(target: Path, deck_type: str, theme: str | None,
     suffix = target.suffix.lower()
     if suffix in (".yaml", ".yml"):
         spec, model_type, spec_bytes = _load_and_validate_spec(target)
+        evidence = _evidence_gate_or_exit(spec, spec_bytes, target.name,
+                                          dataroom=dataroom, strict=evidence_strict,
+                                          action="Deck")
         xlsx_out = Path("output") / f"{target.stem}.xlsx"
         xlsx, _ = build_model(
             spec, xlsx_out,
             spec_source_bytes=spec_bytes,
             spec_source_path=target,
         )
+        _write_evidence_sidecar(xlsx, evidence)
         # Ship the same artifact `build` delivers (RedFlags + MOAT +
         # styler/determinism/manifest) so the deck certifies the real file.
         _inject_trust_moat_and_finish(xlsx, spec, spec_bytes, target, quiet=True)

@@ -9,7 +9,7 @@ Versioning: [SemVer](https://semver.org/).
 
 ### Added
 
-- **Evidence-binding gate** (`modelforge evidence check`, and `build` runs it first). Deterministic, no LLM. For every numeric leaf it checks that the cited support states *that* quantity: quote present in the document (and on the cited page), value and unit in the quote, the words next to the value name the field's role (versioned role lexicon), declared derivations recompute, and no other document contradicts it. `build` refuses `broken`/`contested` leaves unless a signed `evidence_overrides` entry accepts them, and writes `<stem>.evidence.json`. Optional `evidence:` block on any `Assumption` (`fact` / `derived` / `benchmark` / `assumption` / `unverified`). See `docs/evidence.md`.
+- **Evidence-binding gate** (`modelforge evidence check`, and `build` runs it first). Deterministic, no LLM. For every numeric leaf it checks that the cited support states *that* quantity: quote present in the document (and on the cited page), value and unit in the quote, the words next to the value name the field's role (versioned role lexicon), declared derivations recompute, and no other document contradicts it. `build`, `certify <spec>`, `deck <spec>`, `audit-all` and the MCP `build_model` / `certify` tools all refuse `broken`/`contested` leaves unless a signed `evidence_overrides` entry accepts them (MCP returns `verdict: EVIDENCE_BLOCKED` with the blocking leaves), and write `<stem>.evidence.json`. Optional `evidence:` block on any `Assumption` (`fact` / `derived` / `benchmark` / `assumption` / `unverified`). See `docs/evidence.md`.
 
 ### Fixed
 

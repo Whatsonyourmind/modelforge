@@ -6,11 +6,24 @@ Tier 1 is deterministic and fail-closed (no LLM). See `gate.py` for verdicts,
 
 from modelforge.evidence.gate import (
     GATE_VERSION,
+    EvidenceOverrideError,
     GateResult,
     LeafResult,
     Verdict,
+    blocking_summary,
+    check_spec,
     parse_overrides,
     run_gate,
 )
 
-__all__ = ["GATE_VERSION", "GateResult", "LeafResult", "Verdict", "parse_overrides", "run_gate"]
+__all__ = [
+    "GATE_VERSION",
+    "EvidenceOverrideError",
+    "GateResult",
+    "LeafResult",
+    "Verdict",
+    "blocking_summary",
+    "check_spec",
+    "parse_overrides",
+    "run_gate",
+]

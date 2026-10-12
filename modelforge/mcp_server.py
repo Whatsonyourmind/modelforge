@@ -100,6 +100,40 @@ def _resolve_path(p: str | Path) -> Path:
     return Path(os.path.expanduser(str(p))).resolve()
 
 
+def _evidence_gate(spec, spec_bytes: bytes, dataroom: str | None, strict: bool):
+    """Run the evidence-binding gate before a build, as the CLI `build` does.
+
+    Returns (result, refusal). ``refusal`` is the response to return INSTEAD of
+    building — an invalid override, a missing dataroom, or a BROKEN/CONTESTED
+    binding (UNVERIFIED too when ``strict``). ``None`` means the build may proceed.
+    """
+    from modelforge.evidence import EvidenceOverrideError, blocking_summary, check_spec
+    from modelforge.evidence.report import summary_line
+
+    room: Path | None = None
+    if dataroom:
+        room = _resolve_path(dataroom)
+        if not room.is_dir():
+            return None, {"error": f"dataroom not found: {room}"}
+    try:
+        result = check_spec(spec, spec_bytes, dataroom=room, strict=strict)
+    except EvidenceOverrideError as e:
+        return None, {"verdict": "EVIDENCE_BLOCKED",
+                      "error": "invalid evidence_overrides", "errors": e.errors}
+    if not result.passed:
+        return result, {"verdict": "EVIDENCE_BLOCKED",
+                        "error": "build refused by the evidence-binding gate",
+                        "evidence_summary": summary_line(result),
+                        "blocking": blocking_summary(result)}
+    return result, None
+
+
+def _write_evidence_sidecar(xlsx: Path, result) -> str:
+    path = Path(xlsx).with_suffix(".evidence.json")
+    path.write_text(json.dumps(result.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+    return str(path)
+
+
 # ---- Conversational-authoring helpers ---------------------------------------
 #
 # These mirror the CLI's friendly validation chain (cli._load_and_validate_spec
@@ -438,6 +472,8 @@ def certify(
     workbook_path: str | None = None,
     output_dir: str | None = None,
     max_findings: int = 20,
+    dataroom: str | None = None,
+    evidence_strict: bool = False,
 ) -> dict[str, Any]:
     """Build from a YAML spec (or take an existing workbook) and run the zero-formula-error certification audit.
 
@@ -455,6 +491,11 @@ def certify(
     FAIL = at least one formula error. An invalid spec returns
     {verdict: INVALID_SPEC, errors, warnings} without building.
 
+    A spec is first run through the evidence-binding gate (optionally against
+    the source documents in ``dataroom``); a BROKEN or CONTESTED binding — or,
+    with ``evidence_strict``, an UNVERIFIED one — returns
+    {verdict: EVIDENCE_BLOCKED, blocking[], evidence_summary} without building.
+
     Conversational loop: STEP 5+6 in one call (build + audit) after
     validate_spec passes — or STEP 6 alone on a workbook built earlier. Walk
     provenance next via list_sources / lineage_walk on the returned graph_db.
@@ -463,6 +504,7 @@ def certify(
         return {"error": "pass exactly one of spec_yaml or workbook_path"}
 
     graph_db: str | None = None
+    evidence_json: str | None = None
 
     if spec_yaml is not None:
         chain = _validate_spec_chain(spec_yaml)
@@ -475,6 +517,10 @@ def certify(
             }
         spec = chain["_spec"]
         spec_bytes = chain["_spec_bytes"]
+
+        evidence, refusal = _evidence_gate(spec, spec_bytes, dataroom, evidence_strict)
+        if refusal is not None:
+            return refusal
 
         out_dir = _resolve_path(output_dir) if output_dir else Path("output").resolve()
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -497,6 +543,7 @@ def certify(
             log.exception("certify build failed")
             return {"error": f"build failed: {e!r}"}
         graph_db = str(graph)
+        evidence_json = _write_evidence_sidecar(xlsx, evidence)
 
         # Ship the same artifact the CLI `build` delivers (RedFlags + MOAT
         # sheets, re-styled, timestamp-pinned, manifest re-hashed) so the
@@ -538,17 +585,25 @@ def certify(
     }
     if graph_db is not None:
         result["graph_db"] = graph_db
+    if evidence_json is not None:
+        result["evidence"] = evidence_json
     return result
 
 
 @server.tool()
-def build_model(spec_path: str, output_dir: str | None = None) -> dict[str, Any]:
+def build_model(spec_path: str, output_dir: str | None = None,
+                dataroom: str | None = None, evidence_strict: bool = False) -> dict[str, Any]:
     """Generate a live-formula Excel workbook (.xlsx) plus its SQLite linkage graph (.graph.db) from a typed YAML spec.
 
     Use when the user has (or has just produced) a ModelForge YAML spec and wants
     the actual workbook — formulas in every cell, scenario toggles, and
     source-tagged inputs. Takes spec_path and optional output_dir; returns
-    {xlsx, graph_db, spec, ok} or {error}.
+    {xlsx, graph_db, evidence, spec, ok} or {error}.
+
+    The evidence-binding gate runs first (optionally against the source
+    documents in ``dataroom``). A BROKEN or CONTESTED binding — or, with
+    ``evidence_strict``, an UNVERIFIED one — returns
+    {verdict: EVIDENCE_BLOCKED, blocking[], evidence_summary} and builds nothing.
 
     Conversational loop: STEP 5 — only after validate_spec returns valid:true.
     Prefer certify(spec_yaml=...) when you also want the audit verdict in the
@@ -582,6 +637,10 @@ def build_model(spec_path: str, output_dir: str | None = None) -> dict[str, Any]
         log.exception("spec parse failed")
         return {"error": f"spec parse failed: {e!r}"}
 
+    evidence, refusal = _evidence_gate(spec, spec_bytes, dataroom, evidence_strict)
+    if refusal is not None:
+        return refusal
+
     out_xlsx = out_dir / f"{spec_file.stem}.xlsx"
     try:
         xlsx, graph = _build_model(
@@ -596,6 +655,7 @@ def build_model(spec_path: str, output_dir: str | None = None) -> dict[str, Any]
     return {
         "xlsx": str(xlsx),
         "graph_db": str(graph),
+        "evidence": _write_evidence_sidecar(xlsx, evidence),
         "spec": str(spec_file),
         "ok": True,
     }

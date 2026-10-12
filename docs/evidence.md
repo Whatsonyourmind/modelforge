@@ -29,10 +29,22 @@ modelforge evidence check spec.yaml --dataroom ./dataroom # + locate quotes, cro
 modelforge evidence check spec.yaml --strict --all --json evidence.json
 ```
 
-`modelforge build` runs the gate first and **refuses to build** while any leaf
-is `broken` or `contested`. It writes the full report next to the workbook as
-`<stem>.evidence.json`. `build --dataroom DIR` and `build --evidence-strict`
-pass straight through to the gate.
+Every path that builds a workbook from a spec runs the gate first and
+**refuses to build** while any leaf is `broken` or `contested`:
+
+| Entry point | On refusal |
+|---|---|
+| `modelforge build <spec>` | exit 1, "Build refused" |
+| `modelforge certify <spec>` | exit 1, "Certification refused" |
+| `modelforge deck <spec>` | exit 1, "Deck refused" |
+| `modelforge audit-all` | the spec is reported (`Evidence ✗`, blocking ids) and not built |
+| MCP `build_model` / `certify(spec_yaml=…)` | `{verdict: "EVIDENCE_BLOCKED", blocking: [{id, name, verdict, reasons}], evidence_summary}` |
+
+Each writes the full report next to the workbook as `<stem>.evidence.json`.
+`--dataroom DIR` and `--evidence-strict` (MCP: `dataroom`, `evidence_strict`)
+pass straight through to the gate. `audit-all` runs the default mode without
+a dataroom. Commands that take an already-built `.xlsx` do not re-run the
+gate; its verdict travels in the sidecar.
 
 ## Verdicts
 

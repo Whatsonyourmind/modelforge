@@ -355,3 +355,88 @@ def test_evidence_check_cli_json(tmp_path):
     assert d["passed"] and d["counts"]["broken"] == 0 and d["lexicon_version"]
     res = CliRunner().invoke(main, ["evidence", "check", str(ENFINITY), "--strict"])
     assert res.exit_code == 1
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Every path that builds from a spec runs the gate — no side door
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _write_defective(tmp_path) -> Path:
+    raw = _raw()
+    raw["construction"]["total_capex_eur_m"] = copy.deepcopy(DEFECTIVE_CAPEX)
+    spec_path = tmp_path / "enfinity_defect.yaml"
+    spec_path.write_text(yaml.safe_dump(raw, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    return spec_path
+
+
+def test_certify_refuses_a_broken_binding(tmp_path):
+    spec_path = _write_defective(tmp_path)
+    out = tmp_path / "out.xlsx"
+    res = CliRunner().invoke(main, ["certify", str(spec_path), "--out", str(out)])
+    assert res.exit_code == 1, res.output
+    assert "Certification refused" in res.output and not out.exists()
+
+
+def test_deck_refuses_a_broken_binding(tmp_path):
+    pytest.importorskip("modelforge.deck.pipeline")
+    spec_path = _write_defective(tmp_path)
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path) as cwd:
+        res = runner.invoke(main, ["deck", str(spec_path)])
+        assert res.exit_code == 1, res.output
+        assert "Deck refused" in res.output
+        assert not (Path(cwd) / "output" / "enfinity_defect.xlsx").exists()
+
+
+def test_audit_all_reports_and_skips_a_refused_spec(tmp_path):
+    specs = tmp_path / "specs"
+    specs.mkdir()
+    _write_defective(specs)
+    (specs / "real_enfinity_solar_pf.yaml").write_bytes(ENFINITY.read_bytes())
+    out_dir, report = tmp_path / "built", tmp_path / "AUDIT.md"
+    res = CliRunner().invoke(main, ["audit-all", "--examples-dir", str(specs),
+                                    "--out-dir", str(out_dir), "--report", str(report)])
+    assert res.exit_code == 0, res.output
+    text = report.read_text(encoding="utf-8")
+    assert "Evidence-binding gate PASS: **1/2**" in text
+    assert "refused by evidence gate: A-001" in text
+    assert not (out_dir / "enfinity_defect.xlsx").exists()
+    assert (out_dir / "real_enfinity_solar_pf.xlsx").exists()
+    assert (out_dir / "real_enfinity_solar_pf.evidence.json").exists()
+
+
+def test_mcp_tools_refuse_a_broken_binding(tmp_path):
+    pytest.importorskip("mcp.server.fastmcp", reason="requires the [mcp] extra")
+    from modelforge.mcp_server import build_model, certify
+
+    spec_path = _write_defective(tmp_path)
+    out_dir = tmp_path / "mcp_out"
+    for res in (build_model(str(spec_path), output_dir=str(out_dir)),
+                certify(spec_yaml=str(spec_path), output_dir=str(out_dir))):
+        assert res["verdict"] == "EVIDENCE_BLOCKED", res
+        assert [b["id"] for b in res["blocking"]] == ["A-001"]
+        assert res["blocking"][0]["reasons"]
+    assert not list(out_dir.glob("*.xlsx")) if out_dir.exists() else True
+
+    ok = build_model(str(ENFINITY), output_dir=str(out_dir))
+    assert ok["ok"], ok
+    assert json.loads(Path(ok["evidence"]).read_text(encoding="utf-8"))["passed"]
+
+
+def test_mcp_strict_and_invalid_override(tmp_path):
+    pytest.importorskip("mcp.server.fastmcp", reason="requires the [mcp] extra")
+    from modelforge.mcp_server import build_model
+
+    out_dir = tmp_path / "mcp_out"
+    strict = build_model(str(ENFINITY), output_dir=str(out_dir), evidence_strict=True)
+    assert strict["verdict"] == "EVIDENCE_BLOCKED"
+    assert all(b["verdict"] == "unverified" for b in strict["blocking"])
+
+    raw = _raw()
+    raw["evidence_overrides"] = [{"id": "A-001", "verdict": "broken", "reason": "",
+                                  "signed_by": "", "date": "2026-10-12"}]
+    bad = tmp_path / "bad_override.yaml"
+    bad.write_text(yaml.safe_dump(raw, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    res = build_model(str(bad), output_dir=str(out_dir))
+    assert res["verdict"] == "EVIDENCE_BLOCKED" and res["errors"], res
+    assert not list(out_dir.glob("*.xlsx"))
